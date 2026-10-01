@@ -5,8 +5,8 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  quota_cpu_to_vcpu_set
-    confirm=yes           # to suppress interactive confirmation"
+  quota_cpu_to_vcpu_set  # set CPU to VCPU for each VM where CPU != VCPU
+    confirm=yes          #   to suppress interactive confirmation"
 )
 function quota_cpu_to_vcpu_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -57,9 +57,9 @@ function quota_cpu_to_vcpu_set() {
 
 
 claugine_cli_commands+=( "\
-  quota_ds_set
-    tenants=LIST  # tenants ids or names
-    confirm=yes   # to suppress interactive confirmation"
+  quota_ds_set    # set quotas for IMAGES, FILES and BACKUPS datastores
+    tenants=LIST  #   tenants ids or names
+    confirm=yes   #   to suppress interactive confirmation"
 )
 function quota_ds_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -252,7 +252,7 @@ function quota_ds_set() {
 
 
 claugine_cli_commands+=( "\
-  quota_tenant_get
+  quota_tenant_get  # show quota and usage for tenant
     tenant=STRING"
 )
 function quota_tenant_get() {
@@ -481,7 +481,7 @@ function quota_tenant_get() {
 
 
 claugine_cli_commands+=( "\
-  quota_vcpu_conf_show"
+  quota_vcpu_conf_show  # show VCPU configuration in oned.conf"
 )
 function quota_vcpu_conf_show() {
   local arg; for arg in "$@"; do local "${arg}"; done

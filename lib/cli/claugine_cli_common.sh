@@ -4,6 +4,9 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
+claugine_cli_commands+=( "\
+  claugine_cli_help  # show help information"
+)
 function claugine_cli_help() {
   local cmd
 
@@ -18,6 +21,10 @@ function claugine_cli_help() {
 
 
 
+# ask to confirm critical operation
+# return 
+#   1(false) if operation confirmed
+#   0(true) if operation declined - default answer after waiting 1 minute
 function stop_without_confirmation() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local confirm="${confirm:-no}"
