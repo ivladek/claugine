@@ -1,5 +1,6 @@
 #!/bin/bash
 set -u
+echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 export DC1_PROD="10.71.101.30"
 export DC2_PROD="10.72.101.30"

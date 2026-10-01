@@ -1,5 +1,6 @@
 #!/bin/bash
 set -u
+echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 #
 # ZONE_DATA: {

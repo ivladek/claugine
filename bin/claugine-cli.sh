@@ -29,7 +29,7 @@ export    zone_data=claugine_zone   # pointer to current zone data used by each 
 #   data=PATH
 #   ssh_user=NAME (${USER})
 #   ssh_port=N    (22)
-#   ssh_keyf=FILE (${HOME}/.ssh/${USER}.key) or password
+#   ssh_keyf=FILE (${HOME}/.ssh/${USER}.key)
 function script_INIT {
   local arg; for arg in "$@"; do local "${arg}"; done
   local module
@@ -57,11 +57,7 @@ function script_INIT {
   SSH_USER="${ssh_user:-${USER}}"
   SSH_PORT="${ssh_port:-22}"
   SSH_KEYF="${ssh_keyf:-${HOME}/.ssh/${USER}.key}"
-  ssh="ssh -l ${SSH_USER} -p ${SSH_PORT}"
-  if [[ "${SSH_KEYF}" != "password" ]]
-  then
-    ssh+=" -i ${SSH_KEYF}"
-  fi
+  ssh="ssh -p ${SSH_PORT} -l ${SSH_USER} -i ${SSH_KEYF}"
 
   echo "data: load from ${DIR_INTERNAL}"
   for module in "${DIR_INTERNAL}"/claugine_cli_*.sh
