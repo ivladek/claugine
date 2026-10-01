@@ -5,7 +5,7 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  host_maintenance_off
+  host_maintenance_off  # enable hosts
     zone_id=ID
     hosts=LIST
     confirm=yes         # to suppress interactive confirmation"
@@ -90,12 +90,12 @@ function host_maintenance_off() {
 
 
 claugine_cli_commands+=( "\
-  host_maintenance_on
+  host_maintenance_on  # disable hosts than evacuate vms
     zone_id=ID
     hosts=LIST
     interval=N(30)
     limit=N(${HOST_FLUSH_TIMEOUT})
-    confirm=yes        # to suppress interactive confirmation"
+    confirm=yes        #   to suppress interactive confirmation"
 )
 function host_maintenance_on() {
   local arg; for arg in "$@"; do local "${arg}"; done

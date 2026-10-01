@@ -5,8 +5,8 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  acl_role_rights_set
-    confirm=yes        # to suppress interactive confirmation"
+  acl_role_rights_set  # set rights set in oned.conf for each VM right - USE MANAGE ADMIN
+    confirm=yes        #   to suppress interactive confirmation"
 )
 function acl_role_rights_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -45,6 +45,7 @@ function acl_role_rights_set() {
 
 
 claugine_cli_commands+=( "\
+  acl_role_rights_get  # show rights set in oned.conf for each VM right - USE MANAGE ADMIN
   acl_role_rights_get"
 )
 function acl_role_rights_get() {
@@ -82,6 +83,7 @@ function acl_role_rights_get() {
 
 
 claugine_cli_commands+=( "\
+  acl_tenant_get    # show ACL for tenant group and group admin
   acl_tenant_get
     tenant=STRING"
 )

@@ -4,14 +4,12 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_cli_commands+=( "\
-  os_service_wait
-    ip=IP
-    service=NAME
-    progress=YES|no
-    interval=N(10)
-    limit=N(${DATA_REFRESH_LIMIT})"
-)
+# waiting for for service rediness
+#    ip=IP
+#    service=NAME
+#    progress=YES|no
+#    interval=N(10)
+#    limit=N(${DATA_REFRESH_LIMIT})
 function os_service_wait() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local service="${service:-ssh}"

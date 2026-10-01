@@ -4,7 +4,7 @@ set -u
 export SCRIPT_NAME="CLoud AUtomation enGINE CLI"
 export SCRIPT_AUTHOR="Vladislav Kirilin, [@]ivladek@me.com"
 export SCRIPT_VER="01.10.00"
-export SCRIPT_DATE="2026-10-01"
+export SCRIPT_DATE="2026-10-05"
 #
 
 
@@ -88,18 +88,17 @@ function script_INIT {
 # MAIN
 function script_MAIN {
   if [[ "${BASH_SOURCE[0]}" == "$0" ]]
-  then
+  then # script executed directly
     echo "!!! ERROR !!! don't run the script directly - load by source"
-    return 1
+    exit 1
   fi
 
+  # script loaded by source command
   if script_INIT "$@"
   then
     claugine_cli_help
     return 0
   fi
-
-  return 1
 }
 
 
@@ -110,5 +109,3 @@ echo "author: ${SCRIPT_AUTHOR}"
 echo "version: ${SCRIPT_VER} #${SCRIPT_DATE}"
 
 script_MAIN "$@"
-
-return $?

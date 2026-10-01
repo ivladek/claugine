@@ -5,8 +5,8 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_nic_get
-    zones=ID LIST    # ALL for all nodes in each zone"
+  evpn_vtep_nic_get  # show vtep type (dev or local_ip) for each VM nic
+    zones=ID LIST    #   ALL for all nodes in each zone"
 )
 function evpn_vtep_nic_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -72,8 +72,8 @@ function evpn_vtep_nic_get() {
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_vnet_get
-    zones=ID LIST     # ALL for all nodes in each zone"
+  evpn_vtep_vnet_get  # show vtep type (dev or local_ip) for each VNet and VNTemplate
+    zones=ID LIST     #   ALL for all nodes in each zone"
 )
 function evpn_vtep_vnet_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -134,9 +134,9 @@ function evpn_vtep_vnet_get() {
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_vnet_set
-    zones=ID LIST     # ALL for all nodes in each zone
-    confirm=yes       # to suppress interactive confirmation"
+  evpn_vtep_vnet_set  # set vtep to local_ip for each VNet and VNTemplate
+    zones=ID LIST     #   ALL for all nodes in each zone
+    confirm=yes       #   to suppress interactive confirmation"
 )
 function evpn_vtep_vnet_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -197,9 +197,13 @@ function evpn_vtep_vnet_set() {
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_vnm_patch
-    zones=ID LIST      # ALL for all nodes in each zone
-    confirm=yes        # to suppress interactive confirmation"
+  evpn_vtep_vnm_patch  # patch /var/lib/one/remotes/vnm/vxlan/vxlan.rb
+                       # to change vtep assignment logic
+                       # each bridge created on KVM host during VM start
+                       # will have vtep=local_ip inspite of VM NIC vtep settings
+                       # inspite of VM NIC vtep settings
+    zones=ID LIST      #   ALL for all nodes in each zone
+    confirm=yes        #   to suppress interactive confirmation"
 )
 function evpn_vtep_vnm_patch() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -273,9 +277,13 @@ function evpn_vtep_vnm_patch() {
 
 
 claugine_cli_commands+=( "\
+  evpn_vtep_vnm_unpatch  # recover original /var/lib/one/remotes/vnm/vxlan/vxlan.rb
+                         # to return default vtep assignment logic
+                         # each bridge created on KVM host during VM start
+                         # will have vtep type (local_ip or dev) based of VM NIC settings
   evpn_vtep_vnm_unpatch
-    zones=LIST           # zones ids
-    confirm=yes          # to suppress interactive confirmation"
+    zones=LIST           #   zones ids
+    confirm=yes          #   to suppress interactive confirmation"
 )
 function evpn_vtep_vnm_unpatch() {
   local arg; for arg in "$@"; do local "${arg}"; done

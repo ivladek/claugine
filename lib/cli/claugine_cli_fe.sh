@@ -5,9 +5,9 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  fe_backup
-    zones=LIST  # zones ids
-    full=yes|NO # include configs or db only"
+  fe_backup     # backup all data required toi restore FE from scratch
+    zones=LIST  #   zones ids
+    full=yes|NO #   include configs or db only"
 )
 function fe_backup() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -93,8 +93,8 @@ function fe_backup() {
 
 
 claugine_cli_commands+=( "\
-  fe_configs_backups_cleanup
-    confirm=yes               # to suppress interactive confirmation"
+  fe_configs_backups_cleanup  # cleanup all configs backups created during upgrade
+    confirm=yes               #   to suppress interactive confirmation"
 )
 function fe_configs_backups_cleanup() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -194,7 +194,7 @@ function fe_configs_backups_cleanup() {
 
 
 claugine_cli_commands+=( "\
-  fe_configs_backups_list"
+  fe_configs_backups_list # show directories with configs backups created during upgrade"
 )
 function fe_configs_backups_list() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -232,8 +232,8 @@ function fe_configs_backups_list() {
 
 
 claugine_cli_commands+=( "\
-  fe_cfg_ver_get
-    zones=LIST    # zones ids"
+  fe_cfg_ver_get  # show current and required version for configuration and db
+    zones=LIST    #   zones ids"
 )
 function fe_cfg_ver_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -278,9 +278,9 @@ function fe_cfg_ver_get() {
 
 
 claugine_cli_commands+=( "\
-  fe_data_refresh
-    data=VAR_NAME  # ZONE_DATA assotiative array variable name
-    fe=IP          # rebuild all data if defined"
+  fe_data_refresh  # read or refresh state for all FE zones
+    data=VAR_NAME  #   ZONE_DATA assotiative array variable name
+    fe=IP          #   rebuild all data if defined"
 )
 function fe_data_refresh {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -427,9 +427,9 @@ function fe_data_refresh {
 
 
 claugine_cli_commands+=( "\
-  fe_disk_cleanup
-    zones=LIST     # zones ids
-    confirm=yes    # to suppress interactive confirmation"
+  fe_disk_cleanup  # clean data from /var/tmp after unsuccessful image loading
+    zones=LIST     #   zones ids
+    confirm=yes    #   to suppress interactive confirmation"
 )
 function fe_disk_cleanup() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -473,9 +473,9 @@ function fe_disk_cleanup() {
 
 
 claugine_cli_commands+=( "\
-  fe_fireedge_restart
-    zones=LIST         # zones ids
-    confirm=yes        # to suppress interactive confirmation"
+  fe_fireedge_restart  # restart fireedge service on FE
+    zones=LIST         #   zones ids
+    confirm=yes        #   to suppress interactive confirmation"
 )
 function fe_fireedge_restart() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -517,9 +517,9 @@ function fe_fireedge_restart() {
 
 
 claugine_cli_commands+=( "\
-  fe_fireedge_views_update
-    src=PATH                # directory with custom views
-    confirm=yes             # to suppress interactive confirmation"
+  fe_fireedge_views_update  # distribute updated Fireedge views to FE
+    src=PATH                #   directory with custom views
+    confirm=yes             #   to suppress interactive confirmation"
 )
 function fe_fireedge_views_update() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -560,9 +560,10 @@ function fe_fireedge_views_update() {
 
 
 claugine_cli_commands+=( "\
-  fe_os_update
-    zones=LIST   # zones ids
-    confirm=yes  # to suppress interactive confirmation"
+  fe_os_update   # install OS updates
+                 # detect combined KVM/FE nodes and put them in maintenance mode before
+    zones=LIST   #   zones ids
+    confirm=yes  #   to suppress interactive confirmation"
 )
 function fe_os_update {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -641,9 +642,9 @@ function fe_os_update {
 
 
 claugine_cli_commands+=( "\
-  fe_services_restart
-    zones=LIST         # zones ids
-    confirm=yes        # to suppress interactive confirmation"
+  fe_services_restart  # restart OpenNebula services on FE in right order
+    zones=LIST         #   zones ids
+    confirm=yes        #   to suppress interactive confirmation"
 )
 function fe_services_restart() {
   local arg; for arg in "$@"; do local "${arg}"; done
