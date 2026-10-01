@@ -1,0 +1,85 @@
+---
+# Custom View - user
+
+resource_name: "SERVICE"
+
+
+actions:
+  instantiate_dialog: true # reference to deploy_dialog in service-template-tab.yaml
+  create_dialog: false
+  recover: true
+  recover_delete: true
+  delete: true
+  chown: false
+  chgrp: false
+  share: false
+  unshare: false
+  edit_labels: true
+
+
+filters:
+  state: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+
+  roles:
+    enabled: true
+    actions:
+      add_role: false
+      scale: true
+      resume: true
+      release: false
+      hold: false
+      suspend: false
+      stop: false
+      poweroff: true
+      poweroff-hard: true
+      reboot: true
+      reboot-hard: true
+      undeploy: false
+      undeploy-hard: false
+      terminate: true
+      terminate-hard: true
+      snapshot-create: true
+      snapshot-revert: true
+      snapshot-delete: true
+      disk-snapshot-create: true
+      disk-snapshot-revert: true
+      disk-snapshot-delete: true
+
+  networks:
+    enabled: true
+
+  log:
+    enabled: true
+
+  sched_actions:
+    enabled: true
+    actions:
+      sched-add: true
+      sched-update: true
+      sched-delete: true
+
+  template:
+    enabled: true
+
+
+dialogs:
+  # update_dialog:

@@ -1,0 +1,58 @@
+---
+# Custom View - user
+
+resource_name: "IMAGE"
+
+
+actions:
+  create_dialog: true
+  import_dialog: true
+  clone: true
+  lock: false
+  unlock: false
+  disable: true
+  enable: true
+  persistent: true
+  nonpersistent: true
+  chown: false
+  chgrp: false
+  delete: true
+
+
+filters:
+  state: true
+  group: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+  vms:
+    enabled: true
+  snapshot:
+    enabled: true
+    actions:
+      snapshot_flatten: true
+      snapshot_revert: true
+      snapshot_delete: true

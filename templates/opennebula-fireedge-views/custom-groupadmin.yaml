@@ -1,0 +1,974 @@
+---
+# Custom View - groupadmin
+
+resource_name: "BACKUPJOBS"
+
+
+actions:
+  create_dialog: true
+  update_dialog: true
+  delete: true
+  chown: true
+  chgrp: false
+  lock: false
+  unlock: false
+  start: true
+  cancel: true
+  edit_labels: true
+
+
+filters:
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+        priority: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  vms:
+    enabled: true
+
+  sched_actions:
+    enabled: true
+    actions:
+      sched_action_create: true
+      sched_action_update: true
+      sched_action_delete: true
+  
+
+dialogs:
+
+  create_dialog:
+    general: true
+    vms: true
+    datastores: true
+    sched_actions: true
+---
+# Custom View - groupadmin
+
+resource_name: "USER"
+
+
+actions:
+  create_dialog: true
+  chgrp: false
+  delete: true
+  enable: true
+  disable: true
+
+
+filters:
+  state: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  group:
+    enabled: true
+    actions:
+      chgrp: false
+      add_to_group: false
+      remove_from_group: false
+      change_primary_group: false
+
+  quota:
+    enabled: false
+    actions:
+      quotas_dialog: false
+
+  accounting:
+    enabled: false
+    actions:
+      get_accounting: false
+
+  showback:
+    enabled: false
+    actions:
+      get_showback: false
+
+  authentication:
+    enabled: true
+    actions:
+      change_authentication: true
+      update_password: true
+      login_token: true
+      two_factor_auth: true
+      public_ssh_key: true
+      private_ssh_key: true
+      private_ssh_key_passphrase: true---
+# Custom View - groupadmin
+
+resource_name: "BACKUP"
+
+
+actions:
+  restore: true
+  chown: true
+  chgrp: false
+  delete: true
+
+
+filters:
+  state: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+        
+  vms:
+    enabled: true
+  increments:
+    enabled: true
+---
+# Custom View - groupadmin
+
+resource_name: "MARKETPLACE-APP"
+
+
+actions:
+  create_dialog: false
+  export: true
+  download: true
+  chown: false
+  chgrp: false
+  enable: false
+  disable: false
+  delete: false
+  edit_labels: false
+
+
+filters:
+  owner: false
+  group: false
+  state: true
+  type: true
+  marketplace: false
+  zone: true
+  hypervisor: true
+  architecture: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: false
+        edit: false
+        delete: false
+
+  template:
+    enabled: true
+---
+# Custom View - groupadmin
+
+resource_name: "SERVICE"
+
+
+actions:
+  instantiate_dialog: true # reference to deploy_dialog in service-template-tab.yaml
+  create_dialog: true
+  recover: true
+  recover_delete: true
+  delete: true
+  chown: true
+  chgrp: false
+  share: false
+  unshare: false
+  edit_labels: true
+
+
+filters:
+  state: true
+  owner: true
+  group: false
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+
+  roles:
+    enabled: true
+    actions:
+      add_role: true
+      scale: true
+      resume: true
+      release: false
+      hold: false
+      suspend: false
+      stop: false
+      poweroff: true
+      poweroff-hard: true
+      reboot: true
+      reboot-hard: true
+      undeploy: false
+      undeploy-hard: false
+      terminate: true
+      terminate-hard: true
+      snapshot-create: true
+      snapshot-revert: true
+      snapshot-delete: true
+      disk-snapshot-create: true
+      disk-snapshot-revert: true
+      disk-snapshot-delete: true
+
+  networks:
+    enabled: true
+
+  log:
+    enabled: true
+
+  sched_actions:
+    enabled: true
+    actions:
+      sched-add: true
+      sched-update: true
+      sched-delete: true
+
+  template:
+    enabled: true
+
+
+dialogs:
+  # update_dialog:
+---
+# Custom View - groupadmin
+
+resource_name: "GROUP"
+
+
+actions:
+  create_dialog: false
+  update_dialog: false
+  delete: false
+
+
+filters:
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: false
+        edit: false
+        delete: false
+
+  user:
+    enabled: true
+    actions:
+      edit_admins: false
+      add_users: true
+      remove_users: true
+
+  quota:
+    enabled: true
+    actions:
+      quotas_dialog: false
+
+  accounting:
+    enabled: false
+    actions:
+      get_accounting: false
+
+  showback:
+    enabled: false
+    actions:
+      get_showback: false
+
+  vlanrules:
+    enabled: false
+    actions:
+      add_vlan_rule: false
+      update_vlan_rule: false
+      delete_vlan_rule: false---
+# Custom View - groupadmin
+
+resource_name: "IMAGE"
+
+
+actions:
+  create_dialog: true
+  import_dialog: true
+  clone: true
+  lock: false
+  unlock: false
+  disable: true
+  enable: true
+  persistent: true
+  nonpersistent: true
+  chown: true
+  chgrp: false
+  delete: true
+
+
+filters:
+  state: true
+  group: true
+
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+  vms:
+    enabled: true
+  snapshot:
+    enabled: true
+    actions:
+      snapshot_flatten: true
+      snapshot_revert: true
+      snapshot_delete: true---
+# Custom View - groupadmin
+
+resource_name: "SECURITY-GROUP"
+
+
+actions:
+  create_dialog: true
+  update_dialog: true
+  clone: true
+  commit: true
+  chown: true
+  chgrp: false
+  delete: true
+
+
+filters:
+
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    rules_panel:
+      enabled: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  vms:
+    enabled: true
+---
+# Custom View - groupadmin
+
+resource_name: "VM"
+
+
+actions:
+  backup: true  
+  chgrp: false
+  chown: true
+  create_dialog: true
+  deploy: false
+  edit_labels: true
+  poweroff-hard: true
+  poweroff: true
+  rdp: true
+  reboot-hard: true
+  reboot: true
+  recover: false
+  restore: true
+  resume: true
+  save_as_template: true
+  ssh: true
+  stop: false
+  suspend: false
+  terminate-hard: true
+  terminate: true
+  update-user-template: true
+  vnc: true
+
+
+filters:
+  state: true
+  owner: true
+  group: false
+  type: true
+  locked: false
+  ips: true
+  hostname: false
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    capacity_panel:
+      enabled: true
+      actions:
+        resize: true
+    lxc_panel:
+      enabled: false
+      actions:
+        copy: false
+        add: false
+        edit: false
+        delete: false
+    monitoring_panel:
+      enabled: true
+      actions:
+        copy: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  storage:
+    enabled: true
+    actions:
+      disk-attach-image: true
+      disk-attach-volatile: true
+      disk-detach: true
+      disk-snapshot-create: true
+      disk-snapshot-delete: true
+      disk-snapshot-rename: true
+      disk-snapshot-revert: true
+      disk-resize: true
+      disk-saveas: true
+
+  network:
+    enabled: true
+    actions:
+      nic-attach: true
+      nic-attach-alias: true
+      nic-detach: true
+      nic-update: true
+      sg-attach: true
+      sg-detach: true
+      
+  pci:
+    enabled: true
+    actions:
+      pci-attach: true
+      pci-detach: true      
+
+  snapshot:
+    enabled: true
+    actions:
+      snapshot-create: true
+      snapshot-revert: true
+      snapshot-delete: true
+
+  backup:
+    enabled: true
+
+  history:
+    enabled: true
+
+  sched_actions:
+    enabled: true
+    actions:
+      sched-add: true
+      sched-update: true
+      sched-delete: true
+      charter_create: true
+
+  configuration:
+    enabled: true
+    actions:
+      update_configuration: true
+
+  template:
+    enabled: true
+---
+# Custom View - groupadmin
+
+resource_name: "NETWORK-TEMPLATE"
+
+
+actions:
+  create_dialog: false
+  instantiate_dialog: true
+  update_dialog: false
+  delete: false
+  chown: false
+  chgrp: false
+  lock: false
+  unlock: false
+
+
+filters:
+
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+    qos_panel:
+      enabled: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: false
+        add: false
+        edit: false
+        delete: false
+
+  address:
+    enabled: false
+    actions:
+      add_ar: false
+      update_ar: false
+      delete_ar: false
+
+  security:
+    enabled: false
+
+  cluster:
+    enabled: false
+
+  template:
+    enabled: false
+
+instantiate-tabs:
+  address:
+    enabled: true
+  security:
+    enabled: false
+  context:
+    enabled: false
+  configuration:
+    enabled: false---
+# Custom View - groupadmin
+
+resource_name: "FILE"
+
+
+actions:
+  create_dialog: true
+  import_dialog: true
+  disable: true
+  enable: true
+  chown: true
+  chgrp: false
+  delete: true
+
+
+filters:
+  state: true
+  group: true
+
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true---
+# Custom View - groupadmin
+
+resource_name: "SERVICE-TEMPLATE"
+
+
+actions:
+  create_dialog: true
+  instantiate_dialog: true
+  update_dialog: true
+  deploy_dialog: true
+  clone: true
+  delete: true
+  recover: true
+  edit_labels: true
+
+
+filters:
+  state: true
+  group: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+
+  roles:
+    enabled: true
+
+  networks:
+    enabled: true
+
+  template:
+    enabled: true
+
+
+dialogs:
+   deploy_dialog:
+   create_dialog:
+---
+# Custom View - groupadmin
+
+resource_name: "VM-TEMPLATE"
+
+
+features:
+  hide_cpu: true
+  cpu_factor: 1
+
+
+actions:
+  create_dialog: true
+  import_dialog: false
+  update_dialog: true
+  instantiate_dialog: true
+  create_app_dialog: false # reference to create_dialog in marketplace-app-tab.yaml
+  clone: true
+  delete: true
+  chown: true
+  chgrp: false
+  lock: false
+  unlock: false
+  share: false
+  unshare: false
+  edit_labels: false
+
+
+filters:
+  owner: false
+  group: true
+  locked: false
+  vrouter: true
+
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+
+  template:
+    enabled: true
+
+
+dialogs:
+  instantiate_dialog:
+    information: true
+    ownership: true
+    capacity: true
+    vm_group: false
+    network: true
+    storage: true
+    pci: true
+    placement: false
+    sched_action: true
+    booting: true
+  create_dialog:
+    ownership: true
+    capacity: true
+    showback: false
+    vm_group: false
+    network: true
+    storage: true
+    pci: true
+    placement: true
+    input_output: true
+    sched_action: true
+    context: true
+    booting: true
+    numa:
+      enabled: true
+      not_on:
+        - lxc
+    backup: true
+---
+# Custom View - groupadmin
+
+resource_name: "VIRTUAL-NETWORK"
+
+actions:
+  create_dialog: true
+  import_dialog: true
+  instantiate_dialog: true
+  reserve_dialog: true
+  update_dialog: true
+  change_cluster: false
+  chown: true
+  chgrp: false
+  lock: false
+  unlock: false
+  delete: true
+
+
+filters:
+  state: true
+  owner: false
+  group: false
+  locked: false
+  vn_mad: false
+
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    qos_panel:
+      enabled: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  address:
+    enabled: true
+    actions:
+      add_ar: true
+      update_ar: true
+      delete_ar: true
+
+  lease:
+    enabled: true
+    actions:
+      hold_lease: true
+      release_lease: true
+
+  security:
+    enabled: true
+    actions:
+      add_secgroup: true
+      delete_secgroup: true
+
+  virtual_router:
+    enabled: true
+
+  cluster:
+    enabled: false
+# This file configures the cards available in the dashboard for the groupadmin view.
+#
+# Cards are rendered by ascending order. Supported sizes are:
+# quarter, third, half, full, wide and narrow.
+# The to option enables navigation for the card or its resource rows.
+
+resource_name: 'DASHBOARD'
+
+cards:
+  - id: virtual-machines
+    order: 10
+    size: third
+    to: true
+  - id: virtual-networks
+    order: 30
+    size: third
+    to: true
+  - id: images
+    order: 40
+    size: third
+    to: true
+  - id: system
+    order: 80
+    size: full
+    to: true

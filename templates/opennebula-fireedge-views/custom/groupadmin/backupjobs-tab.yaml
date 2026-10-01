@@ -1,0 +1,66 @@
+---
+# Custom View - groupadmin
+
+resource_name: "BACKUPJOBS"
+
+
+actions:
+  create_dialog: true
+  update_dialog: true
+  delete: true
+  chown: true
+  chgrp: false
+  lock: false
+  unlock: false
+  start: true
+  cancel: true
+  edit_labels: true
+
+
+filters:
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+        priority: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  vms:
+    enabled: true
+
+  sched_actions:
+    enabled: true
+    actions:
+      sched_action_create: true
+      sched_action_update: true
+      sched_action_delete: true
+  
+
+dialogs:
+
+  create_dialog:
+    general: true
+    vms: true
+    datastores: true
+    sched_actions: true

@@ -1,0 +1,45 @@
+---
+# Custom View - user
+
+resource_name: "FILE"
+
+
+actions:
+  create_dialog: true
+  import_dialog: true
+  disable: true
+  enable: true
+  chown: false
+  chgrp: false
+  delete: true
+
+
+filters:
+  state: true
+  group: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true

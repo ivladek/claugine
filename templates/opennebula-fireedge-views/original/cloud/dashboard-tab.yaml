@@ -1,0 +1,13 @@
+# This file configures the cards available in the dashboard for the cloud view.
+#
+# Cards are rendered by ascending order. Supported sizes are:
+# quarter, third, half, full, wide and narrow.
+# The to option enables navigation for the card or its resource rows.
+
+resource_name: 'DASHBOARD'
+
+cards:
+  - id: virtual-machines
+    order: 10
+    size: full
+    to: true

@@ -1,0 +1,53 @@
+---
+# Custom View - groupadmin
+
+resource_name: "SERVICE-TEMPLATE"
+
+
+actions:
+  create_dialog: true
+  instantiate_dialog: true
+  update_dialog: true
+  deploy_dialog: true
+  clone: true
+  delete: true
+  recover: true
+  edit_labels: true
+
+
+filters:
+  state: true
+  group: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+
+  roles:
+    enabled: true
+
+  networks:
+    enabled: true
+
+  template:
+    enabled: true
+
+
+dialogs:
+   deploy_dialog:
+   create_dialog:

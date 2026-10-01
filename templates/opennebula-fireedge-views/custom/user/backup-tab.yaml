@@ -1,0 +1,36 @@
+---
+# Custom View - user
+
+resource_name: "BACKUP"
+
+
+actions:
+  restore: true
+  chown: false
+  delete: true
+
+
+filters:
+  state: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  vms:
+    enabled: true
+  increments:
+    enabled: true

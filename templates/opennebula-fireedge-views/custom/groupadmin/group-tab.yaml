@@ -1,0 +1,59 @@
+---
+# Custom View - groupadmin
+
+resource_name: "GROUP"
+
+
+actions:
+  create_dialog: false
+  update_dialog: false
+  delete: false
+
+
+filters:
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: false
+        edit: false
+        delete: false
+
+  user:
+    enabled: true
+    actions:
+      edit_admins: false
+      add_users: true
+      remove_users: true
+
+  quota:
+    enabled: true
+    actions:
+      quotas_dialog: false
+
+  accounting:
+    enabled: false
+    actions:
+      get_accounting: false
+
+  showback:
+    enabled: false
+    actions:
+      get_showback: false
+
+  vlanrules:
+    enabled: false
+    actions:
+      add_vlan_rule: false
+      update_vlan_rule: false
+      delete_vlan_rule: false

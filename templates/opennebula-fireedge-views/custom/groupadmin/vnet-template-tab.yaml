@@ -1,0 +1,71 @@
+---
+# Custom View - groupadmin
+
+resource_name: "NETWORK-TEMPLATE"
+
+
+actions:
+  create_dialog: false
+  instantiate_dialog: true
+  update_dialog: false
+  delete: false
+  chown: false
+  chgrp: false
+  lock: false
+  unlock: false
+
+
+filters:
+
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+    qos_panel:
+      enabled: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: false
+        add: false
+        edit: false
+        delete: false
+
+  address:
+    enabled: false
+    actions:
+      add_ar: false
+      update_ar: false
+      delete_ar: false
+
+  security:
+    enabled: false
+
+  cluster:
+    enabled: false
+
+  template:
+    enabled: false
+
+instantiate-tabs:
+  address:
+    enabled: true
+  security:
+    enabled: false
+  context:
+    enabled: false
+  configuration:
+    enabled: false

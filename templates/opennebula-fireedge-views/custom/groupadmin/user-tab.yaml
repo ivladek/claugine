@@ -1,0 +1,67 @@
+---
+# Custom View - groupadmin
+
+resource_name: "USER"
+
+
+actions:
+  create_dialog: true
+  chgrp: false
+  delete: true
+  enable: true
+  disable: true
+
+
+filters:
+  state: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  group:
+    enabled: true
+    actions:
+      chgrp: false
+      add_to_group: false
+      remove_from_group: false
+      change_primary_group: false
+
+  quota:
+    enabled: false
+    actions:
+      quotas_dialog: false
+
+  accounting:
+    enabled: false
+    actions:
+      get_accounting: false
+
+  showback:
+    enabled: false
+    actions:
+      get_showback: false
+
+  authentication:
+    enabled: true
+    actions:
+      change_authentication: true
+      update_password: true
+      login_token: true
+      two_factor_auth: true
+      public_ssh_key: true
+      private_ssh_key: true
+      private_ssh_key_passphrase: true

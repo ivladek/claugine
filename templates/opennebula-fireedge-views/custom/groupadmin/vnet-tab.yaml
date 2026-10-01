@@ -1,0 +1,77 @@
+---
+# Custom View - groupadmin
+
+resource_name: "VIRTUAL-NETWORK"
+
+actions:
+  create_dialog: true
+  import_dialog: true
+  instantiate_dialog: true
+  reserve_dialog: true
+  update_dialog: true
+  change_cluster: false
+  chown: true
+  chgrp: false
+  lock: false
+  unlock: false
+  delete: true
+
+
+filters:
+  state: true
+  owner: false
+  group: false
+  locked: false
+  vn_mad: false
+
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: false
+    qos_panel:
+      enabled: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  address:
+    enabled: true
+    actions:
+      add_ar: true
+      update_ar: true
+      delete_ar: true
+
+  lease:
+    enabled: true
+    actions:
+      hold_lease: true
+      release_lease: true
+
+  security:
+    enabled: true
+    actions:
+      add_secgroup: true
+      delete_secgroup: true
+
+  virtual_router:
+    enabled: true
+
+  cluster:
+    enabled: false

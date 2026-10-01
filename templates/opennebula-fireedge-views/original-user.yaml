@@ -1,0 +1,913 @@
+---
+# This file describes the information and actions available in the IMAGE tab
+
+# Resource
+
+resource_name: "BACKUP"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  restore: true
+  chown: true
+  chgrp: true
+  delete: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  state: true
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+  vms:
+    enabled: true
+  increments:
+    enabled: true
+---
+# This file describes the information and actions available in the App tab
+
+# Resource
+
+resource_name: "MARKETPLACE-APP"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: true
+  export: true
+  download: true
+  chown: true
+  chgrp: true
+  enable: true
+  disable: true
+  delete: true
+  edit_labels: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  owner: true
+  group: true
+  state: true
+  type: true
+  marketplace: true
+  zone: true
+  hypervisor: true
+  architecture: true
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  template:
+    enabled: true
+---
+# This file describes the information and actions available in the Service tab
+
+# Resource
+
+resource_name: "SERVICE"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  instantiate_dialog: true # reference to deploy_dialog in service-template-tab.yaml
+  create_dialog: true
+  recover: true
+  recover_delete: true
+  delete: true
+  chown: false
+  chgrp: false
+  share: true
+  unshare: true
+  edit_labels: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  state: true
+  owner: true
+  group: true
+
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: false
+        chgrp: false
+
+  roles:
+    enabled: true
+    actions:
+      add_role: true
+      scale: true
+      resume: true
+      release: true
+      hold: true
+      suspend: true
+      stop: true
+      poweroff: true
+      poweroff-hard: true
+      reboot: true
+      reboot-hard: true
+      undeploy: true
+      undeploy-hard: true
+      terminate: true
+      terminate-hard: true
+      snapshot-create: true
+      snapshot-revert: true
+      snapshot-delete: true
+      disk-snapshot-create: true
+      disk-snapshot-revert: true
+      disk-snapshot-delete: true
+
+  networks:
+    enabled: true
+
+  log:
+    enabled: true
+
+  sched_actions:
+    enabled: true
+    actions:
+      sched-add: true
+      sched-update: true
+      sched-delete: true
+
+  template:
+    enabled: true
+
+# Dialogs
+
+dialogs:
+  # update_dialog:
+---
+# This file describes the information and actions available in the GROUP tab
+
+# Resource
+
+resource_name: "GROUP"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: false
+  update_dialog: false
+  delete: false
+
+# Filters - List of criteria to filter the resources
+
+filters:
+
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: false
+        add: false
+        edit: false
+        delete: false
+
+  user:
+    enabled: false
+    actions:
+      edit_admins: false
+      add_users: false
+      remove_users: false
+
+  quota:
+    enabled: false
+    actions:
+      quotas_dialog: false
+
+  accounting:
+    enabled: false
+    actions:
+      get_accounting: false
+
+  showback:
+    enabled: false
+    actions:
+      get_showback: false
+
+  vlanrules:
+    enabled: true
+    actions:
+      add_vlan_rule: false
+      update_vlan_rule: false
+      delete_vlan_rule: false---
+# This file describes the information and actions available in the ONEKS tab
+
+# Resource
+
+resource_name: "KUBERNETES"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: true
+  recover: true
+  delete: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  id: true
+  name: true
+  state: true
+  version: true
+  locked: true
+  created: true
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: true
+  nodegroup:
+    enabled: true
+    actions:
+      create_dialog: true
+  logs:
+    enabled: true
+  events:
+    enabled: true
+  kubeconfig:
+    enabled: true
+---
+# This file describes the information and actions available in the IMAGE tab
+
+# Resource
+
+resource_name: "IMAGE"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: true
+  import_dialog: true
+  clone: true
+  lock: true
+  unlock: true
+  disable: true
+  enable: true
+  persistent: true
+  nonpersistent: true
+  chown: true
+  chgrp: true
+  delete: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  state: true
+  locked: true
+
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+  vms:
+    enabled: true
+  snapshot:
+    enabled: true
+    actions:
+      snapshot_flatten: true
+      snapshot_revert: true
+      snapshot_delete: true---
+# This file describes the information and actions available in the SECURITY GROUP tab
+
+# Resource
+
+resource_name: "SECURITY-GROUP"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: true
+  update_dialog: true
+  clone: true
+  commit: true
+  chown: true
+  chgrp: true
+  delete: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: true
+    rules_panel:
+      enabled: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  vms:
+    enabled: true
+---
+# This file describes the information and actions available in the VM tab
+
+# Resource
+
+resource_name: "VM"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  backup: true  
+  chgrp: false
+  chown: false
+  create_app_dialog: true # reference to create_dialog in marketplace-app-tab.yaml
+  create_dialog: true
+  deploy: false
+  edit_labels: false
+  hold: true
+  live-migrate: true
+  lock: true
+  migrate: true
+  poweroff-hard: true
+  poweroff: true
+  rdp: true
+  reboot-hard: true
+  reboot: true
+  recover: true
+  release: true
+  resched: true
+  restore: false
+  resume: true
+  save_as_template: false
+  ssh: true
+  stop: true
+  suspend: true
+  terminate-hard: true
+  terminate: true
+  undeploy-hard: true
+  undeploy: true
+  unlock: true
+  unresched: true
+  update-user-template: true
+  vnc: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  state: true
+  owner: true
+  group: true
+  type: true
+  locked: true
+  ips: true
+  hostname: true
+
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: false
+        chgrp: false
+    capacity_panel:
+      enabled: true
+      actions:
+        resize: true
+    lxc_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: false
+        edit: false
+        delete: false
+    monitoring_panel:
+      enabled: true
+      actions:
+        copy: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: false
+        delete: false
+
+  storage:
+    enabled: true
+    actions:
+      disk-attach-image: true
+      disk-attach-volatile: true
+      disk-detach: true
+      disk-snapshot-create: true
+      disk-snapshot-delete: true
+      disk-snapshot-rename: true
+      disk-snapshot-revert: true
+      disk-resize: true
+      disk-saveas: true
+
+  network:
+    enabled: true
+    actions:
+      nic-attach: true
+      nic-attach-alias: true
+      nic-detach: true
+      nic-update: true
+      sg-attach: true
+      sg-detach: true
+      
+  pci:
+    enabled: true
+    actions:
+      pci-attach: true
+      pci-detach: true      
+
+  snapshot:
+    enabled: true
+    actions:
+      snapshot-create: true
+      snapshot-revert: true
+      snapshot-delete: true
+
+  backup:
+    enabled: true
+
+  history:
+    enabled: true
+
+  sched_actions:
+    enabled: true
+    actions:
+      sched-add: true
+      sched-update: true
+      sched-delete: true
+      charter_create: true
+
+  configuration:
+    enabled: true
+    actions:
+      update_configuration: true
+
+  template:
+    enabled: true
+---
+# This file describes the information and actions available in the V. NETWORK TEMPLATE tab
+
+# Resource
+
+resource_name: "NETWORK-TEMPLATE"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: false
+  instantiate_dialog: true
+  update_dialog: false
+  delete: false
+  chown: false
+  chgrp: false
+  lock: false
+  unlock: false
+
+# Filters - List of criteria to filter the resources
+
+filters:
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: false
+        chgrp: false
+    qos_panel:
+      enabled: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: false
+        add: false
+        edit: false
+        delete: false
+
+  address:
+    enabled: true
+    actions:
+      add_ar: false
+      update_ar: false
+      delete_ar: false
+
+  security:
+    enabled: false
+
+  cluster:
+    enabled: true
+
+  template:
+    enabled: true
+
+instantiate-tabs:
+  address:
+    enabled: true
+  security:
+    enabled: true
+  context:
+    enabled: true
+  configuration:
+    enabled: true---
+# This file describes the information and actions available in the FILE tab
+
+# Resource
+
+resource_name: "FILE"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: true
+  import_dialog: true
+  disable: true
+  enable: true
+  chown: true
+  chgrp: true
+  delete: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  state: true
+
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true---
+# This file describes the information and actions available in the VM Template tab
+
+# Resource
+
+resource_name: "VM-TEMPLATE"
+
+# Features
+
+features:
+  # True to hide the CPU setting in the dialogs
+  hide_cpu: true
+
+  # False to not scale the CPU.
+  # An integer value would be used as a multiplier as follows:
+  #     CPU = cpu_factor * VCPU
+  # Set it to 1 to tie CPU and vCPU.
+  cpu_factor: 1
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: true
+  import_dialog: false
+  update_dialog: true
+  instantiate_dialog: true
+  create_app_dialog: false # reference to create_dialog in marketplace-app-tab.yaml
+  clone: true
+  delete: true
+  chown: false
+  chgrp: false
+  lock: true
+  unlock: true
+  share: true
+  unshare: true
+  edit_labels: false
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  owner: true
+  group: true
+  locked: true
+  vrouter: true
+
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: true
+
+  template:
+    enabled: true
+
+# Dialogs
+
+dialogs:
+  instantiate_dialog:
+    information: true
+    ownership: true
+    capacity: true
+    vm_group: true
+
+    network: true
+    storage: true
+    placement: true
+    sched_action: true
+    booting: true
+  create_dialog:
+    ownership: true
+    capacity: true
+    showback: true
+    vm_group: true
+    network: true
+    storage: true
+    pci: true
+    placement: true
+    input_output: true
+    sched_action: true
+    context: true
+    booting: true
+    numa:
+      enabled: true
+      not_on:
+        - lxc
+    backup: true
+---
+# This file describes the information and actions available in the VIRTUAL NETWORK tab
+
+# Resource
+
+resource_name: "VIRTUAL-NETWORK"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  create_dialog: false
+  import_dialog: false
+  instantiate_dialog: true
+  reserve_dialog: true
+  update_dialog: true
+  change_cluster: false
+  chown: false
+  chgrp: false
+  lock: true
+  unlock: true
+  delete: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  state: true
+  owner: true
+  group: true
+  locked: true
+  vn_mad: true
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: false
+        chgrp: false
+    qos_panel:
+      enabled: true
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: true
+        edit: true
+        delete: true
+
+  address:
+    enabled: true
+    actions:
+      add_ar: true
+      update_ar: true
+      delete_ar: true
+
+  lease:
+    enabled: true
+    actions:
+      hold_lease: true
+      release_lease: true
+
+  security:
+    enabled: true
+    actions:
+      add_secgroup: true
+      delete_secgroup: true
+
+  virtual_router:
+    enabled: true
+
+  cluster:
+    enabled: true
+# This file configures the cards available in the dashboard for the user view.
+#
+# Cards are rendered by ascending order. Supported sizes are:
+# quarter, third, half, full, wide and narrow.
+# The to option enables navigation for the card or its resource rows.
+
+resource_name: 'DASHBOARD'
+
+cards:
+  - id: virtual-machines
+    order: 10
+    size: third
+    to: true
+  - id: virtual-networks
+    order: 30
+    size: third
+    to: true
+  - id: images
+    order: 40
+    size: third
+    to: true

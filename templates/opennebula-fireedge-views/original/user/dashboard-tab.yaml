@@ -1,0 +1,21 @@
+# This file configures the cards available in the dashboard for the user view.
+#
+# Cards are rendered by ascending order. Supported sizes are:
+# quarter, third, half, full, wide and narrow.
+# The to option enables navigation for the card or its resource rows.
+
+resource_name: 'DASHBOARD'
+
+cards:
+  - id: virtual-machines
+    order: 10
+    size: third
+    to: true
+  - id: virtual-networks
+    order: 30
+    size: third
+    to: true
+  - id: images
+    order: 40
+    size: third
+    to: true

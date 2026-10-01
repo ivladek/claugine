@@ -1,0 +1,56 @@
+---
+# Custom View - groupadmin
+
+resource_name: "MARKETPLACE-APP"
+
+
+actions:
+  create_dialog: false
+  export: true
+  download: true
+  chown: false
+  chgrp: false
+  enable: false
+  disable: false
+  delete: false
+  edit_labels: false
+
+
+filters:
+  owner: false
+  group: false
+  state: true
+  type: true
+  marketplace: false
+  zone: true
+  hypervisor: true
+  architecture: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: false
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+    attributes_panel:
+      enabled: true
+      actions:
+        copy: true
+        add: false
+        edit: false
+        delete: false
+
+  template:
+    enabled: true

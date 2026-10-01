@@ -1,0 +1,13 @@
+# ---- local only, never published ----
+_archive/
+git-init.sh
+git-check.sh
+.DS_Store
+
+# ---- sensitive data ----
+# ignore everything under data/ ...
+data/**
+# ... but keep walking into subdirectories ...
+!data/**/
+# ... and publish only sample files
+!data/**/*SAMPLE*

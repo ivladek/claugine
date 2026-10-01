@@ -1,0 +1,93 @@
+---
+# This file describes the information and actions available in the Service tab
+
+# Resource
+
+resource_name: "SERVICE"
+
+# Actions - Which buttons are visible to operate over the resources
+
+actions:
+  instantiate_dialog: true # reference to deploy_dialog in service-template-tab.yaml
+  recover: true
+  recover_delete: true
+  delete: true
+  chown: true
+  chgrp: true
+  share: true
+  unshare: true
+  edit_labels: true
+
+# Filters - List of criteria to filter the resources
+
+filters:
+  state: true
+  owner: true
+  group: true
+
+
+# Info Tabs - Which info tabs are used to show extended information
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: true
+      actions:
+        chmod: true
+    ownership_panel:
+      enabled: true
+      actions:
+        chown: true
+        chgrp: true
+
+  roles:
+    enabled: true
+    actions:
+      add_role: true
+      scale: true
+      resume: true
+      release: true
+      hold: true
+      suspend: true
+      stop: true
+      poweroff: true
+      poweroff-hard: true
+      reboot: true
+      reboot-hard: true
+      undeploy: true
+      undeploy-hard: true
+      terminate: true
+      terminate-hard: true
+      snapshot-create: true
+      snapshot-revert: true
+      snapshot-delete: true
+      disk-snapshot-create: true
+      disk-snapshot-revert: true
+      disk-snapshot-delete: true
+
+  networks:
+    enabled: true
+
+  log:
+    enabled: true
+
+  sched_actions:
+    enabled: true
+    actions:
+      sched-add: true
+      sched-update: true
+      sched-delete: true
+
+  template:
+    enabled: true
+
+# Dialogs
+
+dialogs:
+  # update_dialog:

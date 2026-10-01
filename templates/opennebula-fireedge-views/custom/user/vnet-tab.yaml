@@ -1,0 +1,74 @@
+---
+# Custom View - user
+
+resource_name: "VIRTUAL-NETWORK"
+
+actions:
+  create_dialog: false
+  import_dialog: false
+  instantiate_dialog: false
+  reserve_dialog: false
+  update_dialog: false
+  change_cluster: false
+  chown: false
+  chgrp: false
+  lock: false
+  unlock: false
+  delete: false
+
+
+filters:
+  state: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+    qos_panel:
+      enabled: false
+    attributes_panel:
+      enabled: false
+      actions:
+        copy: true
+        add: false
+        edit: false
+        delete: false
+
+  address:
+    enabled: true
+    actions:
+      add_ar: false
+      update_ar: false
+      delete_ar: false
+
+  lease:
+    enabled: true
+    actions:
+      hold_lease: false
+      release_lease: false
+
+  security:
+    enabled: true
+    actions:
+      add_secgroup: false
+      delete_secgroup: false
+
+  virtual_router:
+    enabled: true
+
+  cluster:
+    enabled: false

@@ -1,0 +1,94 @@
+---
+# Custom View - user
+
+resource_name: "VM-TEMPLATE"
+
+
+features:
+  hide_cpu: true
+  cpu_factor: 1
+
+
+actions:
+  create_dialog: false
+  import_dialog: false
+  update_dialog: false
+  instantiate_dialog: true
+  create_app_dialog: false # reference to create_dialog in marketplace-app-tab.yaml
+  clone: false
+  delete: false
+  chown: false
+  chgrp: false
+  lock: false
+  unlock: false
+  share: false
+  unshare: false
+  edit_labels: false
+
+
+filters:
+  state: true
+  group: true
+  vrouter: true
+
+
+info-tabs:
+
+  info:
+    enabled: true
+    information_panel:
+      enabled: true
+      actions:
+        rename: true
+    permissions_panel:
+      enabled: false
+      actions:
+        chmod: false
+    ownership_panel:
+      enabled: false
+      actions:
+        chown: false
+        chgrp: false
+
+  pci:
+    enabled: true
+    actions:
+      pci-attach: true
+      pci-detach: true      
+
+  template:
+    enabled: true
+
+
+dialogs:
+
+  instantiate_dialog:
+    information: true
+    ownership: false
+    capacity: true
+    vm_group: false
+    network: true
+    storage: true
+    pci: true
+    placement: false
+    sched_action: true
+    booting: true
+
+  create_dialog:
+    ownership: false
+    capacity: true
+    showback: false
+    vm_group: false
+    network: true
+    storage: true
+    pci: true
+    placement: false
+    input_output: true
+    sched_action: true
+    context: true
+    booting: true
+    numa:
+      enabled: true
+      not_on:
+        - lxc
+    backup: true
