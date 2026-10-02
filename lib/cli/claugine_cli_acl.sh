@@ -165,13 +165,13 @@ function acl_tenant_get() {
 claugine_cli_commands+=( "\
   acl_tenant_set             # delete than set new ACLs for all tenants
     tenants=LIST             #   tenants ids or names
-    dry=yes|NO               #   dry run without deleteing and creating ACLs
+    dry=YES|no               #   dry run without deleteing and creating ACLs
     confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function acl_tenant_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local -n zone=${zone_data}
-  local dry="${dry:-no}"
+  local dry="${dry:-yes}"
   local tenants="${tenants:-ALL}"
   local -a tenants_list=()
   local zones zone_id acl acl_id acl_subj acl_obj acl_ops acl_zone
