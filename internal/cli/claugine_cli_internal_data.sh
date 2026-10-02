@@ -94,6 +94,19 @@ declare -gra ONE_FE_BACKUP_DIRS=(
 
 declare -gr ONE_BACKUP_DAYS=10
 
+declare -gra ONE_FE_ZONE_STATE=(
+  [0]=enabled	              # normal zone state
+  [1]=disabled              #	zone is disabled, only read only operations are allowed
+)
+
+declare -gra ONE_FE_NODE_STATE=(
+  [0]=solo	                # standalone, no HA cluster
+  [1]=candidate             #	an election is running and this node wants to become leader
+  [2]=follower              #	normal state for a non-leader node
+  [3]=leader                #	normal state for the leader node
+  [4]=error                 # script change state from "-" to "4", means an error state
+)
+
 declare -rga ONE_HOST_STATE=(
   [0]=INIT	                # Host initialization/monitoring starting
   [1]=MONITORING_MONITORED	# Host is being monitored

@@ -5,8 +5,8 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  quota_cpu_to_vcpu_set  # set CPU to VCPU for each VM where CPU != VCPU
-    confirm=yes          #   to suppress interactive confirmation"
+  quota_cpu_to_vcpu_set      # set CPU to VCPU for each VM where CPU != VCPU
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function quota_cpu_to_vcpu_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -25,7 +25,7 @@ function quota_cpu_to_vcpu_set() {
 
   for zone_id in ${zone[list]}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=quota_cpu_to_vcpu_set"
     stop_without_confirmation confirm=${confirm:-no} && return 1
 
     for vm_id in $(
@@ -57,9 +57,9 @@ function quota_cpu_to_vcpu_set() {
 
 
 claugine_cli_commands+=( "\
-  quota_ds_set    # set quotas for IMAGES, FILES and BACKUPS datastores
-    tenants=LIST  #   tenants ids or names
-    confirm=yes   #   to suppress interactive confirmation"
+  quota_ds_set               # set quotas for IMAGES, FILES and BACKUPS datastores
+    tenants=LIST             #   tenants ids or names
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function quota_ds_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -85,7 +85,7 @@ function quota_ds_set() {
 
   for zone_id in ${zone[list]}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=quota_ds_set"
 
     if (( ${#tenants_list[@]} == 0 ))
     then
@@ -115,7 +115,7 @@ function quota_ds_set() {
             )
           fi
         done  # tenant
-      fi    
+      fi
     fi
 
     for group_id in ${tenants_list[@]}
@@ -252,8 +252,8 @@ function quota_ds_set() {
 
 
 claugine_cli_commands+=( "\
-  quota_tenant_get  # show quota and usage for tenant
-    tenant=STRING"
+  quota_tenant_get           # show quota and usage for tenant
+    tenant=STRING            #"
 )
 function quota_tenant_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -287,7 +287,7 @@ function quota_tenant_get() {
   group_name="tenant-${tenant}"
   for zone_id in ${zone[list]}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=quota_tenant_get"
 
     json=$($ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onegroup show ${group_name} -j 2>/dev/null")
     group_id=$(jq -r '.GROUP.ID // ""' <<< "${json}")
@@ -481,7 +481,7 @@ function quota_tenant_get() {
 
 
 claugine_cli_commands+=( "\
-  quota_vcpu_conf_show  # show VCPU configuration in oned.conf"
+  quota_vcpu_conf_show       # show VCPU configuration in oned.conf"
 )
 function quota_vcpu_conf_show() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -501,7 +501,7 @@ function quota_vcpu_conf_show() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=quota_vcpu_conf_show"
     for node in "${FE_NODE_ROLES[@]}"
     do
       echo "zone_id=${zone_id} node_role=${node} node_name=${zone[${zone_id},${node},name]} node_ip=${zone[${zone_id},${node},ip]}"

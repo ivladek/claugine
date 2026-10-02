@@ -5,9 +5,9 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  fe_backup     # backup all data required toi restore FE from scratch
-    zones=LIST  #   zones ids
-    full=yes|NO #   include configs or db only"
+  fe_backup                  # backup all data required toi restore FE from scratch
+    zones=LIST               #   zones ids
+    full=yes|NO              #   include configs or db only"
 )
 function fe_backup() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -31,7 +31,7 @@ function fe_backup() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=backup"
 
     for node in "${FE_NODE_ROLES[@]}"
     do
@@ -93,8 +93,8 @@ function fe_backup() {
 
 
 claugine_cli_commands+=( "\
-  fe_configs_backups_cleanup  # cleanup all configs backups created during upgrade
-    confirm=yes               #   to suppress interactive confirmation"
+  fe_configs_backups_cleanup # cleanup all configs backups created during upgrade
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function fe_configs_backups_cleanup() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -113,7 +113,7 @@ function fe_configs_backups_cleanup() {
 
   for zone_id in ${zone[list]}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=cleanup_configs_backups"
     stop_without_confirmation confirm=${confirm:-no} && return 1
 
     for node in "${FE_NODE_ROLES[@]}"
@@ -194,7 +194,7 @@ function fe_configs_backups_cleanup() {
 
 
 claugine_cli_commands+=( "\
-  fe_configs_backups_list # show directories with configs backups created during upgrade"
+  fe_configs_backups_list    # show directories with configs backups created during upgrade"
 )
 function fe_configs_backups_list() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -213,7 +213,7 @@ function fe_configs_backups_list() {
 
   for zone_id in ${zone[list]}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=list_configs_backups"
     for node in "${FE_NODE_ROLES[@]}"
     do
       echo "zone_id=${zone_id} node_role=${node} node_name=${zone[${zone_id},${node},name]} node_ip=${zone[${zone_id},${node},ip]}"
@@ -232,8 +232,8 @@ function fe_configs_backups_list() {
 
 
 claugine_cli_commands+=( "\
-  fe_cfg_ver_get  # show current and required version for configuration and db
-    zones=LIST    #   zones ids"
+  fe_cfg_ver_get             # show current and required version for configuration and db
+    zones=LIST               #   zones ids"
 )
 function fe_cfg_ver_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -253,7 +253,7 @@ function fe_cfg_ver_get() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=cfg_ver_get"
 
     for node in "${FE_NODE_ROLES[@]}"
     do
@@ -278,9 +278,9 @@ function fe_cfg_ver_get() {
 
 
 claugine_cli_commands+=( "\
-  fe_data_refresh  # read or refresh state for all FE zones
-    data=VAR_NAME  #   ZONE_DATA assotiative array variable name
-    fe=IP          #   rebuild all data if defined"
+  fe_data_refresh            # read or refresh state for all FE zones
+    data=VAR_NAME            #   ZONE_DATA assotiative array variable name
+    fe=IP                    #   rebuild all data if defined"
 )
 function fe_data_refresh {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -356,7 +356,7 @@ function fe_data_refresh {
     zone[${zone_id},name]="${name}"
     zone[${zone_id},vip]="${ip}"
     zone[${zone_id},state]="${state}"
-
+  
     mapfile -t hosts_list < <(
       $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onehost list --no-header -l NAME 2>/dev/null" |
       tr -d '[:blank:]' |
@@ -385,11 +385,11 @@ function fe_data_refresh {
         ' <<< "${json}"
       )
 
-      if (( state == 3 ))
+      [[ "${state}" == "-" ]] && state=4
+      node=${ONE_FE_NODE_STATE[${state}]}
+      if (( state == 2 ))
       then
-        node=leader
-      else
-        node="follower${n}"
+        node+="${n}"
         (( n++ ))
       fi
 
@@ -406,7 +406,7 @@ function fe_data_refresh {
         zone[${zone_id},${node},type]=dedicated
       fi
 
-      echo "zone_id=${zone_id} node_role=${node} node_id=${zone[${zone_id},${node},id]} node_name=${zone[${zone_id},${node},name]} node_ip=${zone[${zone_id},${node},ip]} node_state=${zone[${zone_id},${node},state]} node_type=${zone[${zone_id},${node},type]}"
+      echo "zone_id=${zone_id} node_role=${node} node_id=${zone[${zone_id},${node},id]} node_name=${zone[${zone_id},${node},name]} node_ip=${zone[${zone_id},${node},ip]} node_state=${ONE_FE_NODE_STATE[${zone[${zone_id},${node},state]}]} node_type=${zone[${zone_id},${node},type]}"
     done  # node_id
   done  # zone_id
 
@@ -427,9 +427,9 @@ function fe_data_refresh {
 
 
 claugine_cli_commands+=( "\
-  fe_disk_cleanup  # clean data from /var/tmp after unsuccessful image loading
-    zones=LIST     #   zones ids
-    confirm=yes    #   to suppress interactive confirmation"
+  fe_disk_cleanup            # clean data from /var/tmp after unsuccessful image loading
+    zones=LIST               #   zones ids
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function fe_disk_cleanup() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -449,7 +449,7 @@ function fe_disk_cleanup() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=disk_cleanup"
     stop_without_confirmation confirm=${confirm:-no} && return 1
 
     for node in "${FE_NODE_ROLES[@]}"
@@ -473,9 +473,9 @@ function fe_disk_cleanup() {
 
 
 claugine_cli_commands+=( "\
-  fe_fireedge_restart  # restart fireedge service on FE
-    zones=LIST         #   zones ids
-    confirm=yes        #   to suppress interactive confirmation"
+  fe_fireedge_restart        # restart fireedge service on FE
+    zones=LIST               #   zones ids
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function fe_fireedge_restart() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -496,7 +496,7 @@ function fe_fireedge_restart() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=fireedge_restart"
     stop_without_confirmation confirm=${confirm:-no} && return 1
 
     for node in "${FE_NODE_ROLES_REVERSED[@]}"
@@ -517,9 +517,9 @@ function fe_fireedge_restart() {
 
 
 claugine_cli_commands+=( "\
-  fe_fireedge_views_update  # distribute updated Fireedge views to FE
-    src=PATH                #   directory with custom views
-    confirm=yes             #   to suppress interactive confirmation"
+  fe_fireedge_views_update   # distribute updated Fireedge views to FE
+    src=PATH                 #   directory with custom views
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function fe_fireedge_views_update() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -538,7 +538,7 @@ function fe_fireedge_views_update() {
 
   for zone_id in ${zone[list]}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=fireedge_views_update"
     stop_without_confirmation confirm=${confirm:-no} && return 1
     for node in "${FE_NODE_ROLES[@]}"
     do
@@ -560,10 +560,10 @@ function fe_fireedge_views_update() {
 
 
 claugine_cli_commands+=( "\
-  fe_os_update   # install OS updates
-                 # detect combined KVM/FE nodes and put them in maintenance mode before
-    zones=LIST   #   zones ids
-    confirm=yes  #   to suppress interactive confirmation"
+  fe_os_update               # install OS updates
+                             # detect combined KVM/FE nodes and put them in maintenance mode before
+    zones=LIST               #   zones ids
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function fe_os_update {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -586,14 +586,14 @@ function fe_os_update {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=os_update"
     stop_without_confirmation confirm=${confirm:-no} && return 1
     $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onezone list 2>/dev/null"
     $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onezone show ${zone_id} 2>/dev/null"
 
     for node in "${FE_NODE_ROLES_REVERSED[@]}"
     do
-      echo "zone_id=${zone_id} node_role=${node} node_name=${zone[${zone_id},${node},name]} node_ip=${zone[${zone_id},${node},ip]} node_state=${zone[${zone_id},${node},state]} node_type=${zone[${zone_id},${node},type]}"
+      echo "zone_id=${zone_id} node_role=${node} node_name=${zone[${zone_id},${node},name]} node_ip=${zone[${zone_id},${node},ip]} node_state=${ONE_FE_NODE_STATE[${zone[${zone_id},${node},state]}]} node_type=${zone[${zone_id},${node},type]}"
 
       if [[ "${zone[${zone_id},${node},type]}" == "mixed" ]]
       then
@@ -642,9 +642,9 @@ function fe_os_update {
 
 
 claugine_cli_commands+=( "\
-  fe_services_restart  # restart OpenNebula services on FE in right order
-    zones=LIST         #   zones ids
-    confirm=yes        #   to suppress interactive confirmation"
+  fe_services_restart        # restart OpenNebula services on FE in right order
+    zones=LIST               #   zones ids
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function fe_services_restart() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -667,7 +667,7 @@ function fe_services_restart() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=services_restart"
     stop_without_confirmation confirm=${confirm:-no} && return 1
     $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onezone list 2>/dev/null"
     $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onezone show ${zone_id} 2>/dev/null"

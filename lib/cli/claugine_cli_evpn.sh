@@ -5,8 +5,8 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_nic_get  # show vtep type (dev or local_ip) for each VM nic
-    zones=ID LIST    #   ALL for all nodes in each zone"
+  evpn_vtep_nic_get          # show vtep type (dev or local_ip) for each VM nic
+    zones=ID LIST            #   ALL for all nodes in each zone"
 )
 function evpn_vtep_nic_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -28,7 +28,7 @@ function evpn_vtep_nic_get() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=evpn_vtep_nic_get"
     for vm_id in $(
       $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevm list --no-header -l ID 2>/dev/null" |
       tr -d '[:blank:]' |
@@ -72,8 +72,8 @@ function evpn_vtep_nic_get() {
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_vnet_get  # show vtep type (dev or local_ip) for each VNet and VNTemplate
-    zones=ID LIST     #   ALL for all nodes in each zone"
+  evpn_vtep_vnet_get         # show vtep type (dev or local_ip) for each VNet and VNTemplate
+    zones=ID LIST            #   ALL for all nodes in each zone"
 )
 function evpn_vtep_vnet_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -95,7 +95,7 @@ function evpn_vtep_vnet_get() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=evpn_vtep_vnet_get"
 
     for vnet_id in $(
       $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevnet list -f BRIDGE~onebr --no-header -l ID 2>/dev/null" |
@@ -112,20 +112,11 @@ function evpn_vtep_vnet_get() {
       echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} vnet_id=${vnet_id} vnet_name=${name} vnet_type=${type} vnet_vtep=${vtep}"
     done  # vnet_id
 
-    for vnet_id in $(
-      $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevntemplate list --no-header -l ID 2>/dev/null" |
-      tr -d '[:blank:]' |
-      sort -n
-      )
-    do
-      json=$($ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevntemplate show ${vnet_id} -j 2>/dev/null")
-      name=$(jq -r '.VNTEMPLATE.NAME' <<< "${json}")
-      type=$(jq -r '.VNTEMPLATE.TEMPLATE.VXLAN_MODE // ""' <<< "${json}")
-      vtep=$(jq -r '.VNTEMPLATE.TEMPLATE.VXLAN_TEP // ""' <<< "${json}")
-      [[ "${type}" != "evpn" ]] && continue
-      [[ "${vtep}" == "dev" ]] && result=1
-      echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} vntemplate_id=${vnet_id} vntemplate_name=${name} vntemplate_type=${type} vntemplate_vtep=${vtep}"
-    done  # vnet_id
+    json=$($ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevntemplate show ${VNTEMPLATE_ID[${zone[${zone_id},vip]}]} -j 2>/dev/null")
+    name=$(jq -r '.VNTEMPLATE.NAME' <<< "${json}")
+    vtep=$(jq -r '.VNTEMPLATE.TEMPLATE.VXLAN_TEP // ""' <<< "${json}")
+    [[ "${vtep}" == "dev" ]] && result=1
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} vntemplate_id=${VNTEMPLATE_ID[${zone[${zone_id},vip]}]} vntemplate_name=${name} vntemplate_type=${type} vntemplate_vtep=${vtep}"
   done  # zone_id
 
   return ${result}
@@ -134,9 +125,9 @@ function evpn_vtep_vnet_get() {
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_vnet_set  # set vtep to local_ip for each VNet and VNTemplate
-    zones=ID LIST     #   ALL for all nodes in each zone
-    confirm=yes       #   to suppress interactive confirmation"
+  evpn_vtep_vnet_set         # set vtep to local_ip for each VNet and VNTemplate
+    zones=ID LIST            #   ALL for all nodes in each zone
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function evpn_vtep_vnet_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -157,7 +148,7 @@ function evpn_vtep_vnet_set() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=evpn_vtep_vnet_set"
     stop_without_confirmation confirm=${confirm:-no} && return 1
 
     for vnet_id in $(
@@ -175,20 +166,11 @@ function evpn_vtep_vnet_set() {
       $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevnet update ${vnet_id} --append 2>/dev/null" <<< "VXLAN_TEP = \"local_ip\""
     done  # vnet_id
 
-    for vnet_id in $(
-      $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevntemplate list --no-header -l ID 2>/dev/null" |
-      tr -d '[:blank:]' |
-      sort -n
-      )
-    do
-      json=$($ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevntemplate show ${vnet_id} -j 2>/dev/null")
-      name=$(jq -r '.VNTEMPLATE.NAME' <<< "${json}")
-      type=$(jq -r '.VNTEMPLATE.TEMPLATE.VXLAN_MODE // ""' <<< "${json}")
-      vtep=$(jq -r '.VNTEMPLATE.TEMPLATE.VXLAN_TEP // ""' <<< "${json}")
-      [[ "${type}" != "evpn" ]] && continue
-      echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} vntemplate_id=${vnet_id} vntemplate_name=${name} vntemplate_type=${type} vtep_old=${vtep} vtep_new=local_ip"
-      $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevntemplate update ${vnet_id} --append 2>/dev/null" <<< "VXLAN_TEP = \"local_ip\""
-    done  # vnet_id
+    json=$($ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevntemplate show ${VNTEMPLATE_ID[${zone[${zone_id},vip]}]} -j 2>/dev/null")
+    name=$(jq -r '.VNTEMPLATE.NAME' <<< "${json}")
+    vtep=$(jq -r '.VNTEMPLATE.TEMPLATE.VXLAN_TEP // ""' <<< "${json}")
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} vntemplate_id=${VNTEMPLATE_ID[${zone[${zone_id},vip]}]} vntemplate_name=${name} vntemplate_type=${type} vtep_old=${vtep} vtep_new=local_ip"
+    $ssh ${zone[${zone_id},vip]} "sudo -u oneadmin onevntemplate update ${VNTEMPLATE_ID[${zone[${zone_id},vip]}]} --append 2>/dev/null" <<< "VXLAN_TEP = \"local_ip\""
   done  # zone_id
 
   return 0
@@ -197,13 +179,13 @@ function evpn_vtep_vnet_set() {
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_vnm_patch  # patch /var/lib/one/remotes/vnm/vxlan/vxlan.rb
-                       # to change vtep assignment logic
-                       # each bridge created on KVM host during VM start
-                       # will have vtep=local_ip inspite of VM NIC vtep settings
-                       # inspite of VM NIC vtep settings
-    zones=ID LIST      #   ALL for all nodes in each zone
-    confirm=yes        #   to suppress interactive confirmation"
+  evpn_vtep_vnm_patch        # patch /var/lib/one/remotes/vnm/vxlan/vxlan.rb
+                             # to change vtep assignment logic
+                             # each bridge created on KVM host during VM start
+                             # will have vtep=local_ip inspite of VM NIC vtep settings
+                             # inspite of VM NIC vtep settings
+    zones=ID LIST            #   ALL for all nodes in each zone
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function evpn_vtep_vnm_patch() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -223,7 +205,7 @@ function evpn_vtep_vnm_patch() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]}"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=vnm_evpn_vtep_vnm_patch"
     stop_without_confirmation confirm=${confirm:-no} && return 1
 
     echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=vnm_evpn_vtep_vnm_patch_prechecks"
@@ -277,13 +259,13 @@ function evpn_vtep_vnm_patch() {
 
 
 claugine_cli_commands+=( "\
-  evpn_vtep_vnm_unpatch  # recover original /var/lib/one/remotes/vnm/vxlan/vxlan.rb
-                         # to return default vtep assignment logic
-                         # each bridge created on KVM host during VM start
-                         # will have vtep type (local_ip or dev) based of VM NIC settings
-  evpn_vtep_vnm_unpatch
-    zones=LIST           #   zones ids
-    confirm=yes          #   to suppress interactive confirmation"
+  evpn_vtep_vnm_unpatch      # recover original /var/lib/one/remotes/vnm/vxlan/vxlan.rb
+                             # to return default vtep assignment logic
+                             # each bridge created on KVM host during VM start
+                             # will have vtep type (local_ip or dev) based of VM NIC settings
+  evpn_vtep_vnm_unpatch      #
+    zones=LIST               #   zones ids
+    confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function evpn_vtep_vnm_unpatch() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -303,14 +285,15 @@ function evpn_vtep_vnm_unpatch() {
   [[ "${zones^^}" == ALL ]] && zones="${zone[list]}"
   for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=vnm_evpn_vtep_vnm_unpatch_prechecks"
+    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=evpn_vtep_vnm_unpatch"
     stop_without_confirmation confirm=${confirm:-no} && return 1
 
+    echo -n "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=vnm_evpn_vtep_vnm_unpatch_prechecks status="
     if evpn_vtep_vnet_get zones=${zone_id} && evpn_vtep_nic_get zones=${zone_id}
     then
-      echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=vnm_evpn_vtep_vnm_unpatch_prechecks status=ok"
+      echo ok
     else
-      echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=vnm_evpn_vtep_vnm_unpatch_prechecks status=failed"
+      echo failed
       return 1
     fi
 
