@@ -3,8 +3,8 @@ set -u
 #
 export SCRIPT_NAME="CLoud AUtomation enGINE CLI"
 export SCRIPT_AUTHOR="Vladislav Kirilin, [@]ivladek@me.com"
-export SCRIPT_VER="01.10.00"
-export SCRIPT_DATE="2026-10-05"
+export SCRIPT_VER="01.10.10"
+export SCRIPT_DATE="2026-10-02"
 #
 
 
@@ -91,6 +91,13 @@ function script_MAIN {
   then # script executed directly
     echo "!!! ERROR !!! don't run the script directly - load by source"
     exit 1
+  fi
+
+  # script already loaded
+  if declare -F claugine_cli_help &>/dev/null
+  then
+    echo "!!! WARNING !!! script is already loaded"
+    return 1
   fi
 
   # script loaded by source command

@@ -5,7 +5,7 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 claugine_cli_commands+=( "\
-  claugine_cli_help  # show help information"
+  claugine_cli_help          # show help information"
 )
 function claugine_cli_help() {
   local cmd
