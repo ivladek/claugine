@@ -5,14 +5,6 @@ export SCRIPT_NAME="CLoud AUtomation enGINE CLI"
 export SCRIPT_AUTHOR="Vladislav Kirilin, [@]ivladek@me.com"
 export SCRIPT_VER="01.10.10"
 export SCRIPT_DATE="2026-10-02"
-#
-#
-#
-#
-#
-#
-#
-
 
 # BLOCK  module variables
 #######
