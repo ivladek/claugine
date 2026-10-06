@@ -1,0 +1,137 @@
+#!/bin/bash
+#
+# /opt/vyatta/etc/config/scripts/vyos-first-run.script
+#   - run only once to init VyOS
+#
+# CONTEXT variables:
+#   ETH{0..9}_MTU (1500)
+#   ETH{0..9}_IP
+#   ETH{0..9}_MASK (255.255.255.0)
+#   ETH{0..9}_GATEWAY
+#   HOSTNAME (vyos-router)
+#   USERNAME (vyos) - the default vyos user will be disabled when another user is configured
+#   CRYPTED_PASSWORD_BASE64 (ChangeMeN0W*2026)
+#   TIMEZONE (Asia/Almaty)
+#   SSH_PORT (22)
+#   SSH_PUBLIC_KEY - SSH password authentication is disabled when an SSH key is configured
+#
+# Vladislav Kirilin, [@]ivladek@me.com, 2026-10-04
+
+source "/mnt/context.sh"
+conf="/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper" 
+
+HOSTNAME="${HOSTNAME:-vyos-router}"
+TIMEZONE="${TIMEZONE:-Asia/Almaty}"
+USERNAME="${USERNAME:-vyos}"
+PASSWORD="ChangeMeN0W*2026"
+CRYPTED_PASSWORD_BASE64="${CRYPTED_PASSWORD_BASE64:-}"
+SSH_PORT="${SSH_PORT:-22}"
+SSH_PUBLIC_KEY="${SSH_PUBLIC_KEY:-}"
+DEFAULT_MTU=1500
+DEFAULT_METRIC=100
+
+echo "CONFIG: start"
+$conf begin
+
+echo "hostname: ${HOSTNAME}"
+[[ "${HOSTNAME}" != "vyos-router" ]] && $conf set system host-name ${HOSTNAME}
+
+echo "timezone: ${TIMEZONE}"
+$conf set system time-zone ${TIMEZONE}
+
+echo "ssh listnened on all IPs on port: ${SSH_PORT}"
+(( SSH_PORT == 22 )) && $conf set service ssh port ${SSH_PORT}
+
+if [[ "${USERNAME}" == "vyos" ]]
+then
+  echo "default user: ${USERNAME}"
+else
+  echo "default user \"vyos\" - disabled"
+  $conf set system login user vyos disable
+  echo "user: ${USERNAME}"
+fi
+
+if [[ -z "${CRYPTED_PASSWORD_BASE64}" ]]
+then
+  echo "default password: ${PASSWORD}"
+  CRYPTED_PASSWORD_BASE64="$(mkpasswd -m sha-512 -R 100000 "${PASSWORD}" | base64 -w 0)"
+fi
+
+PASSWORD="$(base64 -d -w 0 <<< "${CRYPTED_PASSWORD_BASE64}")"
+$conf set system login user ${USERNAME} authentication encrypted-password ${PASSWORD}
+
+if [[ -n "${SSH_PUBLIC_KEY}" ]]
+then
+  echo "public key: \"${SSH_PUBLIC_KEY}\""
+  KEY_TYPE="$(cut -f 1 -d " " <<< "${SSH_PUBLIC_KEY}")"
+  KEY_PUB="$(cut -f 2 -d " " <<< "${SSH_PUBLIC_KEY}")"
+  $conf set system login user ${USERNAME} authentication public-keys ${USERNAME} type ${KEY_TYPE}
+  $conf set system login user ${USERNAME} authentication public-keys ${USERNAME} key ${KEY_PUB}
+  $conf set service ssh disable-password-authentication
+  echo "password authentication: disable on SSH and enabled only on console"
+fi
+
+for n in {0..9}
+do
+  MAC="ETH${n}_MAC"
+  [[ -z "${!MAC:-}" ]] && continue
+
+  MTU="ETH${n}_MTU"
+  IP="ETH${n}_IP"
+  MASK="ETH${n}_MASK"
+  GATEWAY="ETH${n}_GATEWAY"
+  METRIC="ETH${n}_METRIC"
+  ROUTES="ETH${n}_ROUTES"
+
+  MTU="${!MTU:-${DEFAULT_MTU}}"
+  IP="${!IP}"
+  MASK="${!MASK:-255.255.255.0}"
+  GATEWAY="${!GATEWAY:-}"
+  METRIC="${!METRIC:-${DEFAULT_METRIC}}"
+  ROUTES="${!ROUTES:-}"
+
+  echo "eth${n} mtu: ${MTU}"
+  $conf set interfaces ethernet eth${n} mtu ${MTU}
+  $conf set interfaces ethernet eth${n} ipv6 address no-default-link-local
+  $conf set interfaces ethernet eth${n} ipv6 disable-forwarding
+
+  [[ -z "${IP}" ]] && continue
+
+  PREFIX=0
+  for oct in ${MASK//./ }
+  do
+    case $oct in
+      255) (( PREFIX += 8 )) ;;
+      254) (( PREFIX += 7 )) ;;
+      252) (( PREFIX += 6 )) ;;
+      248) (( PREFIX += 5 )) ;;
+      240) (( PREFIX += 4 )) ;;
+      224) (( PREFIX += 3 )) ;;
+      192) (( PREFIX += 2 )) ;;
+      128) (( PREFIX += 1 )) ;;
+        0) break ;;
+    esac
+  done
+
+  echo "eth${n} ip: ${IP}/${PREFIX}"
+  $conf set interfaces ethernet eth${n} address ${IP}/${PREFIX}
+
+  if [[ ${GATEWAY} =~ ([0-9]{1,3}\.){3}[0-9]{1,3} ]]
+  then
+    $conf set protocols static route 0.0.0.0/0 next-hop ${GATEWAY} distance ${METRIC}
+    echo "eth${n} gw: ${GATEWAY}"
+  fi
+
+  IFS=',' read -ra routes <<< "${ROUTES}"
+  for route in "${routes[@]}"
+  do
+    route_data=( ${route} )
+    [[ ${#route_data[@]} == 3 ]] && $conf set protocols static route ${route_data[0]} next-hop ${route_data[2]} distance ${METRIC}
+  done
+done
+
+
+echo "CONFIG: commit & save"
+$conf commit
+$conf save
+$conf end

@@ -5,33 +5,29 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 claugine_cli_commands+=( "\
   acl_role_rights_set        # set rights set in oned.conf for each VM right - USE MANAGE ADMIN
+    zones=LIST|ALL           #   zone ids, default ALL
     confirm=yes|NO           #   to suppress interactive confirmation"
 )
 function acl_role_rights_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
-  local -n zone=${zone_data}
+  local -n _zone=${zone_data}
+  local zones="${zones:-ALL}"
   local zone_id node op_set
 
-  if [[ -z "${zone[@]:-}" ]]
-  then
-    echo
-    echo "!!! ERROR !!! ONE FE zones data ${zone_data} is not initialized"
-    echo "!!! TRACE !!! ${FUNCNAME[0]}: $*"
-    echo "to initialize data: fe_data_refresh [data=var name] fe=IP"
-    return 1
-  fi
+  _zone_init || return 1
+  zones=$(_zones_resolve zones="${zones}") || return 1
 
-  for zone_id in ${zone[list]}
+  for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=acl_role_rights_set"
+    echo "$(_zone_label ${zone_id}) zone_state=${_zone[${zone_id},state]} action=acl_role_rights_set"
     stop_without_confirmation confirm=${confirm:-no} && return 1
 
     for node in "${FE_NODE_ROLES[@]}"
     do
       for op_set in "${!VM_OPERATIONS[@]}"
       do
-        echo "zone_id=${zone_id} node_role=${node} node_name=${zone[${zone_id},${node},name]} node_ip=${zone[${zone_id},${node},ip]} action=acl_role_rights_patch VM_${op_set}=[${VM_OPERATIONS[${op_set}]}]"
-        $ssh ${zone[${zone_id},${node},ip]} "sudo sed -Ezi '
+        echo "zone_id=${zone_id} node_role=${node} node_name=${_zone[${zone_id},${node},name]} node_ip=${_zone[${zone_id},${node},ip]} action=acl_role_rights_patch VM_${op_set}=[${VM_OPERATIONS[${op_set}]}]"
+        $ssh ${_zone[${zone_id},${node},ip]} "sudo sed -Ezi '
           s|VM_${op_set}_OPERATIONS[[:space:]]*=[[:space:]]*\"[^\"]*\"|VM_${op_set}_OPERATIONS = \"${VM_OPERATIONS[${op_set}]}\"|
         ' /etc/one/oned.conf"
       done  # op_set
@@ -44,30 +40,26 @@ function acl_role_rights_set() {
 
 
 claugine_cli_commands+=( "\
-  acl_role_rights_get        # show rights set in oned.conf for each VM right - USE MANAGE ADMIN"
+  acl_role_rights_get        # show rights set in oned.conf for each VM right - USE MANAGE ADMIN
+    zones=LIST|ALL           #   zone ids, default ALL"
 )
 function acl_role_rights_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
-  local -n zone=${zone_data}
+  local -n _zone=${zone_data}
+  local zones="${zones:-ALL}"
   local zone_id node op_set
 
-  if [[ -z "${zone[@]:-}" ]]
-  then
-    echo
-    echo "!!! ERROR !!! ONE FE zones data ${zone_data} is not initialized"
-    echo "!!! TRACE !!! ${FUNCNAME[0]}: $*"
-    echo "to initialize data: fe_data_refresh [data=var name] fe=IP"
-    return 1
-  fi
+  _zone_init || return 1
+  zones=$(_zones_resolve zones="${zones}") || return 1
 
-  for zone_id in ${zone[list]}
+  for zone_id in ${zones}
   do
-    echo "zone_id=${zone_id} zone_name=${zone[${zone_id},name]} zone_vip=${zone[${zone_id},vip]} zone_state=${zone[${zone_id},state]} action=acl_role_rights_get"
+    echo "$(_zone_label ${zone_id}) zone_state=${_zone[${zone_id},state]} action=acl_role_rights_get"
 
     for node in "${FE_NODE_ROLES[@]}"
     do
-      echo "zone_id=${zone_id} node_role=${node} node_name=${zone[${zone_id},${node},name]} node_ip=${zone[${zone_id},${node},ip]}"
-      $ssh ${zone[${zone_id},${node},ip]} "sudo sed -n '
+      echo "zone_id=${zone_id} node_role=${node} node_name=${_zone[${zone_id},${node},name]} node_ip=${_zone[${zone_id},${node},ip]}"
+      $ssh ${_zone[${zone_id},${node},ip]} "sudo sed -n '
         /^VM_ADMIN_OPERATIONS[[:space:]]*=/p;
         /^VM_MANAGE_OPERATIONS[[:space:]]*=/p;
         /^VM_USE_OPERATIONS[[:space:]]*=/p
@@ -86,25 +78,20 @@ claugine_cli_commands+=( "\
 )
 function acl_tenant_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
-  local -n zone=${zone_data}
+  local -n _zone=${zone_data}
+  local master_vip
   local tenants="${tenants:-ALL}"
   local -a tenants_list=()
   local zone_id
   local json tenant group_id group_name admin_id admin_name
 
-  if [[ -z "${zone[@]:-}" ]]
-  then
-    echo
-    echo "!!! ERROR !!! ONE FE zones data ${zone_data} is not initialized"
-    echo "!!! TRACE !!! ${FUNCNAME[0]}: $*"
-    echo "to initialize data: fe_data_refresh [data=var name] fe=IP"
-    return 1
-  fi
+  _zone_init || return 1
+  master_vip=$(_zone_vip ${_zone[master]})
 
   if [[ "${tenants}" == ALL ]]
   then
     mapfile -t tenants_list < <(
-      $ssh ${zone[0,vip]} "sudo -u oneadmin onegroup list --no-header -l ID 2>/dev/null" |
+      $ssh ${master_vip} "sudo -u oneadmin onegroup list --no-header -l ID 2>/dev/null" |
       tr -d '[:blank:]' |
       sort -n
     )
@@ -114,26 +101,26 @@ function acl_tenant_get() {
       if [[ "${tenant}" =~ ^[0-9]+$ ]]
       then
         mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${zone[0,vip]} "sudo -u oneadmin onegroup list -f ID=\"${tenant}\" --no-header -l ID 2>/dev/null"
+          $ssh ${master_vip} "sudo -u oneadmin onegroup list -f ID=\"${tenant}\" --no-header -l ID 2>/dev/null"
         )
       elif [[ "${tenant}" == tenant-* ]]
       then
         mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${zone[0,vip]} "sudo -u oneadmin onegroup list -f NAME=\"${tenant}\" --no-header -l ID 2>/dev/null"
+          $ssh ${master_vip} "sudo -u oneadmin onegroup list -f NAME=\"${tenant}\" --no-header -l ID 2>/dev/null"
         )
       else
         mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${zone[0,vip]} "sudo -u oneadmin onegroup list -f NAME~\"${tenant}\" --no-header -l ID 2>/dev/null"
+          $ssh ${master_vip} "sudo -u oneadmin onegroup list -f NAME~\"${tenant}\" --no-header -l ID 2>/dev/null"
         )
       fi
     done  # tenant
   fi
 
-  echo "zone_id=0 zone_name=${zone[0,name]} zone_vip=${zone[0,vip]} zone_state=${zone[0,state]} action=acl_tenant_get"
+  echo "$(_zone_label ${_zone[master]}) zone_state=${_zone[${_zone[master]},state]} action=acl_tenant_get"
 
   for group_id in ${tenants_list[@]}
   do
-    json=$($ssh ${zone[0,vip]} "sudo -u oneadmin onegroup show ${group_id} -j 2>/dev/null")
+    json=$($ssh ${master_vip} "sudo -u oneadmin onegroup show ${group_id} -j 2>/dev/null")
     group_name=$(jq -r '.GROUP.NAME' <<< "${json}")
     tenant="${group_name#*-}"
     admin_id=$(jq -r '
@@ -144,16 +131,16 @@ function acl_tenant_get() {
         end
     ' <<< "${json}")
     admin_name=$(
-      $ssh ${zone[0,vip]} "sudo -u oneadmin oneuser show ${admin_id} -j 2>/dev/null" |
+      $ssh ${master_vip} "sudo -u oneadmin oneuser show ${admin_id} -j 2>/dev/null" |
       jq -r '.USER.NAME'
     )
 
-    echo "zone_id=0 zone_name=${zone[0,name]} zone_vip=${zone[0,vip]} tenant=${tenant} group_name=${group_name} group_id=${group_id} admin_name=${admin_name} admin_id=${admin_id}"
+    echo "$(_zone_label ${_zone[master]}) tenant=${tenant} group_name=${group_name} group_id=${group_id} admin_name=${admin_name} admin_id=${admin_id}"
 
-    $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER='-1' 2>/dev/null"
+    $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER='-1' 2>/dev/null"
     {
-      $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER='@${group_id}' --no-header 2>/dev/null"
-      $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER='#${admin_id}' --no-header 2>/dev/null"
+      $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER='@${group_id}' --no-header 2>/dev/null"
+      $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER='#${admin_id}' --no-header 2>/dev/null"
     } | sort -nr
   done  # group_id
 
@@ -170,7 +157,8 @@ claugine_cli_commands+=( "\
 )
 function acl_tenant_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
-  local -n zone=${zone_data}
+  local -n _zone=${zone_data}
+  local master_vip
   local dry="${dry:-yes}"
   local tenants="${tenants:-ALL}"
   local -a tenants_list=()
@@ -179,19 +167,13 @@ function acl_tenant_set() {
   local json tenant group_id group_name admin_id admin_name
   local -A clusters
 
-  if [[ -z "${zone[@]:-}" ]]
-  then
-    echo
-    echo "!!! ERROR !!! ONE FE zones data ${zone_data} is not initialized"
-    echo "!!! TRACE !!! ${FUNCNAME[0]}: $*"
-    echo "to initialize data: fe_data_refresh [data=var name] fe=IP"
-    return 1
-  fi
+  _zone_init || return 1
+  master_vip=$(_zone_vip ${_zone[master]})
 
   if [[ "${tenants}" == ALL ]]
   then
     mapfile -t tenants_list < <(
-      $ssh ${zone[0,vip]} "sudo -u oneadmin onegroup list --no-header -l ID 2>/dev/null" |
+      $ssh ${master_vip} "sudo -u oneadmin onegroup list --no-header -l ID 2>/dev/null" |
       tr -d '[:blank:]' |
       sort -n
     )
@@ -201,29 +183,29 @@ function acl_tenant_set() {
       if [[ "${tenant}" =~ ^[0-9]+$ ]]
       then
         mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${zone[0,vip]} "sudo -u oneadmin onegroup list -f ID=\"${tenant}\" --no-header -l ID 2>/dev/null"
+          $ssh ${master_vip} "sudo -u oneadmin onegroup list -f ID=\"${tenant}\" --no-header -l ID 2>/dev/null"
         )
       elif [[ "${tenant}" == tenant-* ]]
       then
         mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${zone[0,vip]} "sudo -u oneadmin onegroup list -f NAME=\"${tenant}\" --no-header -l ID 2>/dev/null"
+          $ssh ${master_vip} "sudo -u oneadmin onegroup list -f NAME=\"${tenant}\" --no-header -l ID 2>/dev/null"
         )
       else
         mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${zone[0,vip]} "sudo -u oneadmin onegroup list -f NAME~\"${tenant}\" --no-header -l ID 2>/dev/null"
+          $ssh ${master_vip} "sudo -u oneadmin onegroup list -f NAME~\"${tenant}\" --no-header -l ID 2>/dev/null"
         )
       fi
     done  # tenant
   fi
 
-  echo "zone_id=0 zone_name=${zone[0,name]} zone_vip=${zone[0,vip]} zone_state=${zone[0,state]} action=acl_tenant_set"
-  [[ "${dry}" == "no" ]] && stop_without_confirmation confirm=${confirm:-no} && return 1
+  echo "$(_zone_label ${_zone[master]}) zone_state=${_zone[${_zone[master]},state]} action=acl_tenant_set"
 
   for group_id in ${tenants_list[@]}
   do
-    (( group_id < 100 || group_id == SHARED_ID[${zone[0,vip]}] )) && continue
+    (( group_id < 100 || group_id == SHARED_ID[${master_vip}] )) && continue
+    [[ "${dry}" == "no" ]] && stop_without_confirmation confirm=${confirm:-no} && return 1
 
-    json=$($ssh ${zone[0,vip]} "sudo -u oneadmin onegroup show ${group_id} -j 2>/dev/null")
+    json=$($ssh ${master_vip} "sudo -u oneadmin onegroup show ${group_id} -j 2>/dev/null")
     group_name=$(jq -r '.GROUP.NAME' <<< "${json}")
     tenant="${group_name#*-}"
     admin_id=$(jq -r '
@@ -234,7 +216,7 @@ function acl_tenant_set() {
         end
     ' <<< "${json}")
     admin_name=$(
-      $ssh ${zone[0,vip]} "sudo -u oneadmin oneuser show ${admin_id} -j 2>/dev/null" |
+      $ssh ${master_vip} "sudo -u oneadmin oneuser show ${admin_id} -j 2>/dev/null" |
       jq -r '.USER.NAME'
     )
 
@@ -245,7 +227,7 @@ function acl_tenant_set() {
       [[ " ${zones} " != *" ${zone_id} "* ]] && zones+=" ${zone_id}"
       clusters[${zone_id}]+=" ${cluster_id}"
     done < <(
-      $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER=@${group_id} --no-header 2>/dev/null" |
+      $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER=@${group_id} --no-header 2>/dev/null" |
       awk '$3 ~ /^-H/ {
         sub(/^%/, "", $4)
         sub(/^#/, "", $6)
@@ -253,20 +235,20 @@ function acl_tenant_set() {
       }'
     )
 
-    echo "zone_id=0 zone_name=${zone[0,name]} zone_vip=${zone[0,vip]} tenant=${tenant} group_id=${group_id} acl=current"
-    $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER=@${group_id} 2>/dev/null"
-    $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header 2>/dev/null"
+    echo "$(_zone_label ${_zone[master]}) tenant=${tenant} group_id=${group_id} acl=current"
+    $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER=@${group_id} 2>/dev/null"
+    $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header 2>/dev/null"
 
-    echo -n "zone_id=0 zone_name=${zone[0,name]} zone_vip=${zone[0,vip]} tenant=${tenant} group_id=${group_id} acl_delete=["
+    echo -n "$(_zone_label ${_zone[master]}) tenant=${tenant} group_id=${group_id} acl_delete=["
     if [[ "${dry}" == "no" ]]
     then
       for acl_id in $(
-        $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER=@${group_id} --no-header -l ID 2>/dev/null"
-        $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header -l ID 2>/dev/null"
+        $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER=@${group_id} --no-header -l ID 2>/dev/null"
+        $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header -l ID 2>/dev/null"
       )
       do
         echo -n " ${acl_id}"
-        $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl delete ${acl_id} &>/dev/null"
+        $ssh ${master_vip} "sudo -u oneadmin oneacl delete ${acl_id} &>/dev/null"
       done  # acl_id
     else
       echo -n " dry run: no ACLs will be deleted"
@@ -291,18 +273,18 @@ function acl_tenant_set() {
       done  # cluster_id
 
       # grant rights to tenant for using shared and tenant resources
-      acls+=( "@${group_id} IMAGE+TEMPLATE/@${SHARED_ID[${zone[${zone_id},vip]}]} USE    #${zone_id}" )
+      acls+=( "@${group_id} IMAGE+TEMPLATE/@${SHARED_ID[${_zone[${zone_id},vip]}]} USE    #${zone_id}" )
       acls+=( "@${group_id} NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP/@${group_id}     USE    #${zone_id}" )
       acls+=( "@${group_id} VM+DOCUMENT/*                                         CREATE #${zone_id}" )
 
       # grant rights to tenant admin for tenant resources management
       acls+=( "#${admin_id} MARKETPLACEAPP/*                                                       USE              #${zone_id}" )
-      acls+=( "#${admin_id} VNTEMPLATE/#${VNTEMPLATE_ID[${zone[${zone_id},vip]}]}                  USE              #${zone_id}" )
+      acls+=( "#${admin_id} VNTEMPLATE/#${VNTEMPLATE_ID[${_zone[${zone_id},vip]}]}                  USE              #${zone_id}" )
       acls+=( "#${admin_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE+MANAGE       #${zone_id}" )
       acls+=( "#${admin_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/*            CREATE           #${zone_id}" )
     done  # zone_id
 
-    echo -n "zone_id=0 zone_name=${zone[0,name]} zone_vip=${zone[0,vip]} tenant=${tenant} group_id=${group_id} acl_create=["
+    echo -n "$(_zone_label ${_zone[master]}) tenant=${tenant} group_id=${group_id} acl_create=["
     if [[ "${dry}" == "no" ]]
     then
       echo -n "["
@@ -314,7 +296,7 @@ function acl_tenant_set() {
     do
       if [[ "${dry}" == "no" ]]
       then
-        acl_id=$($ssh ${zone[0,vip]} "sudo -u oneadmin oneacl create \"${acl}\" 2>/dev/null")
+        acl_id=$($ssh ${master_vip} "sudo -u oneadmin oneacl create \"${acl}\" 2>/dev/null")
         echo -n " ${acl_id}"
       else
         read -r acl_subj acl_obj acl_ops acl_zone <<< "${acl}"
@@ -325,9 +307,9 @@ function acl_tenant_set() {
     if [[ "${dry}" == "no" ]]
     then
       echo " ]"
-      echo "zone_id=0 zone_name=${zone[0,name]} zone_vip=${zone[0,vip]} tenant=${tenant} group_id=${group_id} acl=new"
-      $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER=@${group_id}             2>/dev/null"
-      $ssh ${zone[0,vip]} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header 2>/dev/null"
+      echo "$(_zone_label ${_zone[master]}) tenant=${tenant} group_id=${group_id} acl=new"
+      $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER=@${group_id}             2>/dev/null"
+      $ssh ${master_vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header 2>/dev/null"
     fi
   done  # group_id
 }  # acl_tenant_set

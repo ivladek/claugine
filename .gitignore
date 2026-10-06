@@ -1,13 +1,25 @@
 # ---- local only, never published ----
-_archive/
-git-init.sh
-git-check.sh
-.DS_Store
+# leading "/" - only in the repository root
+
+# git helper scripts
+/git-*.sh
+
+# old code
+/_archive/
+
+# hidden files and directories anywhere: editor, OS and FUSE leftovers
+.*
+# ... except this file
+!.gitignore
 
 # ---- sensitive data ----
 # ignore everything under data/ ...
-data/**
+/data/**
 # ... but keep walking into subdirectories ...
-!data/**/
+!/data/**/
 # ... and publish only sample files
-!data/**/*SAMPLE*
+!/data/**/*SAMPLE*
+
+# ---- tests ----
+# real test data, sample is published: tests/claugine-cli_TEST_SAMPLE.sh
+/tests/claugine-cli_TEST.sh

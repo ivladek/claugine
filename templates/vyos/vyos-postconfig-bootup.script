@@ -1,0 +1,102 @@
+#!/bin/bash
+#
+# /opt/vyatta/etc/config/scripts/vyos-postconfig-bootup.script
+#   - called from /etc/rc.local on boot
+#   - starts after the VyOS configuration is fully applied
+#
+#   - runs /opt/vyatta/etc/config/scripts/vyos-first-run.script
+#       default behavior - run only once
+#       FIRSTRUN_SCRIPT_DISABLE=yes - never run
+#       after execution, disable the script by renaming it to *.disabled
+#
+#   - runs all *.sh from context cd-rom in alphabetical order
+#       default behavior - run only once
+#       CONTEXT_SCRIPTS_DISABLE=yes - never run and ignore CONTEXT_SCRIPTS_ENFORCE
+#       CONTEXT_SCRIPTS_ENFORCE=yes - run on every boot, ignoring FLAG file
+#
+#   - create a flag file after contextualization has completed
+#
+# Vladislav Kirilin, [@]ivladek@me.com, 2026-07-21
+
+echo "----------------------------------------"
+echo "contextualization - started"
+export CONTEXT_DIR="/mnt"
+export CONTEXT_DATA="${CONTEXT_DIR}/context.sh"
+export FLAG="/opt/vyatta/etc/init.flag"
+export FIRST_RUN="/opt/vyatta/etc/config/scripts/vyos-first-run.script"
+PASSWORD="ChangeMeN0W*2026"
+
+mount /dev/sr0 ${CONTEXT_DIR} &>/dev/null
+source ${CONTEXT_DATA}
+FIRSTRUN_SCRIPT_DISABLE="${FIRSTRUN_SCRIPT_DISABLE:-}"
+CONTEXT_SCRIPTS_ENFORCE="${CONTEXT_SCRIPTS_ENFORCE:-}"
+CONTEXT_SCRIPTS_DISABLE="${CONTEXT_SCRIPTS_DISABLE:-}"
+
+if [[ -f ${FIRST_RUN} ]]
+then
+  if [[ "${FIRSTRUN_SCRIPT_DISABLE}" == "yes" ]]
+  then
+    echo "initial configuration - skipped because FIRSTRUN_SCRIPT_DISABLE=yes"
+    echo "user: vyos"
+    echo "password: ${PASSWORD}"
+  else
+    echo "initial configuration - started"
+    sg vyattacfg -c "/bin/bash ${FIRST_RUN}"
+    echo "initial configuration - completed"
+  fi
+  mv ${FIRST_RUN} ${FIRST_RUN}.disabled
+else
+  echo "initial configuration - disabled because this is not first run"
+fi
+
+if [[ "${CONTEXT_SCRIPTS_DISABLE}" == "yes" ]]
+then
+  echo "context scripts - disabled because CONTEXT_SCRIPTS_DISABLE=yes"
+  CONTEXT_SCRIPTS_RUN=no
+else
+  if [[ -f "${FLAG}" ]]
+  then
+    if [[ "${CONTEXT_SCRIPTS_ENFORCE}" == "yes" ]]
+    then
+      echo "context scripts - running because CONTEXT_SCRIPTS_ENFORCE=yes"
+      CONTEXT_SCRIPTS_RUN=yes
+    else
+      echo "context scripts - skipped because they have already run"
+      CONTEXT_SCRIPTS_RUN=no
+    fi
+  else
+    echo "context scripts - running because they have never run"
+    CONTEXT_SCRIPTS_RUN=yes
+  fi
+fi
+
+if [[ "${CONTEXT_SCRIPTS_RUN}" == "yes" ]]
+then
+  for s in ${CONTEXT_DIR}/*.sh
+  do
+    if [[ "$s" != "${CONTEXT_DATA}" ]]
+    then
+      echo "context script - $s"
+      echo "- - - - - - - - - -"
+      sg vyattacfg -c "/bin/bash $s"
+    fi
+  done
+fi
+
+umount ${CONTEXT_DIR} &>/dev/null
+echo "contextualization - finished"
+echo "----------------------------------------"
+
+
+if [[ -f "${FLAG}" ]]
+then
+  cat "${FLAG}"
+else
+  date '+initialized on %A, %B %d, %Y at %H:%M:%S GMT%Z' > ${FLAG}
+  echo "----------------------------------------"
+  /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper show configuration | /usr/bin/vyos-config-to-commands
+  echo "----------------------------------------"
+  echo reboot in 10 seconds
+  sleep 10
+  reboot
+fi

@@ -21,6 +21,31 @@ function claugine_cli_help() {
 
 
 
+# check that mac is a valid MAC address (xx:xx:xx:xx:xx:xx)
+#   mac=MAC
+function is_mac() {
+  local arg; for arg in "$@"; do local "${arg}"; done
+  [[ "${mac:-}" =~ ^([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}$ ]] || return 1
+  return 0
+}  # is_mac
+
+
+
+# check that ip is a valid IP v4 address
+#   ip=IP
+function is_ipv4() {
+  local arg; for arg in "$@"; do local "${arg}"; done
+  local octet
+  [[ "${ip:-}" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]] || return 1
+  for octet in "${BASH_REMATCH[@]:1}"
+  do
+    (( 10#${octet} <= 255 )) || return 1
+  done
+  return 0
+}  # is_ipv4
+
+
+
 # ask to confirm critical operation
 # return 
 #   1(false) if operation confirmed
@@ -32,7 +57,7 @@ function stop_without_confirmation() {
 
   [[ "${confirm}" == "yes" ]] && return 1
 
-  read -r -t 60 -p "!!! ATTENTION !!! Approve critial operation  [yes/no or it will automatically declined in 1 minute]: " answer
+  read -r -t 60 -p "!!! ATTENTION !!! installation=$(_zone_installation) Approve critial operation  [yes/no or it will automatically declined in 1 minute]: " answer
   [[ "${answer}" == "yes" ]] && return 1
 
   echo "!!! OPERATION CANCELED !!!"

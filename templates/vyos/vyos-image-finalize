@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# /opt/vyatta/etc/config/scripts/vyos-image-finalize
+#   - started over ssh by vyos_image_finalize on the builder VM,
+#     detached from the ssh session (the session drops when eth0 is removed)
+#   - removes everything the builder VM got from its first run
+#   - sets the image defaults
+#   - re-enables the first run for the next VM created from the image
+#   - cleans up and powers the VM off
+#
+#   log while the VM is running: /tmp/vyos-image-finalize.log
+#
+#   defaults:
+#     - user - vyos
+#     - password - ChangeMeN0W*2026
+#
+# Vladislav Kirilin, [@]ivladek@me.com, 2026-10-04
+
+PASSWORD="ChangeMeN0W*2026"
+CONFIG="/opt/vyatta/etc/config"
+FIRST_RUN="${CONFIG}/scripts/vyos-first-run.script"
+FLAG="/opt/vyatta/etc/init.flag"
+conf="/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper"
+HASH="$(mkpasswd -m sha-512 -R 100000 "${PASSWORD}")"
+
+
+echo "config: reset to the image defaults"
+sg vyattacfg -c "
+$conf begin
+$conf delete interfaces ethernet
+$conf delete protocols static
+$conf delete service
+$conf delete system login user vyos authentication public-keys
+$conf delete system login user vyos disable
+$conf set system login user vyos authentication encrypted-password '${HASH}'
+$conf delete system console
+$conf set system host-name vyos-router
+$conf set system option ctrl-alt-delete ignore
+$conf set system option reboot-on-panic
+$conf set service ssh port 22
+$conf set service ssh disable-host-validation
+$conf set service ssh client-keepalive-interval 120
+$conf commit
+$conf save
+$conf end"
+echo "- - - - - - - - - -"
+${conf} show configuration | /usr/bin/vyos-config-to-commands
+echo "- - - - - - - - - -"
+
+
+echo "first run: enable for the next boot"
+[[ -f "${FIRST_RUN}.disabled" ]] && sudo mv -f "${FIRST_RUN}.disabled" "${FIRST_RUN}"
+sudo rm -f "${FLAG}"
+
+
+echo "cleanup"
+sudo rm -f /etc/ssh/ssh_host_*                        # new host keys on the next boot
+sudo rm -f "${CONFIG}"/archive/config.boot.*          # commit history of the builder
+sudo truncate -s 0 /etc/machine-id                    # new machine-id on the next boot
+sudo rm -f /home/vyos/.bash_history /root/.bash_history
+
+
+echo "done - power off"
+sync
+sudo poweroff

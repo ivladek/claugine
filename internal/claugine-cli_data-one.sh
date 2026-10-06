@@ -28,7 +28,7 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 #   ALL
 
 
-declare -gr FIREEDGE_VIEWS_CUSTOM="opennebula-fireedge-views/custom"
+declare -gr DIR_FIREEDGE_VIEWS_CUSTOM="opennebula-fireedge-views/custom"
 
 declare -gr FIREEDGE_VIEWS_LIST=(
   user
@@ -69,7 +69,7 @@ declare -gr DATA_REFRESH_LIMIT=300
 declare -gr HOST_DISABLE_TIMEOUT=180
 declare -gr HOST_ENABLE_TIMEOUT=180
 declare -gr HOST_FLUSH_TIMEOUT=1800
-
+declare -gw IMAGE_WAIT_LIMIT=300
 
 declare -gra ONE_FE_CONFIG_DIRS=(
   ${HOME}
@@ -117,4 +117,50 @@ declare -rga ONE_HOST_STATE=(
   [6]=MONITORING_INIT	      # Monitoring during initialization
   [7]=MONITORING_DISABLED	  # Monitoring a disabled host
   [8]=OFFLINE	              # Host marked offline
+)
+
+# objects for _one_object_id: the CLI command is one<TYPE>
+declare -gra ONE_OBJECT_TYPES=(
+  cluster
+  datastore
+  group
+  host
+  image
+  marketapp
+  secgroup
+  template
+  user
+  vm
+  vnet
+  vntemplate
+  zone
+)
+
+declare -gra VM_REQUIRED_PARAMETERS=(
+  cluster
+  name
+  hostname
+  cpu
+  ram
+  image1
+  disk1
+  vnet1
+  addr1
+  user
+  pswd
+  key
+)
+
+declare -rga ONE_IMAGE_STATE=(
+  [0]=INIT
+  [1]=READY
+  [2]=USED
+  [3]=DISABLED
+  [4]=LOCKED
+  [5]=ERROR
+  [6]=CLONE
+  [7]=DELETE
+  [8]=USED_PERS
+  [9]=LOCKED_USED
+  [10]=LOCKED_USED_PERS
 )

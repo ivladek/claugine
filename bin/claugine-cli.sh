@@ -3,8 +3,8 @@ set -u
 #
 export SCRIPT_NAME="CLoud AUtomation enGINE CLI"
 export SCRIPT_AUTHOR="Vladislav Kirilin, [@]ivladek@me.com"
-export SCRIPT_VER="01.10.10"
-export SCRIPT_DATE="2026-10-02"
+export SCRIPT_VER="02.00.00"
+export SCRIPT_DATE="2026-10-06"
 
 # BLOCK  module variables
 #######
@@ -29,7 +29,7 @@ export    zone_data=claugine_zone   # pointer to current zone data used by each 
 #   ssh_keyf=FILE (${HOME}/.ssh/${USER}.key)
 function script_INIT {
   local arg; for arg in "$@"; do local "${arg}"; done
-  local module
+  local module cmd
 
   DIR_SCRIPT=$(                              # script root directory
     dirname -- "$(
@@ -38,12 +38,12 @@ function script_INIT {
   )
   DIR_SCRIPT="${DIR_SCRIPT%/bin}"
 
-  DIR_LIB="${DIR_SCRIPT}/lib/cli"            # script modules
-  DIR_INTERNAL="${DIR_SCRIPT}/internal/cli"  # internal script data
-  DIR_TEMPLATE="${DIR_SCRIPT}/templates"     # templates
+  DIR_LIB="${DIR_SCRIPT}/lib"             # script modules
+  DIR_INTERNAL="${DIR_SCRIPT}/internal"   # internal script data
+  DIR_TEMPLATE="${DIR_SCRIPT}/templates"  # templates
 
   DIR_DATA="${data:-}"
-  [[ -z "${DIR_DATA}" ]] && DIR_DATA="${DIR_SCRIPT}/data/cli"
+  [[ -z "${DIR_DATA}" ]] && DIR_DATA="${DIR_SCRIPT}/data"
   DIR_DATA=$(realpath "${DIR_DATA}" 2>/dev/null)
   if [[ -z "${DIR_DATA}" ]]
   then
@@ -57,23 +57,36 @@ function script_INIT {
   ssh="ssh -p ${SSH_PORT} -l ${SSH_USER} -i ${SSH_KEYF}"
 
   echo "data: load from ${DIR_INTERNAL}"
-  for module in "${DIR_INTERNAL}"/claugine_cli_*.sh
+  for module in "${DIR_INTERNAL}"/claugine-cli_*.sh
   do
     source "${module}"
   done
 
   echo "data: load from ${DIR_DATA}"
-  for module in "${DIR_DATA}"/claugine_cli_*.sh
+  for module in "${DIR_DATA}"/claugine-cli_*.sh
   do
     [[ "${module}" == *SAMPLE* ]] && continue
+    [[ "${module}" == *TEST* ]] && continue
     source "${module}"
   done
 
   echo "modules: load from ${DIR_LIB}"
-  for module in "${DIR_LIB}"/claugine_cli_*.sh
+  for module in "${DIR_LIB}"/claugine-cli_*.sh
   do
     source "${module}"
   done
+
+  echo "tools: check ${ADMIN_TOOLS[*]}"
+  for cmd in "${ADMIN_TOOLS[@]}"
+  do
+    if ! command -v "${cmd}" &>/dev/null
+    then
+      echo
+      echo "!!! ERROR !!! required tool \"${cmd}\" not found"
+      echo "!!! TRACE !!! ${FUNCNAME[0]}: $*"
+      return 2
+    fi
+  done  # cmd
 
   echo "script directory: ${DIR_SCRIPT}"
   echo "data directory: ${DIR_DATA}"
@@ -84,6 +97,8 @@ function script_INIT {
 
 # MAIN
 function script_MAIN {
+  local arg; for arg in "$@"; do local "${arg}"; done
+
   if [[ "${BASH_SOURCE[0]}" == "$0" ]]
   then # script executed directly
     echo "!!! ERROR !!! don't run the script directly - load by source"

@@ -16,6 +16,7 @@ declare -grA VNTEMPLATE_ID=(
 )
 
 declare -gr DIR_BACKUPS=${HOME}/backups
+declare -gr DIR_IMAGES=${HOME}/images
 
 declare -grA IMAGES_QUOTA=(
   [ooo-vasilyok]=100
@@ -52,4 +53,16 @@ declare -grA FILES_DS=(
 declare -grA BACKUPS_DS=(
   [${DC1}]=105
   [${DC2}]=105
+)
+
+declare -gr DIR_UBUNTU_REPO="${HOME}/repo/ubuntu"
+declare -grA URL_UBUNTU_REPO=(
+  [${DC1}]="http://localrepo-dc1.acme.com/repo/ubuntu"
+  [${DC2}]="http://localrepo-dc2.acme.com/repo/ubuntu"
+)
+
+declare -gr DIR_VYOS_REPO="${HOME}/repo/vyos"
+declare -grA URL_VYOS_REPO=(
+  [${DC1}]="http://localrepo-dc1.acme.com/repo/vyos"
+  [${DC2}]="http://localrepo-dc2.acme.com/repo/vyos"
 )

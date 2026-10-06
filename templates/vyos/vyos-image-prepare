@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+# vyos-image-prepare
+#   runs in the VyOS live session booted from the claugine ISO,
+#   right after "install image" (answer "no" to the reboot question):
+#
+#     sudo bash /usr/lib/live/mount/medium/claugine/vyos-image-prepare
+#
+#   - finds the installed VyOS on the local disk (partition labeled "persistence")
+#   - replaces grub.cfg with /claugine/grub.cfg from the ISO (single OpenNebula boot entry)
+#   - copies vyos-postconfig-bootup.script, vyos-first-run.script and
+#     vyos-image-finalize to the installed config scripts directory
+#   - powers the VM off
+#
+# next step on the admin host: vyos_image_finalize
+#
+# Vladislav Kirilin, [@]ivladek@me.com, 2026-10-04
+
+set -u
+SRC="$(dirname "$(readlink -f "$0")")"
+TARGET="/mnt/claugine-target"
+SCRIPTS=(
+  vyos-postconfig-bootup.script
+  vyos-first-run.script
+  vyos-image-finalize
+)
+
+function stop() {
+  echo "!!! ERROR !!! $*"
+  mountpoint -q "${TARGET}" && umount "${TARGET}"
+  exit 1
+}
+
+[[ ${EUID} -ne 0 ]] && { echo "!!! ERROR !!! run with sudo"; exit 1; }
+
+echo "installed VyOS: search"
+part="$(blkid -L persistence)" || stop "installed VyOS not found - run \"install image\" first"
+mkdir -p "${TARGET}"
+mount "${part}" "${TARGET}" || stop "can not mount ${part}"
+
+VYOS_VER=""
+for dir in "${TARGET}"/boot/*/
+do
+  [[ -f "${dir}vmlinuz" ]] && VYOS_VER="$(basename "${dir}")"
+done
+[[ -z "${VYOS_VER}" ]] && stop "no installed image in ${part}:/boot"
+
+CONFIG="${TARGET}/boot/${VYOS_VER}/rw/opt/vyatta/etc/config"
+[[ -d "${CONFIG}" ]] || stop "config directory not found: ${part}:${CONFIG#${TARGET}}"
+echo "installed VyOS: ${VYOS_VER} on ${part}"
+
+for script in grub.cfg "${SCRIPTS[@]}"
+do
+  [[ -f "${SRC}/${script}" ]] || stop "${SRC}/${script} not found"
+done
+
+
+echo "setup grub"
+GRUB="${TARGET}/boot/grub/grub.cfg"
+[[ -f "${GRUB}.original" ]] || cp "${GRUB}" "${GRUB}.original"
+grep -v '^#' "${SRC}/grub.cfg" | sed "s|\${VYOS_VER}|${VYOS_VER}|g" > "${GRUB}"
+
+
+echo "setup scripts"
+install -d -m 775 -g vyattacfg "${CONFIG}/scripts"
+for script in "${SCRIPTS[@]}"
+do
+  install -m 775 -g vyattacfg "${SRC}/${script}" "${CONFIG}/scripts/${script}"
+  echo "  /config/scripts/${script}"
+done
+
+
+sync
+umount "${TARGET}"
+echo "done - power off in 10 seconds"
+sleep 10
+poweroff
