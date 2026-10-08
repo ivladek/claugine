@@ -1,0 +1,3 @@
+content: |
+  ENDPOINT="http://${api_ip}:2633/RPC2"
+  ENDPOINT_GRPC="${api_ip}:2634"

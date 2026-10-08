@@ -1,0 +1,20 @@
+location:
+  country: XX
+  city: City 1
+  dc: 1
+
+timezone: timezones.almaty
+
+ntp_servers:
+  - 10.71.202.15
+  - 10.71.202.16
+
+repos:
+  zakroma:                  # local repository of images and ISOs: <local_dir>/ubuntu, <local_dir>/vyos, ...
+    url_base: http://sdc1claugine.example.net/zakroma
+    local_dir: /srv/claugine/repo/zakroma
+  host_data:
+    url_base: http://sdc1claugine.example.net/host_init
+    local_dir: /srv/claugine/repo/host_init
+  backups:                  # FE backups: fe_backup
+    local_dir: /srv/claugine/backups/platforms

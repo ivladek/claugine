@@ -1,0 +1,7 @@
+content: |
+  NAME = "${name}"
+  TYPE = "FILE_DS"
+  DS_MAD = "fs"
+  TM_MAD = "local"
+  DATASTORE_CAPACITY_CHECK = "YES"
+  NO_DECOMPRESS = "NO"

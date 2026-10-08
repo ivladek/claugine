@@ -1,0 +1,8 @@
+content: |
+  DROP DATABASE IF EXISTS ${onedb_name};
+  DROP USER IF EXISTS '${onedb_user}'@'localhost';
+  CREATE DATABASE ${onedb_name};
+  CREATE USER '${onedb_user}'@'localhost' IDENTIFIED BY '${onedb_pswd}';
+  GRANT ALL PRIVILEGES ON ${onedb_name}.* TO '${onedb_user}'@'localhost';
+  SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;
+  GRANT PROCESS ON *.* TO '${onedb_user}'@'localhost';

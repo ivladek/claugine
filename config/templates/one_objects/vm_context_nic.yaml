@@ -1,0 +1,7 @@
+content: |
+  NIC = [
+    NIC_ID = "${nic_order}",
+    NETWORK = "${nic_vnet}",
+  ${vm_context_nic_optional_data}
+    NAME = "${nic_name}"
+  ]

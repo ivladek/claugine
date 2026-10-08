@@ -1,0 +1,5 @@
+file: /etc/apt/preferences.d/nosnap.pref
+content: |
+  Package: snapd
+  Pin: release *
+  Pin-Priority: -1

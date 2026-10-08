@@ -1,0 +1,4 @@
+file: /etc/apparmor.d/abstractions/libvirt-qemu.d/one-host
+content: |
+  # OpenNebula datastores
+  /var/lib/one/datastores/** rwk,

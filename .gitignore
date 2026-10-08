@@ -13,13 +13,11 @@
 !.gitignore
 
 # ---- sensitive data ----
-# ignore everything under data/ ...
+# data set: data/{inventory,secrets,runtime} - never published; data/SAMPLE - published sample
 /data/**
-# ... but keep walking into subdirectories ...
 !/data/**/
-# ... and publish only sample files
-!/data/**/*SAMPLE*
+!/data/SAMPLE/**
 
 # ---- tests ----
-# real test data, sample is published: tests/claugine-cli_TEST_SAMPLE.sh
-/tests/claugine-cli_TEST.sh
+# real test data, sample is published: tests/claugine_TEST_SAMPLE.sh
+/tests/claugine_TEST.sh

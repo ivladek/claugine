@@ -1,0 +1,5 @@
+server_profile: server_profiles.std1
+ip: 10.71.100.13
+ipmi:
+  host: 10.71.200.13
+  user: secrets.acme.ipmi.users.standard

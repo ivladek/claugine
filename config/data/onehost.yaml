@@ -1,0 +1,15 @@
+# OpenNebula KVM host
+
+repos:
+  - frr
+  - opennebula
+
+packages:
+  - tuned
+  - ipmitool
+  - nfs-common
+  - bridge-utils
+  - frr
+  - libguestfs-tools
+  - opennebula-node-kvm
+  - opennebula-prometheus-kvm

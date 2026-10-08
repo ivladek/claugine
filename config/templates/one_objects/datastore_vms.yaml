@@ -1,0 +1,6 @@
+content: |
+  NAME = "${name}"
+  TYPE = "SYSTEM_DS"
+  BRIDGE_LIST = "${hosts}"
+  TM_MAD = "qcow2"
+  DATASTORE_CAPACITY_CHECK = "YES"

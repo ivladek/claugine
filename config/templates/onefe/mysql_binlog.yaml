@@ -1,0 +1,10 @@
+file: /etc/mysql/mysql.conf.d/mysql-binlog.cnf
+content: |
+  [mysqld]
+  log_bin = binlog/binlog
+
+  # default is 100 Mbytes
+  max_binlog_size = 100M
+
+  # expire in 2h (default is 30d)
+  binlog_expire_logs_seconds = 7200

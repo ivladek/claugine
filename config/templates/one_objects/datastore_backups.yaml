@@ -1,0 +1,8 @@
+content: |
+  NAME = "${name}"
+  TYPE = "BACKUP_DS"
+  DS_MAD = "restic"
+  TM_MAD = "-"
+  RESTIC_SFTP_SERVER = "${host}"
+  RESTIC_SFTP_USER = "${user}"
+  RESTIC_PASSWORD="${password}"

@@ -1,0 +1,9 @@
+shared-std02_dc1:
+  type: shared
+  hosts:
+    - resources.dc1.hosts.hdc1std1kvm031
+    - resources.dc1.hosts.hdc1std1kvm032
+  network:
+    - resources.dc1.networks.one-core
+    - resources.dc1.networks.data-nfs
+    - resources.dc1.networks.payload2-vxlan

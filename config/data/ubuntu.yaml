@@ -1,0 +1,10 @@
+# Ubuntu Server ISO
+
+url: https://releases.ubuntu.com
+version: "26.04"
+
+iso:
+  dir: ubuntu            # in config/files/
+  files:                 # added to the ISO by iso_customize
+    - name: grub.cfg
+      path: /boot/grub/

@@ -1,0 +1,7 @@
+content: |
+  DISK = [
+    ORDER = "${disk_order}",
+    IMAGE = "${disk_image}",
+    SIZE = "${disk_size}",
+    DATASTORE = "${disk_datastore}"
+  ]

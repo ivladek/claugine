@@ -1,0 +1,9 @@
+interface: bond0
+vlan: 103
+mtu: 1500
+subnet: 192.0.2.8
+prefix: 29
+gw: 192.0.2.9
+dns:
+  - 10.72.101.11
+  - 10.72.101.12

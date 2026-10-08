@@ -1,0 +1,15 @@
+# claugine-cli functions data
+
+vm_parameters:
+  - cluster
+  - name
+  - hostname
+  - cpu
+  - ram
+  - image1
+  - disk1
+  - vnet1
+  - addr1
+  - user
+  - pswd
+  - key

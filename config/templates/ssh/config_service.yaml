@@ -1,0 +1,14 @@
+file: .ssh/config
+content: |
+  Host *
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel QUIET
+    ConnectTimeout 5
+    ServerAliveInterval 90
+    ServerAliveCountMax 5
+    Port 22
+    PasswordAuthentication no
+    PubkeyAuthentication yes
+    User ${USER}
+    IdentityFile ${HOME}/home/${USER}/.ssh/${USER}.key

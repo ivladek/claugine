@@ -1,0 +1,32 @@
+payload1-vms01_dc2:
+  type: vms
+  clusters:
+    - shared-std01_dc2
+  volume: resources.dc2.storages.nas2.volumes.payload1-vms-1
+
+payload1-vms02_dc2:
+  type: vms
+  clusters:
+    - shared-gpu01_dc2
+  volume: resources.dc2.storages.local.hdc2gpu1kvm020.volumes.local-1
+
+payload1-images01_dc2:
+  type: images
+  clusters:
+    - shared-std01_dc2
+  volume: resources.dc2.storages.nas2.volumes.payload1-images-1
+
+payload1-images02_dc2:
+  type: images
+  clusters:
+    - shared-gpu01_dc2
+  volume: resources.dc2.storages.local.hdc2gpu1kvm020.volumes.local-1
+
+payload1-files01_dc2:
+  type: files
+  volume: resources.dc2.storages.nas2.volumes.payload1-files-1
+
+payload1-backups01_dc2:
+  type: restic
+  volume: resources.dc2.storages.san1.volumes.payload1-backups-1
+  service: platforms.dc2.mgmt.services.sdc2p1bkp1

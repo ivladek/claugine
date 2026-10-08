@@ -1,0 +1,25 @@
+name: payload2_dc2
+
+mode: local
+# single - 1 node, no federation
+# local - 3 nodes, no federation
+# primary - 3 nodes, federation, primary site
+# secondary - 3 nodes, federation, secondary site
+
+type: vm
+# vm - installed in dedicated VM
+# host - installed on host OS
+
+nodes:
+  - sdc2p2one1
+  - sdc2p2one2
+  - sdc2p2one3
+nic: eth0
+vip: 10.72.101.60
+hostname: sdc2p2one
+
+secrets: secrets.acme.payload2.one
+
+empty_bridges: cleanup
+# keep - don't delete empty bridges on KVM host
+# cleanup - delete an empty bridge on KVM host if no VM uses it

@@ -1,0 +1,14 @@
+file: /tmp/upgrade-XXXX.sh
+content: |
+  #!/bin/bash
+  sleep 10
+  export DEBIAN_FRONTEND=noninteractive
+  flag_file=".claugine_last-update.ok"
+  sudo systemctl mask --runtime --now ssh.service ssh.socket
+  date '+%A, %B %d, %Y at %H:%M:%S GMT%Z' > ${flag_file}
+  sudo apt-get update &>> ${flag_file}
+  sudo apt-get -y dist-upgrade &>> ${flag_file}
+  sudo apt-get -y autoremove --purge &>> ${flag_file}
+  sudo apt-get clean &>> ${flag_file}
+  sudo systemctl unmask --runtime ssh.service ssh.socket
+  sudo reboot

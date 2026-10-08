@@ -1,0 +1,50 @@
+interface: bond0
+vlan: 109
+mtu: 1500
+subnet: 10.72.109.0
+prefix: 24
+
+ranges:
+  egw:
+    start: 10.72.109.10
+    len: 230
+
+
+bgp:
+
+  local_asn: 4207209002
+  remote_asn: 4207209001
+
+  subnets:
+    - 198.51.100.64/26
+
+  ibgp:
+    peer_groups:
+      egw:
+        password: secrets.acme.payload2.network.payload2-ix.dc2.egw
+        hosts:
+          - 10.72.109.9
+          - 10.72.109.10/31
+          - 10.72.109.12/30
+          - 10.72.109.16/28
+          - 10.72.109.32/27
+          - 10.72.109.64/26
+          - 10.72.109.128/26
+          - 10.72.109.192/27
+          - 10.72.109.224/28
+      rrs:
+        password: secrets.acme.payload2.network.payload2-ix.dc2.rrs
+        hosts:
+          - 10.72.109.240/30
+
+  ebgp:
+    peer_groups:
+      ext:
+        password: secrets.acme.payload2.network.payload2-ix.dc2.ext
+        hosts:
+          - 10.72.109.0/30
+
+  rrs:
+    - 10.72.109.241
+    - 10.72.109.242
+    - 10.72.109.243

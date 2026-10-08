@@ -1,0 +1,32 @@
+# management platform and shared files
+type: nfs
+parameters: nfs4  _netdev,rw,vers=4.2,rsize=65536,wsize=65536,noatime,nconnect=16,retrans=5,timeo=600  0 0
+
+targets:
+  - 10.71.111.240
+
+volumes:
+
+  mgmt-one:
+    dev: /mgmt_one
+    size_gb: 2048
+    clients:
+      - 10.71.111.0/24
+
+  log-one:
+    dev: /log_one
+    size_gb: 5120
+    clients:
+      - 10.71.111.0/24
+
+  mgmt-vms:
+    dev: /mgmt_vms
+    size_gb: 10240
+    clients:
+      - 10.71.111.0/24
+
+  mgmt-images:
+    dev: /mgmt_images
+    size_gb: 1024
+    clients:
+      - 10.71.111.0/24

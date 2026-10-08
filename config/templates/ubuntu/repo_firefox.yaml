@@ -1,0 +1,5 @@
+file: /etc/apt/preferences.d/firefox
+content: |
+  Package: firefox
+  Pin: release o=LP-PPA-mozillateam
+  Pin-Priority: 1001

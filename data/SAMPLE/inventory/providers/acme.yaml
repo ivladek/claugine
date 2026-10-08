@@ -1,0 +1,10 @@
+name: ACME Cloud
+id: acme
+
+country: XX
+legal_entity: ACME Cloud Ltd
+website: https://www.example.com
+
+zone:
+  public: example.com
+  internal: example.net

@@ -1,0 +1,21 @@
+content: |
+  NAME = "${name}"
+ 
+  VN_MAD = "802.1Q"
+  BRIDGE = "${bridge}"
+  BRIDGE_TYPE = "linux"
+  PHYDEV = "${nic}"
+  VLAN_ID = "${vlan}"
+  MTU = "${mtu}"
+
+  GUEST_MTU="${mtu}"
+  METHOD="static"
+  IP6_METHOD="disable"
+
+  NETWORK_ADDRESS="${subnet}"
+  NETWORK_MASK="${mask}"
+  DNS="${dns}"
+  GATEWAY="${gw}"
+
+  FILTER_MAC_SPOOFING="${filter}"
+  FILTER_IP_SPOOFING="${filter}"

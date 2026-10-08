@@ -1,0 +1,10 @@
+interface: bond1
+vlan: 111
+mtu: 9000
+subnet: 10.71.111.0
+prefix: 24
+
+ranges:
+  vms:
+    start: 10.71.111.200
+    len: 40

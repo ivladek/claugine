@@ -1,0 +1,6 @@
+interface: bond0
+vlan: 125
+mtu: 1500
+subnet: 10.71.251.0
+prefix: 24
+gw: 10.71.251.1

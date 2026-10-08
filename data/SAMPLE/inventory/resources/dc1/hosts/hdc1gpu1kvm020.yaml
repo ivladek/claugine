@@ -1,0 +1,5 @@
+server_profile: server_profiles.gpu1
+ip: 10.71.100.20
+ipmi:
+  host: 10.71.200.20
+  user: secrets.acme.ipmi.users.standard

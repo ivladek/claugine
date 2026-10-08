@@ -1,0 +1,40 @@
+interface: bond0
+bridge: vxlan
+vlan: 108
+mtu: 9050
+subnet: 10.71.108.0
+prefix: 24
+
+ranges:
+  hosts:
+    start: 10.71.108.10
+    len: 230
+
+
+bgp:
+
+  local_asn: 4207110802
+  remote_asn: 4207110801
+
+  ibgp:
+    peer_groups:
+      hosts:
+        password: secrets.acme.payload2.network.payload2-vxlan.dc1.hosts
+        hosts:
+          - 10.71.108.10/31
+          - 10.71.108.12/30
+          - 10.71.108.16/28
+          - 10.71.108.32/27
+          - 10.71.108.64/26
+          - 10.71.108.128/26
+          - 10.71.108.192/27
+          - 10.71.108.224/28
+      rrs:
+        password: secrets.acme.payload2.network.payload2-vxlan.dc1.rrs
+        hosts:
+          - 10.71.108.240/30
+
+  rrs:
+    - 10.71.108.241
+    - 10.71.108.242
+    - 10.71.108.243

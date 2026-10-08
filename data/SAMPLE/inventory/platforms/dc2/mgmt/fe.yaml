@@ -1,0 +1,25 @@
+name: mgmt_dc2
+
+mode: local
+# single - 1 node, no federation
+# local - 3 nodes, no federation
+# primary - 3 nodes, federation, primary site
+# secondary - 3 nodes, federation, secondary site
+
+type: host
+# vm - installed in dedicated VM
+# host - installed on host OS
+
+nodes:
+  - hdc2std1kvm201
+  - hdc2std1kvm202
+  - hdc2std1kvm203
+nic: one-core
+vip: 10.72.100.200
+hostname: sdc2mgmt
+
+secrets: secrets.acme.mgmt.one
+
+empty_bridges: keep
+# keep - don't delete empty bridges on KVM host
+# cleanup - delete an empty bridge on KVM host if no VM uses it

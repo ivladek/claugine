@@ -1,0 +1,9 @@
+mgmt_dc2:
+  type: shared
+  hosts:
+    - resources.dc2.hosts.hdc2std1kvm201
+    - resources.dc2.hosts.hdc2std1kvm202
+    - resources.dc2.hosts.hdc2std1kvm203
+  network:
+    - resources.dc2.networks.one-core
+    - resources.dc2.networks.data-nfs

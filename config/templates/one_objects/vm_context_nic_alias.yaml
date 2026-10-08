@@ -1,0 +1,6 @@
+content: |
+  NIC_ALIAS = [
+    PARENT  = "${nic_name}",
+    NETWORK = "${nic_vnet}",
+    IP = "${nic_alias}"
+  ]

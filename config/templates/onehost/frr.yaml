@@ -1,0 +1,33 @@
+file: /etc/frr/frr.conf
+content: |
+  !
+  hostname ${host}
+  !
+  log file /var/log/frr/bgpd.log informational
+  !
+  router bgp ${bgp_as}
+  bgp router-id ${bgp_ip}
+    no bgp default ipv4-unicast
+    timers bgp 3 15
+  !
+    neighbor fabric peer-group
+    neighbor fabric remote-as ${bgp_as}
+    neighbor fabric password ${bgp_pswd}
+    neighbor fabric capability extended-nexthop
+    neighbor fabric update-source ${bgp_ip}
+  !
+  neighbor ${bgp_rr1} peer-group fabric
+  neighbor ${bgp_rr2} peer-group fabric
+  neighbor ${bgp_rr3} peer-group fabric
+  !
+  address-family ipv4 unicast
+      neighbor fabric activate
+    exit-address-family
+  !
+    address-family l2vpn evpn
+      neighbor fabric activate
+      advertise-all-vni
+    exit-address-family
+  !
+  exit
+  !

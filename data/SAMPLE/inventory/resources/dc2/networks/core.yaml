@@ -1,0 +1,39 @@
+interface: bond0
+vlan: 101
+mtu: 1500
+subnet: 10.72.101.0
+prefix: 24
+gw: 10.72.101.254
+
+routes:
+  - network: 10.72.10.0/24
+    gw: 10.72.101.254
+    metric: 50
+  - network: 10.72.12.0/23
+    gw: 10.72.101.254
+    metric: 50
+  - network: 10.72.102.0/24
+    gw: 10.72.101.254
+    metric: 50
+  - network: 10.72.103.0/24
+    gw: 10.72.101.254
+    metric: 50
+  - network: 10.72.109.0/24
+    gw: 10.72.101.254
+    metric: 50
+
+  - network: 10.72.0.0/16
+    gw: 10.72.101.1
+    metric: 75
+  - network: 10.71.0.0/16
+    gw: 10.72.101.1
+    metric: 75
+
+dns:
+  - 10.72.101.11
+  - 10.72.101.12
+
+ranges:
+  temp:
+    start: 10.72.101.170
+    len: 30
