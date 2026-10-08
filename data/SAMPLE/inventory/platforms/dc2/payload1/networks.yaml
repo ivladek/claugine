@@ -1,0 +1,23 @@
+payload1-ix_dc2:
+  type: vlan
+  clusters:
+    - shared-std01_dc2
+  network: resources.dc2.networks.payload1-ix
+  ranges:
+    - egw
+
+payload1-s2s_dc2:
+  type: vlan
+  clusters:
+    - shared-std01_dc2
+  network: resources.dc2.networks.payload1-s2s
+  ranges:
+    - south
+
+corpnet-ix_dc2:
+  type: vlan
+  clusters:
+    - shared-std01_dc2
+  network: resources.dc2.networks.corpnet-ix
+  ranges:
+    - cgw

@@ -1,0 +1,86 @@
+# GPU host with local NVMe storage
+chassis:
+  vendor: Vendor
+  model: Server 4U GPU Gen1
+ipmi: hpe
+
+CPU:
+  vendor: Intel
+  model: Xeon 6700
+  sockets: 2
+  cores: 96
+  freq: 2400
+
+RAM:
+  total_gb: 3072
+  dimm:
+    size_gb: 96
+    freq: 5200
+    slots: 32
+    modules: 32
+
+boot:
+  bus: pcie
+  controller: nvme_controller
+  dev: /dev/nvme0n1
+  size_gb: 480
+  volumes:
+    root:
+      size_gb: 50
+      fs: xfs
+      path: /
+    var:
+      size_gb: 100
+      fs: xfs
+      path: /var
+    var_log:
+      size_gb: 100
+      fs: xfs
+      path: /var/log
+    var_tmp:
+      size_gb: 200
+      fs: xfs
+      path: /var/tmp
+    home:
+      size_gb: -1
+      fs: xfs
+      path: /home
+
+ssd:
+  bus: NVMe
+  size_gb: 7152
+  count: 4
+
+nics:
+  hardware:
+    ens1:
+      vendor: Mellanox
+      model: Ethernet 10/25Gb 2-port SFP28 Adapter
+      ports: 2
+      media: SFP28
+      speed: 25
+      bus: pci
+      slot: 1
+      mtu: 9100
+      links:
+        - ens1f0np0
+        - ens1f1np1
+  bonds:
+    bond0:
+      links:
+        - ens1f0np0
+        - ens1f1np1
+      mtu: 9100
+
+gpus:
+  vendor: NVIDIA
+  model: GPU-X
+  hw:
+    vendor: 10de
+    device: 0000
+    vram_gb: 80
+    cores:
+      cuda: 16000
+      tensor: 500
+  quantity: 8
+  usage: vfio

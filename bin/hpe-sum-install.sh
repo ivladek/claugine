@@ -6,8 +6,8 @@
 
 ILO_IP=1.2.3.4
 ILO_USER=Administrator
-SUM_HOSTNAME=shpesum.acme.com
-SUM_URL=http://localrepo.acme.com/zakroma/hpe
+SUM_HOSTNAME=hpesum.acme.com
+SUM_URL=http://localrepo.acme.com/repo/hpe
 G11_ISO=P97792_001_gen11spp-2026.07.00.00-Gen11SPP2026070000.2026_0806.15.iso
 G12_ISO=P97793_001_gen12spp-2026.07.00.00-Gen12SPP2026070000.2026_0806.32.iso
 

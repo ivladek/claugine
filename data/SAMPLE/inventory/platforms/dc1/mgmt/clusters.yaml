@@ -1,0 +1,9 @@
+mgmt_dc1:
+  type: shared
+  hosts:
+    - resources.dc1.hosts.hdc1std1kvm201
+    - resources.dc1.hosts.hdc1std1kvm202
+    - resources.dc1.hosts.hdc1std1kvm203
+  network:
+    - resources.dc1.networks.one-core
+    - resources.dc1.networks.data-nfs

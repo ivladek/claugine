@@ -1,0 +1,8 @@
+type: local
+parameters: xfs  defaults  0 1
+
+volumes:
+  local-1:
+    dev: /dev/md0
+    size_gb: 28608
+    mount: /var/lib/one/datastores

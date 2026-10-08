@@ -1,0 +1,12 @@
+content: |
+  # MySQL configuration
+  DB = [
+    BACKEND        = "mysql",
+    SERVER         = "localhost",
+    PORT           = 0,
+    USER           = "${onedb_user}",
+    PASSWD         = "${onedb_pswd}",
+    DB_NAME        = "${onedb_name}",
+    CONNECTIONS    = 25,
+    COMPARE_BINARY = "no"
+  ]

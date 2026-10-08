@@ -1,0 +1,50 @@
+interface: bond0
+vlan: 104
+mtu: 1500
+subnet: 10.71.103.0
+prefix: 24
+
+ranges:
+  cgw:
+    start: 10.71.103.10
+    len: 230
+
+
+bgp:
+
+  local_asn: 4217110302
+  remote_asn: 4217110301
+
+  subnets:
+    - 10.71.104.0/22
+
+  ibgp:
+    peer_groups:
+      cgw:
+        password: secrets.acme.payload1.network.corpnet-ix.dc1.cgw
+        hosts:
+          - 10.71.103.9
+          - 10.71.103.10/31
+          - 10.71.103.12/30
+          - 10.71.103.16/28
+          - 10.71.103.32/27
+          - 10.71.103.64/26
+          - 10.71.103.128/26
+          - 10.71.103.192/27
+          - 10.71.103.224/28
+      rrs:
+        password: secrets.acme.payload1.network.corpnet-ix.dc1.rrs
+        hosts:
+          - 10.71.103.240/30
+
+  ebgp:
+    peer_groups:
+      ext:
+        password: secrets.acme.payload1.network.corpnet-ix.dc1.ext
+        hosts:
+          - 10.71.103.0/30
+
+  rrs:
+    - 10.71.103.241
+    - 10.71.103.242
+    - 10.71.103.243

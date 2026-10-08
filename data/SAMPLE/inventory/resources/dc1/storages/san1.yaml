@@ -1,0 +1,27 @@
+# backups, one LUN per backup server
+type: iscsi
+parameters: xfs  _netdev,nofail  0 2
+
+targets:
+  - 10.71.112.240
+  - 10.71.112.241
+
+volumes:
+
+  mgmt-backups:
+    dev: /dev/mapper/mpatha
+    size_gb: 10240
+    clients:
+      - iqn.2004-10.com.ubuntu:01:sdc1mgmtbkp1
+
+  payload1-backups-1:
+    dev: /dev/mapper/mpatha
+    size_gb: 102400
+    clients:
+      - iqn.2004-10.com.ubuntu:01:sdc1p1bkp1
+
+  payload2-backups-1:
+    dev: /dev/mapper/mpatha
+    size_gb: 20480
+    clients:
+      - iqn.2004-10.com.ubuntu:01:sdc1p2bkp1

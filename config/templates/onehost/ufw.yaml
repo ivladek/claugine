@@ -1,0 +1,6 @@
+file: /etc/ufw/before.rules
+content: |
+  # OpenNebula KVM:
+  #   Let OpenNebula-managed bridged VM traffic pass through UFW.
+  #   VM filtering is handled by OpenNebula Security Groups / opennebula chain.
+  -A ufw-before-forward -m physdev --physdev-is-bridged -j RETURN

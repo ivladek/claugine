@@ -1,0 +1,33 @@
+content: |
+  NAME = "${vm_name}"
+  SCHED_REQUIREMENTS = "HYPERVISOR=kvm & CLUSTER_ID = ${cluster_id}"
+  SCHED_RANK = "FREE_CPU * 50 + FREE_MEM * 75 - RUNNING_VMS * 25"
+  SCHED_DS_REQUIREMENTS = "NAME=\"${vm_datastore}\""
+  CPU_MODEL = [
+    MODEL = "host-passthrough"
+  ]
+
+  CPU = "0.1"
+  VCPU = "${vm_cpu}"
+  MEMORY = "${vm_ram}"
+
+  GRAPHICS = [
+    LISTEN = "0.0.0.0",
+    TYPE   = "vnc"
+  ]
+  VIDEO = [
+    TYPE = "virtio"
+  ]
+
+  ${vm_context_disks}
+
+  ${vm_context_nics}
+
+  CONTEXT = [
+    NETWORK = "yes",
+    SET_HOSTNAME = "${vm_name}.${vm_dnszone}",
+    TIMEZONE = "${vm_timezone}",
+    USERNAME = "${user_name}",
+    CRYPTED_PASSWORD_BASE64 = "${user_pswd}",
+    SSH_PUBLIC_KEY = "${user_key}"
+  ]

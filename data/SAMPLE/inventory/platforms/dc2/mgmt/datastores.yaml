@@ -1,0 +1,17 @@
+mgmt-vms_dc2:
+  type: vms
+  volume: resources.dc2.storages.nas1.volumes.mgmt-vms
+
+mgmt-images_dc2:
+  type: images
+  volume: resources.dc2.storages.nas1.volumes.mgmt-images
+
+mgmt-files_dc2:
+  type: files
+  volume: resources.dc2.storages.nas1.volumes.mgmt-one
+  path: /datastores/files
+
+mgmt-backups_dc2:
+  type: restic
+  volume: resources.dc2.storages.san1.volumes.mgmt-backups
+  service: platforms.dc2.mgmt.services.sdc2mgmtbkp1

@@ -1,0 +1,4 @@
+content: |
+  machine ${auth_host}
+  login ${auth_token}
+  password ${auth_key}

@@ -1,0 +1,5 @@
+payload2-ix_dc1:
+  type: vlan
+  network: resources.dc1.networks.payload2-ix
+  ranges:
+    - egw

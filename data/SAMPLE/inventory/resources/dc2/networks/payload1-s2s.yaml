@@ -1,0 +1,13 @@
+interface: bond0
+vlan: 11
+mtu: 9100
+subnet: 10.72.12.0
+prefix: 23
+
+ranges:
+  north:
+    start: 10.72.12.10
+    len: 230
+  south:
+    start: 10.72.13.10
+    len: 230

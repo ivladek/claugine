@@ -1,0 +1,16 @@
+payload2-vms01_dc2:
+  type: vms
+  volume: resources.dc2.storages.nas3.volumes.payload2-vms-1
+
+payload2-images01_dc2:
+  type: images
+  volume: resources.dc2.storages.nas3.volumes.payload2-images-1
+
+payload2-files01_dc2:
+  type: files
+  volume: resources.dc2.storages.nas3.volumes.payload2-files-1
+
+payload2-backups01_dc2:
+  type: restic
+  volume: resources.dc2.storages.san1.volumes.payload2-backups-1
+  service: platforms.dc2.mgmt.services.sdc2p2bkp1

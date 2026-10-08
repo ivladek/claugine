@@ -1,0 +1,26 @@
+# payload1 platform
+type: nfs
+parameters: nfs4  _netdev,rw,vers=4.2,rsize=65536,wsize=65536,noatime,nconnect=16,retrans=5,timeo=600  0 0
+
+targets:
+  - 10.71.111.241
+
+volumes:
+
+  payload1-vms-1:
+    dev: /payload1_vms_1
+    size_gb: 102400
+    clients:
+      - 10.71.111.0/24
+
+  payload1-images-1:
+    dev: /payload1_images_1
+    size_gb: 10240
+    clients:
+      - 10.71.111.0/24
+
+  payload1-files-1:
+    dev: /payload1_files_1
+    size_gb: 1024
+    clients:
+      - 10.71.111.0/24

@@ -1,0 +1,16 @@
+# this is temporary quota patch
+# it will be dropped after connection to database with quotas for each client
+# only for payload platforms
+
+ds_quotas:
+  default:
+    images: 20
+    files: 1
+    backups: 0
+
+  tenants:
+    romashka:
+      images: 1000
+    vasilyok:
+      images: 100
+      backups: 500

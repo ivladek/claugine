@@ -1,0 +1,19 @@
+shared-std01_dc1:
+  type: shared
+  hosts:
+    - resources.dc1.hosts.hdc1std1kvm011
+    - resources.dc1.hosts.hdc1std1kvm012
+    - resources.dc1.hosts.hdc1std1kvm013
+    - resources.dc1.hosts.hdc1std1kvm014
+  network:
+    - resources.dc1.networks.one-core
+    - resources.dc1.networks.data-nfs
+    - resources.dc1.networks.payload1-vxlan
+
+shared-gpu01_dc1:
+  type: shared
+  hosts:
+    - resources.dc1.hosts.hdc1gpu1kvm020
+  network:
+    - resources.dc1.networks.one-core
+    - resources.dc1.networks.payload1-vxlan

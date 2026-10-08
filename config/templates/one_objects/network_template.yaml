@@ -1,0 +1,13 @@
+content: |
+  NAME = "${name}"
+  VN_MAD = "vxlan"
+  VXLAN_MODE = "evpn"
+  VXLAN_TEP = "dev"
+  PHYDEV = "${bridge}"
+  MTU = "${mtu}"
+  AUTOMATIC_VLAN_ID = "YES"
+  GUEST_MTU = "1500"
+  METHOD = "static"
+  IP6_METHOD = "disable"
+  FILTER_IP_SPOOFING = "${filter}"
+  FILTER_MAC_SPOOFING = "${filter}"

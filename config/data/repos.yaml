@@ -1,0 +1,19 @@
+frr:
+  key: https://deb.frrouting.org/frr/keys.gpg
+  source: https://deb.frrouting.org/frr $(lsb_release -cs 2>/dev/null) frr-10.6
+
+google-chrome:
+  key: https://dl.google.com/linux/linux_signing_key.pub
+  source: http://dl.google.com/linux/chrome/deb/ stable main
+
+graylog:
+  key: https://packages.graylog2.org/repo/debian/keyring.gpg
+  source: https://downloads.graylog.org/repo/debian stable 7.1
+
+mongodb:
+  key: https://www.mongodb.org/static/pgp/server-8.0.asc
+  source: https://repo.mongodb.org/apt/ubuntu $(lsb_release -cs 2>/dev/null)/mongodb-org/8.2 multiverse
+
+opennebula:
+  key: https://downloads.opennebula.io/repo/repo2.key
+  source: https://downloads.opennebula.io/repo/7.2/Ubuntu/$(lsb_release -rs 2>/dev/null) stable opennebula

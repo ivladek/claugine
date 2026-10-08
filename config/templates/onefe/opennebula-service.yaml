@@ -1,0 +1,4 @@
+file: /etc/systemd/system/opennebula.service.d/override.conf
+content: |
+  [Service]
+  UMask=0027

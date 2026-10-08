@@ -1,0 +1,17 @@
+content: |
+  NAME = "${name}"
+  VN_MAD = "bridge"
+  BRIDGE = "${bridge}"
+  BRIDGE_TYPE = "linux"
+
+  GUEST_MTU="${mtu}"
+  METHOD="static"
+  IP6_METHOD="disable"
+
+  NETWORK_ADDRESS="${subnet}"
+  NETWORK_MASK="${mask}"
+  DNS="${dns}"
+  GATEWAY="${gw}"
+
+  FILTER_MAC_SPOOFING="${filter}"
+  FILTER_IP_SPOOFING="${filter}"

@@ -1,0 +1,85 @@
+# general purpose KVM host
+chassis:
+  vendor: Vendor
+  model: Server 2U Gen1
+ipmi: hpe
+
+CPU:
+  vendor: AMD
+  model: EPYC 9000
+  sockets: 2
+  cores: 32
+  freq: 3200
+
+RAM:
+  total_gb: 1536
+  dimm:
+    size_gb: 64
+    freq: 4800
+    slots: 24
+    modules: 24
+
+boot:
+  bus: pcie
+  controller: nvme_controller
+  dev: /dev/nvme0n1
+  size_gb: 480
+  volumes:
+    root:
+      size_gb: 50
+      fs: xfs
+      path: /
+    var:
+      size_gb: 100
+      fs: xfs
+      path: /var
+    var_log:
+      size_gb: 100
+      fs: xfs
+      path: /var/log
+    var_tmp:
+      size_gb: 200
+      fs: xfs
+      path: /var/tmp
+    home:
+      size_gb: -1
+      fs: xfs
+      path: /home
+
+nics:
+  hardware:
+    ens1:
+      vendor: Mellanox
+      model: Ethernet 10/25Gb 2-port SFP28 Adapter
+      ports: 2
+      media: SFP28
+      speed: 25
+      bus: pci
+      slot: 1
+      mtu: 9100
+      links:
+        - ens1f0np0
+        - ens1f1np1
+    ens2:
+      vendor: Mellanox
+      model: Ethernet 10/25Gb 2-port SFP28 OCP3 Adapter
+      ports: 2
+      media: SFP28
+      speed: 25
+      bus: ocp3
+      slot: 2
+      mtu: 9100
+      links:
+        - ens2f0np0
+        - ens2f1np1
+  bonds:
+    bond0:
+      links:
+        - ens1f0np0
+        - ens1f1np1
+      mtu: 9100
+    bond1:
+      links:
+        - ens2f0np0
+        - ens2f1np1
+      mtu: 9100

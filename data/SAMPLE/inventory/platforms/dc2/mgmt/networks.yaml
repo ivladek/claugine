@@ -1,0 +1,41 @@
+data-nfs_dc2:
+  type: bridge
+  network: resources.dc2.networks.data-nfs
+
+data-iscsi_dc2:
+  type: vlan
+  network: resources.dc2.networks.data-iscsi
+
+core_dc2:
+  type: vlan
+  network: resources.dc2.networks.core
+
+services_dc2:
+  type: vlan
+  network: resources.dc2.networks.services
+
+payload1-s2s_dc2:
+  type: vlan
+  network: resources.dc2.networks.payload1-s2s
+  ranges:
+    - north
+
+corpnet-ix_dc2:
+  type: vlan
+  network: resources.dc2.networks.corpnet-ix
+
+payload1-vxlan_dc2:
+  type: vlan
+  network: resources.dc2.networks.payload1-vxlan
+
+payload1-ix_dc2:
+  type: vlan
+  network: resources.dc2.networks.payload1-ix
+
+payload2-vxlan_dc2:
+  type: vlan
+  network: resources.dc2.networks.payload2-vxlan
+
+payload2-ix_dc2:
+  type: vlan
+  network: resources.dc2.networks.payload2-ix

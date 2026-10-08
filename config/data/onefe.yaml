@@ -1,0 +1,140 @@
+# OpenNebula Front-Ends
+
+repos:
+  - opennebula
+
+packages:
+  - nfs-common
+  - mysql-server
+  - opennebula
+  - opennebula-fireedge
+  - opennebula-gate
+  - opennebula-flow
+  - opennebula-prometheus
+
+services:
+  - opennebula
+  - opennebula-fireedge
+  - opennebula-flow
+  - opennebula-gate
+
+services_all:
+  - opennebula
+  - opennebula-fireedge
+  - opennebula-flow
+  - opennebula-gate
+  - mysql
+
+nodes_order:
+  direct:
+    - leader
+    - follower1
+    - follower2
+  reversed:
+    - follower2
+    - follower1
+    - leader
+
+config_dirs:
+  - ~
+  - ~/.ssh
+  - ~/.one
+  - /etc/one
+  - /etc/one/fireedge/sunstone/views
+  - /var/lib/one
+  - /var/lib/one/.ssh
+  - /var/lib/one/.one
+  - /var/lib/one/backups/config
+  - /var/lib/one/remotes/vnm/vxlan
+  - /var/lib/one/remotes/etc/vnm
+
+backup:
+  dirs:
+    - /etc/one
+    - /var/lib/one/.ssh
+    - /var/lib/one/.one
+    - /var/lib/one/remotes
+  days: 10
+
+fireedge_views:
+  dir: opennebula-fireedge-views/custom
+  list:
+    - user
+    - groupadmin
+
+configs:
+  oned:
+    vm_operations:
+      ADMIN: delete, deploy, hold, migrate, recover, release, resched, retry, stop, suspend, vmgroup, undeploy
+      MANAGE: backup, disk-attach, disk-resize, disk-saveas, disk-snapshot, exec, nic-attach, pci-attach, poweroff, reboot, rename, resize, restore, resume, sched-action, sg-attach, snapshot, terminate, update, updateconf
+      USE: 
+
+
+timeouts:
+  data_refresh: 300      # platform context older than this is refreshed before a command
+  host_disable: 180
+  host_enable: 180
+  host_flush: 1800
+  image_wait: 300
+
+
+
+objects:
+  - cluster
+  - datastore
+  - group
+  - host
+  - image
+  - marketapp
+  - secgroup
+  - template
+  - user
+  - vm
+  - vnet
+  - vntemplate
+  - zone
+
+
+# OpenNebula state codes
+states:
+
+  zone:
+    0: enabled         # normal zone state
+    1: disabled        # only read only operations are allowed
+
+  node:
+    0: solo            # standalone, no HA cluster
+    1: candidate       # an election is running and this node wants to become leader
+    2: follower        # normal state for a non-leader node
+    3: leader          # normal state for the leader node
+    4: error           # set by claugine for state -
+
+  host:
+    0: INIT
+    1: MONITORING_MONITORED
+    2: MONITORED
+    3: ERROR
+    4: DISABLED
+    5: MONITORING_ERROR
+    6: MONITORING_INIT
+    7: MONITORING_DISABLED
+    8: OFFLINE
+
+  image:
+    0: INIT
+    1: READY
+    2: USED
+    3: DISABLED
+    4: LOCKED
+    5: ERROR
+    6: CLONE
+    7: DELETE
+    8: USED_PERS
+    9: LOCKED_USED
+    10: LOCKED_USED_PERS
+
+  datastores:
+    0: IMAGE_DS
+    1: SYSTEM_DS
+    2: FILE_DS
+    3: BACKUP_DS

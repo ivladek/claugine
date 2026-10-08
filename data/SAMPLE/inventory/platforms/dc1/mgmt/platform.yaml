@@ -1,0 +1,2 @@
+provider: providers.acme
+sa: secrets.acme.admins.sa
