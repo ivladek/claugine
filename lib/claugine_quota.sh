@@ -43,7 +43,7 @@ function quota_cpu_to_vcpu_set() {
 
     if [[ -z "${vcpu}" ]]
     then
-      echo -n "!"
+      _log -n "!"
       vcpu=1
     fi
     [[ "${vcpu}" == "${cpu}" ]] && continue
@@ -127,9 +127,9 @@ function quota_ds_set() {
       | any(.[]; .CPU != null)
     ' <<< "${json}" >/dev/null
     then
-      echo yes
+      _log yes
     else
-      echo no
+      _log no
       continue
     fi
 
@@ -246,9 +246,9 @@ function quota_ds_set() {
     _log_std -n tenant="${tenant}" quota_set=
     if $ssh ${vip} "sudo -u oneadmin onegroup quota ${group_id} /var/tmp/one-tenant-quota-new"
     then
-      echo ok
+      _log ok
     else
-      echo error
+      _log error
       $ssh ${vip} "sudo cat /var/tmp/one-tenant-quota-new"
     fi
 
@@ -298,9 +298,9 @@ function quota_tenant_get() {
     | any(.[]; .CPU != null)
   ' <<< "${json}" >/dev/null
   then
-    echo yes
+    _log yes
   else
-    echo no
+    _log no
     return 0
   fi
 
@@ -442,14 +442,14 @@ function quota_tenant_get() {
     xargs
   )
 
-  echo
-  printf "%-8s %10s %10s %10s %10s %14s %14s %14s %10s %10s\n" \
-    "CLUSTER" "VMS" "VMS/RUN" "CPU" "CPU/RUN" "RAM GiB" "RAM/RUN GiB" "DISK GiB" "GPU" "GPU/RUN"
-  printf "%-8s %10s %10s %10s %10s %14s %14s %14s %10s %10s\n" \
-    "-------" "----------" "----------" "----------" "----------" "--------------" "--------------" "--------------" "----------" "----------"
+  _log
+  _log "$(printf "%-8s %10s %10s %10s %10s %14s %14s %14s %10s %10s\n" \
+    "CLUSTER" "VMS" "VMS/RUN" "CPU" "CPU/RUN" "RAM GiB" "RAM/RUN GiB" "DISK GiB" "GPU" "GPU/RUN")"
+  _log "$(printf "%-8s %10s %10s %10s %10s %14s %14s %14s %10s %10s\n" \
+    "-------" "----------" "----------" "----------" "----------" "--------------" "--------------" "--------------" "----------" "----------")"
   for id in ${quotas[${vip},${group_id},cl,list]}
   do
-    printf "%-8s %10s %10s %10s %10s %14s %14s %14s %10s %10s\n" \
+    _log "$(printf "%-8s %10s %10s %10s %10s %14s %14s %14s %10s %10s\n" \
       "${id}" \
       "${quotas[${vip},${group_id},cl,${id},vms]}/${quotas[${vip},${group_id},cl,${id},vms_used]}" \
       "${quotas[${vip},${group_id},cl,${id},run_vms]}/${quotas[${vip},${group_id},cl,${id},run_vms_used]}" \
@@ -460,19 +460,21 @@ function quota_tenant_get() {
       "${quotas[${vip},${group_id},cl,${id},disk_size]}/${quotas[${vip},${group_id},cl,${id},disk_size_used]}" \
       "${quotas[${vip},${group_id},cl,${id},gpu]}/${quotas[${vip},${group_id},cl,${id},gpu_used]}" \
       "${quotas[${vip},${group_id},cl,${id},run_gpu]}/${quotas[${vip},${group_id},cl,${id},run_gpu_used]}"
+    )"
   done  # id
 
-  echo
-  printf "%-10s %14s %14s\n" \
-    "DATASTORE" "SIZE GiB" "IMAGES"
-  printf "%-10s %14s %14s\n" \
-    "---------" "--------------" "--------------"
+  _log
+  _log "$(printf "%-10s %14s %14s\n" \
+    "DATASTORE" "SIZE GiB" "IMAGES")"
+  _log "$(printf "%-10s %14s %14s\n" \
+    "---------" "--------------" "--------------")"
   for id in ${quotas[${vip},${group_id},ds,list]}
   do
-    printf "%-10s %14s %14s\n" \
+    _log "$(printf "%-10s %14s %14s\n" \
       "${id}" \
       "${quotas[${vip},${group_id},ds,${id},size]}/${quotas[${vip},${group_id},ds,${id},size_used]}" \
       "${quotas[${vip},${group_id},ds,${id},images]}/${quotas[${vip},${group_id},ds,${id},images_used]}"
+    )"
   done  # id
 }  # quota_tenant_get
 

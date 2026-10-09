@@ -102,7 +102,7 @@ function evpn_vtep_vnet_get() {
 
   if [[ -z "${RUNTIME[${platform},vntemplate,id]:-}" ]]
   then
-    _log_std vntemplate="skipped" reason="not exactly one VNet template in the zone"
+    _log_std vntemplate="skipped" reason="vntemplates_not_one"
     return ${result}
   fi
   json=$($ssh ${vip} "sudo -u oneadmin onevntemplate show ${RUNTIME[${platform},vntemplate,id]} -j 2>/dev/null")
@@ -155,7 +155,7 @@ function evpn_vtep_vnet_set() {
 
   if [[ -z "${RUNTIME[${platform},vntemplate,id]:-}" ]]
   then
-    _log_std vntemplate="skipped" reason="not exactly one VNet template in the zone"
+    _log_std vntemplate="skipped" reason="vntemplates_not_one"
     return 0
   fi
   json=$($ssh ${vip} "sudo -u oneadmin onevntemplate show ${RUNTIME[${platform},vntemplate,id]} -j 2>/dev/null")
@@ -217,7 +217,7 @@ function evpn_vtep_vnm_patch() {
     _log_fe -n action="vnm_evpn_vtep_vnm_patch" status=
     if ! $ssh ${RUNTIME[${platform},${node},ip]} "sudo test -e /var/lib/one/remotes/vnm/vxlan/vxlan.rb.original"
     then
-      echo required
+      _log required
       $ssh ${RUNTIME[${platform},${node},ip]} "
         sudo cp -a \
           /var/lib/one/remotes/vnm/vxlan/vxlan.rb \
@@ -230,7 +230,7 @@ function evpn_vtep_vnm_patch() {
           /var/lib/one/remotes/etc/vnm/OpenNebulaNetwork.conf
       "
     else
-      echo exists
+      _log exists
     fi
 
     for file in \
@@ -277,9 +277,9 @@ function evpn_vtep_vnm_unpatch() {
     status=
   if evpn_vtep_vnet_get platform=${platform} && evpn_vtep_nic_get platform=${platform}
   then
-    echo ok
+    _log ok
   else
-    echo failed
+    _log failed
     return 1
   fi
 
@@ -288,7 +288,7 @@ function evpn_vtep_vnm_unpatch() {
     _log_fe -n action="vnm_evpn_vtep_vnm_unpatch" status=
     if $ssh ${RUNTIME[${platform},${node},ip]} "sudo test -e /var/lib/one/remotes/vnm/vxlan/vxlan.rb.original"
     then
-      echo required
+      _log required
       $ssh ${RUNTIME[${platform},${node},ip]} "
         sudo rm /var/lib/one/remotes/vnm/vxlan/vxlan.rb
         sudo mv \
@@ -298,7 +298,7 @@ function evpn_vtep_vnm_unpatch() {
         sudo chmod 640 /var/lib/one/remotes/vnm/vxlan/vxlan.rb
       "
     else
-      echo exists
+      _log exists
     fi
 
     for file in \

@@ -54,6 +54,6 @@ function _stop_without_confirmation() {
   read -r -t 60 -p "!!! ATTENTION !!! platform=${platform:-} Approve critial operation  [yes/no or it will automatically declined in 1 minute]: " answer
   [[ "${answer}" == "yes" ]] && return 1
 
-  echo "!!! OPERATION CANCELED !!!"
+  _log "!!! OPERATION CANCELED !!!"
   return 0
 }  # _stop_without_confirmation

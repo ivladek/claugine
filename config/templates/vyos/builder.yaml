@@ -1,0 +1,7 @@
+content: |
+  next - manual steps on the VM console (FireEdge VNC):
+    1. login: vyos / vyos
+    2. install image   (default answers, "no" to reboot)
+    3. sudo bash /usr/lib/live/mount/medium/claugine/vyos-image-prepare
+      the VM powers off when done
+    4. on this host: vyos_image_finalize platform=${platform} vm=${vm_name}

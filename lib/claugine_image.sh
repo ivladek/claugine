@@ -19,7 +19,7 @@ help_data[image_archive]="\
                              #   used by VMs     - renamed to \"NAME (YYYY-MM-DD)\", date of its registration
     platform=NAME            #   platforms.<site>.<platform>
     name=STRING              #   image name
-    limit=N(<CONFIG.onefe.timeouts.image_wait>) #   seconds to wait for the deletion"
+    limit=N                  #   seconds to wait for the deletion, default is <CONFIG.onefe.timeouts.image_wait>"
 # return 0 - no image with the name, or it was deleted or renamed
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            can not delete the image
@@ -45,11 +45,11 @@ function image_archive() {
   # not used - delete, wait until it is gone: the name is busy while the image exists
   if (( vms == 0 ))
   then
-    _log_std -n image_id="${id}" image="${name}" action="delete" status="."
+    _log_std -n image_id="${id}" image="${name}" action="delete" status="[."
 
     if ! $ssh ${fe} "sudo -u oneadmin oneimage delete ${id}" &>/dev/null
     then
-      echo " failed"
+      _log "] result=failed"
       _log_error "can not delete image \"${name}\" [${id}] on ${fe}"
       return 1
     fi
@@ -58,15 +58,15 @@ function image_archive() {
     do
       if (( $(date '+%s') - start > limit ))
       then
-        echo " timeout ${limit}s"
+        _log "] result=timeout limit=${limit}s"
         _log_error "image \"${name}\" [${id}] on ${fe} is not deleted in ${limit}s"
         return 1
       fi
       sleep 5
-      echo -n "."
+      _log -n "."
     done
 
-    echo " deleted"
+    _log "] result=deleted"
     return 0
   fi
 
@@ -110,7 +110,7 @@ function image_download() {
   fe=${vip}
 
   json=$($ssh ${fe} "sudo -u oneadmin oneimage show \"${image}\" -j 2>/dev/null")
-  source=$(jq -r '.IMAGE.SOURCE // empty' <<< "${json}" 2>/dev/null)
+  source=$(jq -r '.IMAGE.SOURCE // ""' <<< "${json}" 2>/dev/null)
   if [[ "${source}" != /* || -z "${file}" ]]
   then
     _log_error "image \"${image}\" on ${fe} not found or its source is not a file: \"${source}\""
@@ -271,7 +271,7 @@ help_data[image_wait]="\
   image_wait                 # wait until the image is READY
     platform=NAME            #   platforms.<site>.<platform>
     image=STRING             #   name or id
-    limit=N(<CONFIG.onefe.timeouts.image_wait>) #   seconds"
+    limit=N                  #   seconds, default is <CONFIG.onefe.timeouts.image_wait>"
 # return 0 - the image is READY
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, image in ERROR
 #            timeout
@@ -287,37 +287,37 @@ function image_wait() {
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   fe=${vip}
 
-  _log_std -n image="${image}" action="wait_ready" status="."
+  _log_std -n image="${image}" action="wait_ready" status="[."
   while :
   do
     state=$(
       $ssh ${fe} "sudo -u oneadmin oneimage show \"${image}\" -j 2>/dev/null" |
-      jq -r '.IMAGE.STATE // empty' 2>/dev/null
+      jq -r '.IMAGE.STATE // ""' 2>/dev/null
     )
 
     case "${state}" in
       1)
-        echo " $(inv_value var=CONFIG path=onefe.states.image.1)"
+        _log "] state=$(inv_value var=CONFIG path=onefe.states.image.1)"
         return 0
         ;;
       5)
-        echo " $(inv_value var=CONFIG path=onefe.states.image.5)"
+        _log "] state=$(inv_value var=CONFIG path=onefe.states.image.5)"
         $ssh ${fe} "sudo -u oneadmin oneimage show \"${image}\" 2>/dev/null" | grep -iE '^ *(error|message)'
         return 1
         ;;
       "")
-        echo " not found"
+        _log "] state=not_found"
         return 1
         ;;
     esac
 
     if (( $(date '+%s') - start > limit ))
     then
-      echo " timeout ${limit}s state=$(inv_value var=CONFIG path=onefe.states.image.${state:-none})"
+      _log "] state=$(inv_value var=CONFIG path=onefe.states.image.${state:-none}) result=timeout limit=${limit}s"
       return 1
     fi
 
     sleep 5
-    echo -n "."
+    _log -n "."
   done
 }  # image_wait

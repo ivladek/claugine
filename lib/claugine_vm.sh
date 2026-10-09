@@ -6,6 +6,7 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 # INDEX
 #   vm_create  create Service VM
+#   vm_wait    wait until the VM is in a state
 
 
 
@@ -21,12 +22,14 @@ help_data[vm_create]="\
     disk1=N                  # size in GB or iso for ISO
     ...N {2..9}              # imageN/diskN
     vnet1=STRING             # name or id, vnet1/addr1 must be defined
-    addr1=LIST               # first is address, others aliases
+    addr1=LIST               # IP [IP ...] - the first is the address, the others aliases
+                             #   auto - a free IP leased by OpenNebula from the VNet, no aliases
+                             #   mac - a MAC address only, no IP, no aliases
     mtu1=N                   #
-    gw1=IP                   # 
-    routes1=STRING           # 10.10.11.0/24 via 10.10.20.21, 10.10.12.0/24 via 10.10.20.22
-    metric1=N                # 
-    dns1=IP                  #
+    gw1=IP                   # with an IP or auto, not with mac
+    routes1=STRING           # with an IP or auto: 10.10.11.0/24 via 10.10.20.21, 10.10.12.0/24 via 10.10.20.22
+    metric1=N                # with an IP or auto
+    dns1=IP                  # with an IP or auto
     ...N {2..9}              # vnetN/addrN[/mtuN/gwN/routesN/metricN/dnsN]
     boot=STRING              # boot devices list, like - disk0,disk2,nic0
     autostart=YES|no         # create scheduled action to RESUME each hour
@@ -191,12 +194,17 @@ function vm_create() {
       then
         addr=$(vnet_ar_mac_create platform=${platform} vnet=${vnet_id}) || return 1
         addr_type=mac
-      elif vnet_ip_leased platform=${platform} vnet=${vnet_id} ip="${addr}"
-      then
-        _log_error "IP Address ${addr} in VNet \"${!vnet}\" [${vnet_id}] has been already leased"
-        return 1
       else
-        vnet_ar_ip_create platform=${platform} vnet=${vnet_id} ip="${addr}" || return 1
+        if [[ "${addr}" != "auto" ]]
+        then
+          if vnet_ip_leased platform=${platform} vnet=${vnet_id} ip="${addr}"
+          then
+            _log_error "IP Address ${addr} in VNet \"${!vnet}\" [${vnet_id}] has been already leased"
+            return 1
+          else
+            vnet_ar_ip_create platform=${platform} vnet=${vnet_id} ip="${addr}" || return 1
+          fi
+        fi
         if [[ -z "${nic_type}" ]]
         then
           [[ -n "${!gw:-}" ]] && template_data+="  GATEWAY = \"${!gw}\","$'\n'
@@ -207,10 +215,9 @@ function vm_create() {
       fi
 
       [[ -n "${!mtu:-}" ]] && template_data+="  MTU = \"${!mtu}\","$'\n'
-
+      [[ "${addr}" != "auto" ]] && template_data+="  ${addr_type^^} = \"${addr}\"",$'\n'
       template_data+="  ${nic_name_type} = \"VMNIC${n}\","$'\n'
-      template_data+="  NETWORK_ID = \"${vnet_id}\","$'\n'
-      template_data+="  ${addr_type^^} = \"${addr}\""$'\n'
+      template_data+="  NETWORK_ID = \"${vnet_id}\""$'\n'
       template_data+="]"$'\n'
 
       nic_type="_ALIAS"
@@ -236,9 +243,87 @@ function vm_create() {
   if [[ -z "${vm_id}" ]]
   then
     _log_error "VM was not created"
-    echo "${template_data}"
+    _log "${template_data}"
     return 1
   fi
 
   return 0
 }  # vm_create
+
+
+
+
+help_data[vm_wait]="\
+  vm_wait                    # wait until the VM is in a state
+    platform=NAME            #   platforms.<site>.<platform>
+    vm=ID|NAME               #   name or id
+    state=NAME(RUNNING)      #   a VM state: POWEROFF, STOPPED, UNDEPLOYED, DONE, ...
+                             #     or an LCM state of an ACTIVE VM: RUNNING, BOOT, ...
+                             #     names: <CONFIG.onefe.states.vm>, <CONFIG.onefe.states.vm_lcm>
+    limit=N                  #   seconds, default is <CONFIG.onefe.timeouts.vm_wait>"
+# return 0 - the VM is in the state
+#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, unknown state name
+#            VM not found, VM in a failure state, VM DONE while waiting for another state
+#            timeout
+function vm_wait() {
+  local arg; for arg in "$@"; do local "${arg}"; done
+  local vm="${vm:-}"
+  local state="${state:-RUNNING}"
+  local limit="${limit:-$(inv_value var=CONFIG path=onefe.timeouts.vm_wait)}"
+  local start=$(date '+%s')
+  local json vm_state lcm_state current vip
+
+  data_runtime_refresh platform="${platform:-}" || return 1
+  vip=$(inv_value var=INV path=${platform}.fe.vip)
+
+  state="${state^^}"
+  if ! jq -e --arg s "${state}" '[.onefe.states.vm[], .onefe.states.vm_lcm[]] | index($s)' <<< "${CONFIG}" &>/dev/null
+  then
+    _log_error "unknown VM state \"${state}\" - see CONFIG.onefe.states.vm and CONFIG.onefe.states.vm_lcm"
+    return 1
+  fi
+
+  _log_std -n vm="${vm}" action="wait_state" desired_state="${state}" status="[."
+  while :
+  do
+    json=$($ssh ${vip} "sudo -u oneadmin onevm show \"${vm}\" -j 2>/dev/null")
+    vm_state=$(jq -r '.VM.STATE // ""' <<< "${json}" 2>/dev/null)
+    lcm_state=$(jq -r '.VM.LCM_STATE // ""' <<< "${json}" 2>/dev/null)
+    if [[ -z "${vm_state}" ]]
+    then
+      _log "] state=not_found"
+      return 1
+    fi
+
+    # the name of the current state: the LCM state of an ACTIVE VM, the VM state otherwise
+    if [[ "${vm_state}" == "3" ]]   # 3 - ACTIVE: the LCM state tells what it does
+    then
+      current=$(inv_value var=CONFIG path=onefe.states.vm_lcm.${lcm_state})
+    else
+      current=$(inv_value var=CONFIG path=onefe.states.vm.${vm_state})
+    fi
+    current="${current:-${vm_state}/${lcm_state}}"
+
+    if [[ "${current}" == "${state}" || ( "${state}" == "ACTIVE" && "${vm_state}" == "3" ) ]]   # 3 - ACTIVE, any LCM state
+    then
+      _log "] state=${current}"
+      return 0
+    fi
+
+    if [[ "${current}" == *FAILURE || "${current}" == "UNKNOWN" || "${current}" == "DONE" ]]
+    then
+      _log "] state=${current}"
+      _log_error "VM ${vm} is ${current}, not ${state}"
+      return 1
+    fi
+
+    if (( $(date '+%s') - start > limit ))
+    then
+      _log "] state=${current} result=timeout limit=${limit}s"
+      return 1
+    fi
+
+    sleep 5
+    _log -n "."
+  done
+}  # vm_wait

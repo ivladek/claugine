@@ -37,13 +37,15 @@ function _log() {
 
 
 
-# print an error block
-#   $* - the message; to stderr: _log_error "..." >&2
+# print an error block to stderr: never mixed into a value captured with $(...)
+#   $* - the message
 # return 0 - always
 function _log_error() {
-  echo
-  echo "!!! ERROR !!! $*"
-  echo "!!! TRACE !!! $(_caller)"
+  {
+    _log
+    _log "!!! ERROR !!!" "$@"
+    _log "!!! TRACE !!!" "$(_caller)"
+  } >&2
 }  # _log_error
 
 
@@ -104,7 +106,7 @@ function _one_object_id() {
   types="$(inv_list var=CONFIG path=onefe.objects | tr '\n' ' ')"
   if [[ " ${types} " != *" ${object} "* || -z "${name}" || -z "${vip}" ]]
   then
-    _log_error "object must be one of [${types% }], name and a loaded platform must be defined: object=\"${object}\" name=\"${name}\" platform=\"${platform}\"" >&2
+    _log_error "object must be one of [${types% }], name and a loaded platform must be defined: object=\"${object}\" name=\"${name}\" platform=\"${platform}\""
     return 1
   fi
 
@@ -118,12 +120,21 @@ function _one_object_id() {
 
   if (( ${#ids[@]} == 0 ))
   then
-    _log_error "${object} \"${name}\" not found in platform=${platform} zone_id=${RUNTIME[${platform},id]} zone_vip=${vip}" >&2
+    _log_error \
+      "${object} \"${name}\" not found in" \
+      platform=${platform} \
+      zone_id=${RUNTIME[${platform},id]} \
+      zone_vip=${vip}
     return 1
   fi
   if (( ${#ids[@]} != 1 ))
   then
-    _log_error "${object} name \"${name}\" is not unique: ids=[${ids[*]}] in platform=${platform} zone_id=${RUNTIME[${platform},id]} zone_vip=${vip} - use the id" >&2
+    _log_error \
+      "${object} name \"${name}\" is not unique: ids=[${ids[*]}] in " \
+      platform=${platform} \
+      zone_id=${RUNTIME[${platform},id]} \
+      zone_vip=${vip} \
+      "- use the id"
     return 1
   fi
 

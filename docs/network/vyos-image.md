@@ -122,7 +122,8 @@ What it does:
 
 1. `iso_get_vyos` finds the latest Stream ISO, downloads it to the local repository
    (cached, partial downloads resumed) and builds
-   `vyos-<version>-generic-amd64-autoinstall.iso` with the files from
+   `vyos-<version>-generic-amd64-claugine.iso` - the name of the downloaded
+   file with `-claugine` - with the files from
    `config/files/vyos/` in `/claugine/`. The ISO stays bootable.
 2. Stops if the builder VM `vyos-builder-<version>` already exists.
 3. Uploads the ISO as CDROM image `VyOS Router <version> ISO` (prefix `sd`).
@@ -132,7 +133,7 @@ What it does:
    disk 0 - `builder.image` resized to `builder.disk` GiB (`config/data/vyos.yaml`), disk 1 -
    the ISO, boot order ISO first, NIC with `addr`, user `vyos` with the
    default password and your public key in the context, no hourly autostart.
-5. Prints the manual steps.
+5. Prints the manual steps - the text of `config/templates/vyos/builder.yaml`.
 
 ## Manual steps on the console
 

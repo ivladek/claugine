@@ -270,7 +270,7 @@ empty_bridges: cleanup
 | `name` | | zone name in OpenNebula |
 | `mode` | `single` - 1 node, no federation; `local` - 3 nodes, no federation; `primary` - 3 nodes, federation, primary site; `secondary` - 3 nodes, federation, secondary site | |
 | `primary` | reference | `secondary` only: the FE of the primary site |
-| `secondaries` | list of references | `primary` only: the FEs of the secondary sites; `acl_tenant_set` sets ACLs for the zones of all of them. `data_load_provider` checks that every zone of the federation is the primary or one of them - otherwise the data is not loaded |
+| `secondaries` | list of references | `primary` only: the FEs of the secondary sites; `acl_tenant_set` sets ACLs for the zones of all of them. `data_load_provider` checks every federation OpenNebula reports: every zone is a platform (its endpoint is the `fe.vip`), the primary lists exactly all the others here, each of them is `secondary` with `primary` pointing to it - otherwise the data is not loaded |
 | `type` | `vm` - FE in dedicated VMs; `host` - FE on the host OS | |
 | `nodes` | | FE node names; for `type: host` - host names of `resources/<site>/hosts` |
 | `nic` | | interface the VIP is configured on for the Raft cluster |

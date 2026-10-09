@@ -99,13 +99,13 @@ help_data[inv_value]="\
   inv_value                  # a value of a loaded document; an object or a list - one-line JSON
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by ".""
-# return 0 - always; missing path - nothing printed
+# return 0 - always; missing path - an empty value
 function inv_value() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local -n inv_data=${var}
 
   jq -rc \
     --arg path "${path}" '
-      getpath($path / ".") // empty
+      getpath($path / ".") // ""
     ' <<< "${inv_data:-}"
 }  # inv_value

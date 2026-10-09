@@ -259,8 +259,8 @@ function fe_configs_backups_list() {
     
     for dir in $(inv_list var=CONFIG path=onefe.config_dirs)
     do
-      echo "${dir}"
-      $ssh ${RUNTIME[${platform},${node},ip]} "sudo ls -la ${dir}"
+      _log "${dir}"
+      _log "$($ssh ${RUNTIME[${platform},${node},ip]} "sudo ls -la ${dir}")"
     done  # dir
   done  # node
 
@@ -439,11 +439,11 @@ function fe_os_update() {
     $ssh ${RUNTIME[${platform},${node},ip]} "sudo apt-get update"
     $ssh ${RUNTIME[${platform},${node},ip]} "sudo DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade"
 
-    _log_fe -n action="reboot" status=
+    _log_fe -n action="reboot" status="["
     $ssh ${RUNTIME[${platform},${node},ip]} "sudo reboot"
     if _os_service_wait ip="${RUNTIME[${platform},${node},ip]}" service=opennebula progress=yes interval=10 limit=180
     then
-      echo "ready"
+      _log "] result=ready"
     else
       return 1
     fi

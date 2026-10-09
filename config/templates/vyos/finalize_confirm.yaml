@@ -1,0 +1,3 @@
+content: |
+  existing images named "${name}" on the platform:
+    deleted if not used by VMs, renamed to "${name} (YYYY-MM-DD)" otherwise

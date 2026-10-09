@@ -48,7 +48,8 @@ command for each.
 
 | Command | Parameters | What it does |
 |---|---|---|
-| `vm_create` | `platform=NAME` `cluster=` `name=` `cpu=` `ram=` `image1=` `disk1=` `vnet1=` `addr1=` ... | create a service VM in a cluster: several disks (ISO too), NICs with aliases, routes, boot order, user, password, ssh key |
+| `vm_create` | `platform=NAME` `cluster=` `name=` `cpu=` `ram=` `image1=` `disk1=` `vnet1=` `addr1=` ... | create a service VM in a cluster: several disks (ISO too), NICs with a fixed IP and aliases, `addrN=auto` - a free IP leased by OpenNebula, or `addrN=mac` - a MAC only; routes, boot order, user, password, ssh key |
+| `vm_wait` | `platform=NAME` `vm=` `state=RUNNING` `limit=` | wait until a VM is in a state: a VM state (`POWEROFF`, `STOPPED`, `DONE`, ...) or an LCM state of an active VM (`RUNNING`, `BOOT`, ...); stops at once on a `*_FAILURE`, `UNKNOWN` or unexpected `DONE` state |
 | `vnet_ar_ip_create` | `platform=NAME` `vnet=` `ip=` | address range for one IP, if missing |
 | `vnet_ar_ip_exists` | `platform=NAME` `vnet=` `ip=` | check the address range for an IP |
 | `vnet_ar_mac_create` | `platform=NAME` `vnet=` | address range for one MAC, returns the MAC |

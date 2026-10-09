@@ -16,5 +16,5 @@ source "${DIR_TESTS}/claugine_TEST.sh" || { return 1 2>/dev/null || exit 1; }
 # user data: load if not loaded yet - test_inv, test_secrets, test_runtime of the test data
 [[ "${INV:-}" != "{}" && -n "${INV:-}" ]] || data_load_provider inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}" || { return 1 2>/dev/null || exit 1; }
 
-iso_get_ubuntu version=26.04 && echo "ubuntu: ${iso_info[version]} ${iso_info[iso]}"
-iso_get_vyos && echo "vyos: ${iso_info[version]} ${iso_info[iso]}"
+iso_get_ubuntu version=26.04
+iso_get_vyos

@@ -43,12 +43,25 @@ data_load_provider inv=~/data/acme/inventory secrets=~/data/acme/secrets runtime
 ```
 
 `data_load_provider` then collects the runtime data of every platform and
-runs `_data_consistancy_check`, step by step. Step 1 checks every
-federation: each zone that a primary FE reports must be the primary itself
-or one of its `fe.secondaries`. A zone that is not a
-platform, or a primary FE that can not be reached, stops the load: `INV`,
-`SECRETS` and `RUNTIME` are cleared, and commands refuse to run until the
-inventory is fixed and loaded again.
+runs `_data_consistancy_check`, step by step; every violation is reported.
+Every platform of the inventory must have runtime data: a platform whose FE
+can not be reached is an error. Step 1 checks the datastores: every
+cluster has exactly one IMAGES and exactly one VMS datastore, every IMAGES
+and VMS datastore belongs to a cluster; one datastore may serve several
+clusters. Step 2 checks every federation OpenNebula reports - a platform
+whose FE lists more than one zone; each federation once, from its first
+member:
+
+- every zone is a platform of the inventory: the host of its `ENDPOINT` is
+  the `fe.vip` of the platform;
+- exactly one of them has `fe.mode: primary`, and its `fe.secondaries` lists
+  exactly all the others;
+- every other one has `fe.mode: secondary` and `fe.primary` pointing to the
+  primary.
+
+Any violation stops the load: `INV`, `SECRETS`,
+`RUNTIME` and `PLATFORMS` are cleared, and commands refuse to run until the
+inventory or the platform is fixed and the data loaded again.
 
 The inventory is the **only source of platform data**: every command names
 its target as an inventory platform, `platform=platforms.<site>.<platform>`.
@@ -69,7 +82,7 @@ it, keys separated by `.` - no key contains a dot:
 | `inv_keys var= path=` | an object | its keys, one per line |
 | `inv_list_find var= path= [field=name] value=` | a list of objects | the object whose `field` is `value`, one-line JSON |
 
-A missing path prints nothing.
+A missing path: `inv_value` prints an empty value, the other getters print nothing.
 
 ```bash
 inv_value var=INV path=platforms.dc1.payload1.fe.vip                    # 10.71.101.30
@@ -243,9 +256,9 @@ role named after its state (`states.node` of
 | `[P,files_ds,id]`, `[P,files_ds,name]`, `[P,files_ds,clusters]`, `[P,files_ds,hosts]` | the FILE datastore - one per platform |
 | `[P,backups_ds,id]`, `[P,backups_ds,name]`, `[P,backups_ds,clusters]`, `[P,backups_ds,hosts]` | the BACKUP datastore - one per platform |
 | `[P,images_ds_list]` | ids of the IMAGE datastores, space separated |
-| `[P,images_ds,ID,name]`, `[P,images_ds,ID,clusters]`, `[P,images_ds,ID,hosts]` | an IMAGE datastore: name, cluster ids - empty: all clusters, `BRIDGE_LIST` hosts |
+| `[P,images_ds,ID,name]`, `[P,images_ds,ID,clusters]`, `[P,images_ds,ID,hosts]` | an IMAGES datastore: name, cluster ids - never empty, checked at load, `BRIDGE_LIST` hosts |
 | `[P,vms_ds_list]` | ids of the SYSTEM datastores, space separated |
-| `[P,vms_ds,ID,name]`, `[P,vms_ds,ID,clusters]`, `[P,vms_ds,ID,hosts]` | a SYSTEM datastore: name, cluster ids - empty: all clusters, `BRIDGE_LIST` hosts |
+| `[P,vms_ds,ID,name]`, `[P,vms_ds,ID,clusters]`, `[P,vms_ds,ID,hosts]` | a VMS datastore: name, cluster ids - never empty, checked at load, `BRIDGE_LIST` hosts |
 | `[P,ROLE,id]`, `[P,ROLE,name]`, `[P,ROLE,ip]`, `[P,ROLE,state]` | FE node: id in the zone server pool, name, address, state |
 
 Commands collect it through `data_runtime_refresh`

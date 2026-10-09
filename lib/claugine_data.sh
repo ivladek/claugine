@@ -14,49 +14,186 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-# check that the loaded data is consistent
-#   1. federations: every zone of a primary FE is the primary itself or one of its fe.secondaries
+# check that the loaded data is consistent; every violation is reported
+#   every platform of the inventory has runtime data: its FE was reachable
+#   1. datastores: every cluster has exactly one IMAGES and exactly one VMS datastore,
+#      every IMAGES and VMS datastore belongs to a cluster
+#   2. federations - a platform whose FE lists more than one zone, each federation checked once:
+#      every zone is a platform of the inventory: the host of its ENDPOINT is the fe.vip of the platform;
+#      exactly one of them is fe.mode primary, its fe.secondaries lists exactly all the others;
+#      every other one is fe.mode secondary, its fe.primary is the primary
 # return 0 - consistent
-#        1 - a zone of a federation is not a platform, or a primary FE not reachable
+#        1 - a platform without runtime data: its FE not reachable
+#            a cluster without or with more than one IMAGES or VMS datastore
+#            an IMAGES or VMS datastore without a cluster
+#            clusters of a platform can not be read
+#            a zone of a federation is not a platform
+#            not exactly one primary, fe.secondaries or fe.primary of a federation wrong
 function _data_consistancy_check() {
-  local platform vip member zone_id zones known missing
+  local platform vip member zone_id host checked members primaries primary expected actual mode ref
+  local type ds_id cluster_id clusters cluster_list ids failed result=0
+  local -a list zone_ids
+  local -A cluster_ds
+  local -A ds_name=([images_ds]=IMAGES [vms_ds]=VMS)
 
-  # 1. federations: every zone of a primary FE is the primary itself or one of its fe.secondaries
-  for platform in $(jq -r '
-    .platforms // {} | to_entries[] | .key as $s | .value | to_entries[]
-    | select(.value.fe.mode? == "primary") | "platforms.\($s).\(.key)"
-  ' <<< "${INV}")
+  checked=" "
+  for platform in ${PLATFORMS}
   do
+    # 0. Each platform in inventory must have runtime data
+    if [[ -z "${RUNTIME[${platform},id]:-}" ]]
+    then
+      _log_error "platform ${platform}: no runtime data - the FE is not reachable"
+      result=1
+      continue
+    fi
     vip=$(inv_value var=INV path=${platform}.fe.vip)
-    known="${RUNTIME[${platform},id]:-}"
-    for member in $(inv_list var=INV path=${platform}.fe.secondaries)
-    do
-      member="${member%.fe}"
-      known+="${known:+ }${RUNTIME[${member},id]:-}"
-    done  # member
-    zones=$(
+
+    # 1. datastores: exactly one IMAGES and one VMS datastore per cluster, no datastore without a cluster
+    failed=0
+    cluster_list=$(
+      $ssh ${vip} "sudo -u oneadmin onecluster list --no-header -l ID 2>/dev/null" |
+      tr -d '[:blank:]' |
+      grep -v '^$' |
+      sort -n
+    )
+    if [[ -z "${cluster_list}" ]]
+    then
+      _log_error "platform ${platform}: clusters can not be read"
+      failed=1
+    else
+      for type in images_ds vms_ds
+      do
+        cluster_ds=()
+        for ds_id in ${RUNTIME[${platform},${type}_list]:-}
+        do
+          clusters="${RUNTIME[${platform},${type},${ds_id},clusters]:-}"
+          if [[ -z "${clusters}" ]]
+          then
+            _log_error "platform ${platform}: ${ds_name[${type}]} datastore ${ds_id} belongs to no cluster"
+            failed=1
+            continue
+          fi
+          for cluster_id in ${clusters}
+          do
+            cluster_ds[${cluster_id}]+="${cluster_ds[${cluster_id}]:+ }${ds_id}"
+          done  # cluster_id
+        done  # ds_id
+
+        for cluster_id in ${cluster_list}
+        do
+          ids="${cluster_ds[${cluster_id}]:-}"
+          read -ra list <<< "${ids}"
+          if (( ${#list[@]} != 1 ))
+          then
+            _log_error \
+              "platform ${platform}:" \
+              "cluster ${cluster_id} has ${ds_name[${type}]} datastores [${ids}] -" \
+              "exactly one is required"
+            failed=1
+          fi
+        done  # cluster_id
+      done  # type
+    fi
+    if (( failed == 0 ))
+    then
+      _log \
+        platform=${platform} \
+        clusters="[${cluster_list//$'\n'/ }]" \
+        action=datastores_check \
+        status=ok
+    else
+      result=1
+    fi
+
+    # 2. federation of the platform: found in OpenNebula, checked once - from its first member
+    [[ "${checked}" == *" ${platform} "* ]] && continue   # a member of a federation checked already
+
+    mapfile -t zone_ids < <(
       $ssh ${vip} "sudo -u oneadmin onezone list --no-header -l ID 2>/dev/null" |
       tr -d '[:blank:]' |
-      grep -v '^$'
+      grep -v '^$' |
+      sort -n
     )
-    missing=""
-    for zone_id in ${zones}
+    (( ${#zone_ids[@]} > 1 )) || continue
+    failed=0
+
+    # every zone is a platform: the host of its ENDPOINT is the fe.vip of the platform
+    members=""
+    primaries=""
+    for zone_id in "${zone_ids[@]}"
     do
-      [[ " ${known} " == *" ${zone_id} "* ]] || missing+="${missing:+ }${zone_id}"
+      host=$(
+        $ssh ${vip} "sudo -u oneadmin onezone show ${zone_id} -j 2>/dev/null" |
+        jq -r '.ZONE.TEMPLATE.ENDPOINT // "" | sub("^[a-z]+://"; "") | sub(":.*$"; "")'
+      )
+      member=$(jq -r --arg host "${host}" '
+        [.platforms // {} | to_entries[] | .key as $s | .value | to_entries[]
+         | select(.value.fe.vip? == $host) | "platforms.\($s).\(.key)"][0] // ""
+      ' <<< "${INV}")
+      if [[ -z "${host}" || -z "${member}" ]]
+      then
+        _log_error \
+          "federation of zones [${zone_ids[*]}]:" \
+          "zone ${zone_id} with endpoint ${host:-unknown} is not a platform of the inventory -" \
+          "define it as a platform"
+        failed=1
+        continue
+      fi
+      members+="${members:+ }${member}"
+      [[ "$(inv_value var=INV path=${member}.fe.mode)" == "primary" ]] && primaries+="${primaries:+ }${member}"
     done  # zone_id
-    if [[ -z "${zones}" || -n "${missing}" ]]
+    checked+="${members} "
+
+    # exactly one primary, its fe.secondaries lists exactly all the others
+    read -ra list <<< "${primaries}"
+    if (( ${#list[@]} != 1 ))
     then
-      _log_error "federation of ${platform}: zones [${missing:-the FE is not reachable}] are not platforms of the inventory - define each zone as a platform and list it in fe.secondaries"
-      return 1
+      _log_error \
+        "federation of [${members}]:" \
+        "exactly one platform must have fe.mode primary, found [${primaries}]"
+      failed=1
+    else
+      primary="${primaries}"
+      expected=$(tr ' ' '\n' <<< "${members}" | grep -vxF "${primary}" | sort | xargs)
+      actual=$(inv_list var=INV path=${primary}.fe.secondaries | sed 's/\.fe$//' | sort | xargs)
+      if [[ "${actual}" != "${expected}" ]]
+      then
+        _log_error \
+          "federation of [${members}]:" \
+          "fe.secondaries of the primary ${primary} must be [${expected}], found [${actual}]"
+        failed=1
+      fi
+
+      # every other one is fe.mode secondary, its fe.primary is the primary
+      for member in ${expected}
+      do
+        mode=$(inv_value var=INV path=${member}.fe.mode)
+        ref=$(inv_value var=INV path=${member}.fe.primary)
+        if [[ "${mode}" != "secondary" || "${ref}" != "${primary}.fe" ]]
+        then
+          _log_error \
+            "federation of [${members}]:" \
+            "${member} must have fe.mode secondary and fe.primary ${primary}.fe," \
+            "found fe.mode=${mode} fe.primary=${ref}"
+          failed=1
+        fi
+      done  # member
     fi
-    _log \
-      platform=${platform} \
-      federation_zones="[${zones//$'\n'/ }]" \
-      action=federation_check \
-      status=ok
+
+    if (( failed == 0 ))
+    then
+      _log \
+        platform=${primary} \
+        federation_zones="[${zone_ids[*]}]" \
+        secondaries="[${expected}]" \
+        action=federation_check \
+        status=ok
+    else
+      result=1
+    fi
   done  # platform
 
-  return 0
+  return ${result}
 }  # _data_consistancy_check
 
 
@@ -114,8 +251,7 @@ function _data_load_var() {
     return 1
   fi
 
-  echo -n "var=${var} loaded: "
-  printf '%s' "${!var}" | jq '
+  _log "var=${var} loaded: $(printf '%s' "${!var}" | jq '
     [.. | type] |
     {
       total_values: length,
@@ -126,7 +262,7 @@ function _data_load_var() {
       booleans: (map(select(. == "boolean")) | length),
       nulls: (map(select(. == "null")) | length)
     }
-  '
+  ')"
 
   return 0
 }  # _data_load_var
@@ -291,7 +427,7 @@ function _data_runtime_platform_init() {
         key="images_ds,${id}"
         RUNTIME[${platform},images_ds_list]+="${RUNTIME[${platform},images_ds_list]:+ }${id}"
         ;;
-      1)  # SYSTEM: several - vms_ds,<id>,...
+      1)  # VM: several - vms_ds,<id>,...
         key="vms_ds,${id}"
         RUNTIME[${platform},vms_ds_list]+="${RUNTIME[${platform},vms_ds_list]:+ }${id}"
         ;;
@@ -369,19 +505,18 @@ function data_load_provider() {
     return 1
   fi
   DIR_RUNTIME=$(realpath "${runtime}")
-  echo "runtime data: ${DIR_RUNTIME}"
-  ls -l "${DIR_RUNTIME}"
+  _log "runtime data: ${DIR_RUNTIME} $(ls -l "${DIR_RUNTIME}")"
 
-  echo -n "platforms: "
-  jq -r '
-    [.platforms // {} | to_entries[] | .key as $s | .value | keys[] | "\($s).\(.)"]
-    | join(" ")
-  ' <<< "${INV}"
+  export PLATFORMS=$(
+    jq -r '
+      [.platforms // {} | to_entries[] | .key as $s | .value | keys[] | "platforms.\($s).\(.)"]
+      | join(" ")
+    ' <<< "${INV}"
+  )
+  _log "platforms: [${PLATFORMS}]"
 
   RUNTIME=()
-  for platform in $(jq -r '
-    .platforms // {} | to_entries[] | .key as $s | .value | keys[] | "platforms.\($s).\(.)"
-  ' <<< "${INV}")
+  for platform in ${PLATFORMS}
   do
     RUNTIME[${platform},id]=""
     data_runtime_refresh platform=${platform} fe=yes quota=no usage=no
@@ -394,6 +529,7 @@ function data_load_provider() {
     INV="{}"
     SECRETS="{}"
     RUNTIME=()
+    PLATFORMS=""
     return 1
   fi
 

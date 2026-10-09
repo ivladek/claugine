@@ -63,9 +63,9 @@ Keys never contain a dot: a path splits on `.`.
 | `backup.days` | local FE backups older than this are deleted |
 | `fireedge_views` | custom FireEdge views: `dir` in `config/files/`, `list` of views pushed by `fe_fireedge_views_update` |
 | `configs.oned.vm_operations` | `ADMIN`, `MANAGE`, `USE` - VM operation sets written to `oned.conf` by `acl_role_rights_set` |
-| `timeouts` | seconds: `data_refresh` - not used: runtime data is not refreshed on a timer; `host_disable`, `host_enable`, `host_flush` - host maintenance; `image_wait` - an image becoming READY |
+| `timeouts` | seconds: `data_refresh` - not used: runtime data is not refreshed on a timer; `host_disable`, `host_enable`, `host_flush` - host maintenance; `image_wait` - an image becoming READY; `vm_wait` - a VM reaching a state |
 | `objects` | object types `_one_object_id` can look up; the CLI command is `one<type>` |
-| `states.zone`, `states.node`, `states.host`, `states.image` | OpenNebula state codes → names; `states.node` names also become the FE node roles |
+| `states.zone`, `states.node`, `states.host`, `states.image`, `states.vm`, `states.vm_lcm` | OpenNebula state codes → names; `states.node` names also become the FE node roles; `states.vm_lcm` - the LCM state of a VM in `ACTIVE`, used by `vm_wait` |
 
 ### `data/onehost.yaml`
 
@@ -120,7 +120,11 @@ VyOS image, see [VyOS image](../network/vyos-image.md):
 ## templates
 
 `config/templates/<group>/<name>.yaml` - one config file or config fragment
-the tool writes to a target or passes to OpenNebula.
+the tool writes to a target or passes to OpenNebula, or a text the tool prints
+to the user (instructions, notes). The code keeps no text of its own beyond
+log records and error messages: a text block lives here; the command reads
+it with `inv_value var=TEMPLATES path=<group>.<name>.content` and fills in
+the `${variables}` with `eval`.
 
 ```yaml
 file: /etc/sysctl.d/99-disable-ipv6.conf    # optional: where the content goes on the target
@@ -131,7 +135,7 @@ content: |                                  # the text, with ${variables}
 | Key | Meaning |
 |---|---|
 | `file` | optional: target path; without it the content is used by the code - an OpenNebula template, an SQL script, a fragment of another template |
-| `content` | the text; `${name}` is replaced by the value the code passes |
+| `content` | the text; `${name}` is replaced by the value of that variable in the command - the template is evaluated, so it is trusted code: `$(...)` in it runs |
 
 | Group | Templates |
 |---|---|
@@ -139,6 +143,7 @@ content: |                                  # the text, with ${variables}
 | `ssh/` | `config_default`, `config_service` |
 | `onehost/` - KVM hosts | `apparmor`, `ufw`, `frr` |
 | `onefe/` - FE: database and OpenNebula | `mysql_binlog`, `mysql_onedb_create`, `oned_mysql`, `oned_raft`, `api_endpoints`, `opennebula-service`, `nodejs` |
+| `vyos/` - texts of the VyOS image build | `builder` - manual steps on the console after `vyos_image_build`; `finalize_confirm` - what happens to existing images, before the confirmation; `finalize_done` - next steps after `vyos_image_finalize` |
 | `one_objects/` - OpenNebula objects | `datastore_{vms,images,files,backups}`, `network_{vlan,bridge,template}`, `vm_context`, `vm_context_disk`, `vm_context_nic`, `vm_context_nic_alias` - the last four assembled into one VM template |
 
 ## files

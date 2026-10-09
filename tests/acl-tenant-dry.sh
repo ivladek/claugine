@@ -48,8 +48,8 @@ then
 fi
 
 zones=$(( 1 + $(inv_list var=INV path=${test_platform}.fe.secondaries | wc -l) ))
-test_check name="from the secondary: switched to the primary" cmd="acl_tenant_set platform=${test_secondary} tenants=${test_tenant} dry=yes | grep -q 'switched to the primary platform'" expect=0
-test_check name="from the secondary: dry run, nothing deleted" cmd="acl_tenant_set platform=${test_secondary} tenants=${test_tenant} dry=yes | grep -q 'dry run: no ACLs will be deleted'" expect=0
+test_check name="from the secondary: switched to the primary" cmd="acl_tenant_set platform=${test_secondary} tenants=${test_tenant} dry=yes | grep -q 'action=switch_to_primary'" expect=0
+test_check name="from the secondary: dry run, nothing deleted" cmd="acl_tenant_set platform=${test_secondary} tenants=${test_tenant} dry=yes | grep -q 'acl_delete=\[ dry run: no ACLs will be deleted \]'" expect=0
 test_check name="from the secondary: ZONE ACLs for at most ${zones} zones" cmd="n=\$(acl_tenant_set platform=${test_secondary} tenants=${test_tenant} dry=yes | grep -c ' ZONE/#'); (( n >= 1 && n <= ${zones} ))" expect=0
 test_check name="no federation: one zone" cmd="n=\$(acl_tenant_set platform=${test_platform_local} tenants=${test_tenant} dry=yes | grep -c ' ZONE/#'); (( n <= 1 ))" expect=0
 

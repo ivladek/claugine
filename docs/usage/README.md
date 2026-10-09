@@ -67,9 +67,11 @@ data_load_provider inv=~/claugine-data/inventory \
 ```
 
 `data_load_provider` collects the runtime data of every platform from its FE
-and checks the data: every zone of a federation must be a platform of the
-inventory (the primary or one of its `fe.secondaries`). Inconsistent data,
-or a primary FE that can not be reached, is not loaded. Calling it again
+and checks the data: every cluster has exactly one IMAGES and one VMS
+datastore, and every such datastore belongs to a cluster; every zone of a
+federation is a platform of the inventory, the primary (`fe.mode: primary`)
+lists all the others in `fe.secondaries`, and each of them points to it with
+`fe.primary`. Inconsistent data is not loaded. Calling it again
 switches to another data set. Without user data, commands stop with a
 message.
 
@@ -88,7 +90,7 @@ The loader prints what it loaded into `CONFIG` and `TEMPLATES`, the modules,
 the tool check; `data_load_provider` - statistics of `INV` and
 `SECRETS` (see [loading a tree](../data/README.md#loading-a-tree)), the
 runtime directory and the platforms of the inventory:
-`dc1.mgmt dc1.payload1 ...`.
+`platforms.dc1.mgmt platforms.dc1.payload1 ...` - full names, as commands take them.
 
 ## Help
 
@@ -190,8 +192,8 @@ quota_ds_set platform=platforms.dc1.payload1 tenants=romashka            # datas
 Images:
 
 ```bash
-iso_get_ubuntu site=dc1                                 # latest Ubuntu Server ISO, autoinstall
-image_publish platform=platforms.dc1.payload1 file="${iso_info[iso]}" name="Ubuntu 26.04 ISO" \
+iso_get_ubuntu site=dc1                                 # latest Ubuntu Server ISO, autoinstall: <name>-claugine.iso
+image_publish platform=platforms.dc1.payload1 file=<local_dir>/ubuntu/ubuntu-26.04.1-live-server-amd64-claugine.iso name="Ubuntu 26.04 ISO" \
   type=CDROM prefix=sd repo=ubuntu                      # the FE downloads from repos.zakroma.url_base/ubuntu
 vyos_image_build platform=platforms.dc1.mgmt cluster=0 vnet=core addr=10.71.101.223   # see network/vyos-image.md
 ```

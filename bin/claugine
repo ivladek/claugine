@@ -50,6 +50,7 @@ function _script_INIT() {
   export SSH_KEYF="${ssh_keyf:-${HOME}/.ssh/${USER}.key}"
   ssh="ssh -p ${SSH_PORT} -l ${SSH_USER} -i ${SSH_KEYF}"
   echo "to connect to all hosts: ${ssh}"
+  export PLATFORMS=""
 
   # modules only define functions and help texts - nothing is read while loading
   echo "modules: load from ${DIR_LIB}"
@@ -134,11 +135,10 @@ function _script_MAIN() {
     echo "commands list: ${BASH_SOURCE[0]} [--help]"
     echo "command help: ${BASH_SOURCE[0]} [--help] command"
 
-    if [[ -n "${INV:-}" && "${INV}" != "{}" ]]
+    if [[ -n "${PLATFORMS:-}" ]]
     then
       echo "data: loaded"
-      echo -n "platforms: "
-      jq -r '[.platforms // {} | to_entries[] | .key as $s | .value | keys[] | "\($s).\(.)"] | join(" ")' <<< "${INV}"
+      echo "platforms: [${PLATFORMS}]"
     else
       echo "data: not loaded"
       echo "to load data use: data_load_provider inv=PATH secrets=PATH runtime=PATH"

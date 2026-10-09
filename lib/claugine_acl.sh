@@ -97,7 +97,7 @@ function acl_tenant_get() {
   primary=$(inv_value var=INV path=${platform:-}.fe.primary)
   if [[ -n "${primary}" ]]
   then
-    _log platform="${platform}" primary="${primary%.fe}" "- switched to the primary platform"
+    _log platform="${platform}" primary="${primary%.fe}" action="switch_to_primary"
     platform="${primary%.fe}"
   fi
   data_runtime_refresh platform="${platform:-}" || return 1
@@ -197,7 +197,7 @@ function acl_tenant_set() {
   primary=$(inv_value var=INV path=${platform:-}.fe.primary)
   if [[ -n "${primary}" ]]
   then
-    _log platform="${platform}" primary="${primary%.fe}" "- switched to the primary platform"
+    _log platform="${platform}" primary="${primary%.fe}" action="switch_to_primary"
     platform="${primary%.fe}"
   fi
   data_runtime_refresh platform="${platform:-}" || return 1
@@ -275,21 +275,21 @@ function acl_tenant_set() {
     $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=@${group_id} 2>/dev/null"
     $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header 2>/dev/null"
 
-    _log_std -n tenant="${tenant}" group_id="${group_id}" acl_delete="["
     if [[ "${dry}" == "no" ]]
     then
+      _log_std -n tenant="${tenant}" group_id="${group_id}" acl_delete="["
       for acl_id in $(
         $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=@${group_id} --no-header -l ID 2>/dev/null"
         $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header -l ID 2>/dev/null"
       )
       do
-        echo -n " ${acl_id}"
+        _log -n " ${acl_id}"
         $ssh ${vip} "sudo -u oneadmin oneacl delete ${acl_id} &>/dev/null"
       done  # acl_id
+      _log " ]"
     else
-      echo -n " dry run: no ACLs will be deleted"
+      _log_std tenant="${tenant}" group_id="${group_id}" acl_delete="[ dry run: no ACLs will be deleted ]"
     fi
-    echo " ]"
 
     # grant rights to tenant admin for users management
     acls=(
@@ -324,12 +324,11 @@ function acl_tenant_set() {
       acls+=( "#${admin_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/*            CREATE           #${zone_id}" )
     done  # member
 
-    _log_std -n tenant="${tenant}" group_id="${group_id}" acl_create="["
     if [[ "${dry}" == "no" ]]
     then
-      echo -n "["
+      _log_std -n tenant="${tenant}" group_id="${group_id}" acl_create="["
     else
-      echo " dry run: no ACLs will be created ]"
+      _log_std tenant="${tenant}" group_id="${group_id}" acl_create="[ dry run: no ACLs will be created ]"
     fi
 
     for acl in "${acls[@]}"
@@ -337,16 +336,16 @@ function acl_tenant_set() {
       if [[ "${dry}" == "no" ]]
       then
         acl_id=$($ssh ${vip} "sudo -u oneadmin oneacl create \"${acl}\" 2>/dev/null")
-        echo -n " ${acl_id}"
+        _log -n " ${acl_id}"
       else
         read -r acl_subj acl_obj acl_ops acl_zone <<< "${acl}"
-        printf '%-6s %-64s %-17s %s\n' "${acl_subj}" "${acl_obj}" "${acl_ops}" "${acl_zone}"
+        _log "$(printf '%-6s %-64s %-17s %s\n' "${acl_subj}" "${acl_obj}" "${acl_ops}" "${acl_zone}")"
       fi
     done  # acl
 
     if [[ "${dry}" == "no" ]]
     then
-      echo " ]"
+      _log " ]"
       _log_std tenant="${tenant}" group_id="${group_id}" acl="new"
       $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=@${group_id}             2>/dev/null"
       $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header 2>/dev/null"

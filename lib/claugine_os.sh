@@ -14,7 +14,7 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 #   service=NAME
 #   progress=YES|no         # print dots while waiting
 #   interval=N(10)          # seconds between checks
-#   limit=N(<CONFIG.onefe.timeouts.data_refresh>)  # seconds
+#   limit=N                 # seconds, default is <CONFIG.onefe.timeouts.data_refresh>
 # return 0 - active
 #        1 - not active in time
 function _os_service_wait() {
@@ -26,13 +26,13 @@ function _os_service_wait() {
   local start=$(date '+%s')
   local now
 
-  [[ "${progress}" == "yes" ]] && echo -n .
+  [[ "${progress}" == "yes" ]] && _log -n .
   until $ssh ${ip} "sudo systemctl is-active --quiet ${service}" &>/dev/null
   do
     now=$(date '+%s')
     if (( now - start > limit ))
     then
-      echo x
+      [[ "${progress}" == "yes" ]] && _log "] result=timeout limit=${limit}s"
       _log_error "service ${service} on ${ip} not active after ${limit}s"
       $ssh ${ip} "sudo systemctl status ${service}"
       $ssh ${ip} "sudo df -h"
@@ -41,7 +41,7 @@ function _os_service_wait() {
     fi
     sleep ${interval}
 
-    [[ "${progress}" == "yes" ]] && echo -n .
+    [[ "${progress}" == "yes" ]] && _log -n .
   done  # until
 
   return 0

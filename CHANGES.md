@@ -8,6 +8,18 @@
 - help comes from `bin/claugine`, the `claugine_help` command is removed: `source bin/claugine` - load, then the command names and the data status; sourced again - "was loaded before", nothing is reloaded; run directly - `bin/claugine [--help]` the command names, `bin/claugine [--help] PATTERN ...` the full help of every command with PATTERN in its name
 - the global variables are declared in `_script_INIT`, on the first load only
 - tests load claugine if `data_load_provider` is not defined in the shell
+- `vm_wait platform= vm=ID|NAME state=NAME limit=` - new command in `claugine_vm`, replaces the internal `_vyos_vm_wait`: a VM state or an LCM state of an active VM by name, stops at once on a failure state, `UNKNOWN` or an unexpected `DONE`; `vyos_image_finalize` uses it
+- `config/data/onefe.yaml`: `states.vm`, `states.vm_lcm`, `timeouts.vm_wait`
+- `_log_error` prints to stderr itself; `>&2` removed from the callers
+- `iso_get_ubuntu`, `iso_get_vyos`: the downloaded ISO keeps the file name of its url, the modified one is `<name>-claugine.iso` (was `ubuntu-server-<YY.MM>-autoinstall.iso`, `vyos-<version>-generic-amd64-autoinstall.iso`); `iso_info` removed - `vyos_image_build` works out the version and the ISO from the url; `iso_customize dst=` is optional - default `<src without .iso>-claugine.iso`
+- `_iso_repo_dir` removed: `iso_get_ubuntu`, `iso_get_vyos`, `vyos_image_build`, `vyos_image_finalize` read `repos.zakroma.local_dir` of the site from the inventory and add their subdirectory - `ubuntu`, `vyos`
+- `_data_consistancy_check`: every violation is reported; step 1 - every cluster has exactly one IMAGES and one VMS datastore, every such datastore belongs to a cluster; a platform without runtime data - its FE not reachable - is an error; step 2 - every federation OpenNebula reports, once: every zone is a platform (endpoint = `fe.vip`), exactly one `fe.mode: primary` listing exactly all others in `fe.secondaries`, every other one `fe.mode: secondary` with `fe.primary` to it
+- `vm_create`: `addrN=auto` - OpenNebula leases a free IP of the VNet, no aliases; `gwN`, `routesN`, `metricN`, `dnsN` apply to it as to a fixed IP
+- `jq`: `// ""` for a single value, also one built with `join`, `// empty` for lists and streams; `inv_value` prints an empty value for a missing path
+- the texts of `claugine_vyos` moved to `config/templates/vyos`: `builder`, `finalize_confirm`, `finalize_done` - read with `inv_value var=TEMPLATES`, the `${variables}` filled in with `eval`
+- output: every field of a log record is `name=value` or `name=[...]`; lists and the progress of waits in brackets - `platforms: [...]`, `desired_state=RUNNING status=[....] state=RUNNING`, `result=timeout limit=300s`; `action=switch_to_primary`, `reason=vntemplates_not_one` instead of free text, the dry run message inside the brackets `acl_delete=[ dry run: ... ]`; `acl_tenant_set` printed `[[` before the created ACL ids
+- `PLATFORMS` - exported list of the loaded platforms, full names `platforms.<site>.<platform>`, set by `data_load_provider`, cleared when the data is not loaded; `bin/claugine` shows it, a direct run too
+- help: a default from internal data is written in the description - `limit=N  # seconds, default is <CONFIG.onefe.timeouts.image_wait>` (was `limit=N(<CONFIG...>)`), the help rows stay aligned
 
 ## [02.00.00] - 2026-10-06
 

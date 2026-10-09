@@ -31,7 +31,7 @@ Three steps:
    run (`bin/claugine [--help] [PATTERN ...]`) only prints help: it reads the
    modules for their `help_data`, nothing else; A module only defines
    functions and help texts and reads nothing while loading: a default from
-   internal data is shown in the help as its key, `limit=N(<CONFIG.onefe.timeouts.image_wait>)`, the value: `inv_value var=CONFIG path=onefe.timeouts.image_wait`;
+   internal data is shown in the help as its key, `limit=N  # seconds, default is <CONFIG.onefe.timeouts.image_wait>`, the value: `inv_value var=CONFIG path=onefe.timeouts.image_wait`;
 2. `data_load_provider inv=PATH secrets=PATH runtime=PATH` - **user data**: `INV`
    and `SECRETS`, `DIR_RUNTIME` - where collected runtime data may be saved.
    It collects the runtime data of every platform into `RUNTIME` and runs
@@ -250,41 +250,64 @@ own search: they accept partial names and return several groups.
 
   Help notation: `yes|NO` - the upper-case value is the default, `N(300)` -
   the default number. A default from internal data is shown as its key:
-  `limit=N(<CONFIG.onefe.timeouts.image_wait>)`.
+  `limit=N  # seconds, default is <CONFIG.onefe.timeouts.image_wait>` - the
+  key goes into the description, so the parameter column stays aligned.
 - Changes ask for confirmation with `_stop_without_confirmation`;
   `confirm=yes` skips it. Commands that change many objects offer `dry=YES|no`.
 - A function not meant to be called by hand starts with `_` and has no help
-  entry (`_vyos_vm_wait`, `_is_ipv4`, `_stop_without_confirmation`,
+  entry (`_is_ipv4`, `_stop_without_confirmation`,
   `_data_load_var`). Commands and the `inv_*` getters have help entries.
 - Return: `0` success, `1` - any error (and declined confirmation); never
   `exit` in a module. A different code only where a caller checks it as an
   answer, not an error: `vnet_ar_ip_exists` and `vnet_ip_leased` - `4`,
   `vnet_ar_mac_get` - `3`. The `# return` block lists the reasons of `1`,
   one per line.
-- A result that is more than a status goes into a global associative array
-  named after the module (`iso_info`), reset at the start of the call.
-  Commands do not print results meant for `$(...)` capture together with logs.
+- `jq` defaults: a single value - `// ""`, also a value built with `join`:
+  one input always gives one line, `read` and `$(...)` get an empty value;
+  a list or a stream - `// empty`: a missing item drops out instead of an
+  empty line (`.[] | .X // empty`, `mapfile`). `//` replaces `null` and
+  `false` - read a boolean without it.
+- A command returns a status only; a file it makes has a name the caller can
+  work out (`<name>-claugine.iso`). Commands do not print results meant for
+  `$(...)` capture together with logs.
 
 ## Output and errors
 
 Every line is printed by one of the log helpers of `lib/claugine_helpers.sh`
 - no hand-written `echo` of a log line. They take `key=value` arguments and
 print them as is, separated by spaces: `name=value`, no quotes, no checks.
-`-n` as the first argument leaves the line open for progress dots.
+`-n` as the first argument leaves the line open for progress dots; the
+rest of such a line is printed with `_log` too: `_log -n "."`, `_log "] state=READY"`.
+
+Every field of a log record is `name=value` or `name=[...]` - no free text:
+`action=switch_to_primary`, `reason=vntemplates_not_one`; a message goes
+inside brackets: `acl_delete=[ dry run: no ACLs will be deleted ]`.
+Brackets mark everything that is more than one value:
+
+- a list: `secondaries=[platforms.dc2.payload1]`, `federation_zones=[0 100]`,
+  `clusters=[0 101]`, `platforms: [platforms.dc1.mgmt ...]`;
+- the progress of a wait: the line opens with `status=[.`, every check adds
+  a dot, the bracket closes before the result, which is fields again: a
+  state wait ends with `state=`, an action with `result=`, a timeout adds
+  `result=timeout limit=Ns` -
+  `desired_state=RUNNING status=[....] state=RUNNING`,
+  `status=[..] state=BOOT result=timeout limit=300s`,
+  `action=delete status=[...] result=deleted`;
+- the ids of what was done: `acl_delete=[ 12 13 ]`, `vms=[5.3.0]`.
 
 | Helper | Prints | Uses of the caller |
 |---|---|---|
 | `_log KEY=VALUE ...` | the arguments | - |
 | `_log_std KEY=VALUE ...` | `platform= zone_id= zone_vip=`, then the arguments | `${platform}`, `${vip}` |
 | `_log_fe KEY=VALUE ...` | the `_log_std` header, `node_role= node_name= node_ip=`, then the arguments | `${platform}`, `${vip}`, `${node}` |
-| `_log_error "message"` | a blank line, `!!! ERROR !!! message`, `!!! TRACE !!! <command>` | - |
+| `_log_error "message"` | to stderr: a blank line, `!!! ERROR !!! message`, `!!! TRACE !!! <command>` | - |
 
 ```bash
 _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="backup"
 _log_fe \
   backup_from="${dir}" \
   backup_to="${backup_path}"
-_log_std -n image="${image}" action="wait_ready" status="."     # dots follow: echo -n "."
+_log_std -n image="${image}" action="wait_ready" status="[."    # dots follow: _log -n "."; then _log "] state=READY"
 platform=${other} vip=${other_vip} _log_std action="acl_tenant_set"     # a line of another platform
 _log dir="${dir_backups}" action="cleanup"                     # no platform
 _log_error "backups directory \"${dir_backups}\" can not be created"
@@ -300,8 +323,8 @@ platform=platforms.dc1.payload1 zone_id=0 zone_vip=10.71.101.30 node_role=leader
 ```
 
 - `zone_state=` is given on the first line of a command, not in every line.
-- A helper whose output is captured with `$(...)` sends its errors to stderr:
-  `_log_error "..." >&2`.
+- `_log_error` always prints to stderr, so an error never ends up in a value
+  captured with `$(...)` - no `>&2` at the call.
 - Never print passwords or keys.
 
 ## Variables
@@ -314,7 +337,6 @@ platform=platforms.dc1.payload1 zone_id=0 zone_vip=10.71.101.30 node_role=leader
 | internal data, templates | `config/data`, `config/templates`; `CONFIG`, `TEMPLATES` | `inv_* var=CONFIG path=<...>`, `inv_value var=TEMPLATES path=<group>.<name>.content` |
 | secrets | data set `secrets/` | never read by the CLI |
 | runtime data | `RUNTIME`, filled on the first touch of a platform, cleared by `data_load_provider` | after `data_runtime_refresh`: `${RUNTIME[${platform},...]}` |
-| results | global associative array named after the module (`iso_info`) | reset at the start of the call |
 | test data | `tests/claugine_TEST.sh`, sample `tests/claugine_TEST_SAMPLE.sh` | plain `name=value`, `test_` prefix |
 | function locals | | `local`; namerefs start with `_`: `local -n _list=${name}` |
 

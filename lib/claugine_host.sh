@@ -98,7 +98,7 @@ help_data[host_maintenance_on]="\
     platform=NAME            #   platforms.<site>.<platform>
     hosts=LIST               #   host names or ids
     interval=N(30)           #
-    limit=N(<CONFIG.onefe.timeouts.host_flush>) #
+    limit=N                  #   seconds, default is <CONFIG.onefe.timeouts.host_flush>
     confirm=yes|NO           #   to suppress interactive confirmation"
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
@@ -191,20 +191,20 @@ function host_maintenance_on() {
       now=$(date '+%s')
       if (( now - start > limit ))
       then
-        echo "]"
+        _log "]"
         _log_error "host ${name} is in state $(inv_value var=CONFIG path=onefe.states.host.${state}) and can not evacutate vms after ${limit}s"
         return 1
       fi
       sleep ${interval}
 
-      echo -n .
+      _log -n .
       vms=$(
         $ssh ${vip} "sudo -u oneadmin onehost show ${id} -j 2>/dev/null" |
         jq -r '.HOST.HOST_SHARE.RUNNING_VMS'
       )
-      echo -n ${vms}
+      _log -n ${vms}
     done  # until
-    echo "]"
+    _log "]"
   done  # id
 
   return 0
