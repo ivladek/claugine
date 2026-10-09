@@ -13,10 +13,9 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[evpn_vtep_nic_get]="\
   evpn_vtep_nic_get          # show vtep type (dev or local_ip) for each VM nic
     platform=NAME            #   platforms.<site>.<platform>"
-)
 # return 0 - no NIC with VXLAN_TEP=dev
 #        1 - a NIC with VXLAN_TEP=dev found
 #            no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
@@ -70,10 +69,9 @@ function evpn_vtep_nic_get() {
 
 
 
-claugine_help+=( "\
+help_data[evpn_vtep_vnet_get]="\
   evpn_vtep_vnet_get         # show vtep type (dev or local_ip) for each VNet and VNTemplate
     platform=NAME            #   platforms.<site>.<platform>"
-)
 # return 0 - no VXLAN network or VNet template with VXLAN_TEP=dev
 #        1 - VXLAN_TEP=dev found
 #            no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
@@ -123,11 +121,10 @@ function evpn_vtep_vnet_get() {
 
 
 
-claugine_help+=( "\
+help_data[evpn_vtep_vnet_set]="\
   evpn_vtep_vnet_set         # set vtep to local_ip for each VNet and VNTemplate
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -178,7 +175,7 @@ function evpn_vtep_vnet_set() {
 
 
 
-claugine_help+=( "\
+help_data[evpn_vtep_vnm_patch]="\
   evpn_vtep_vnm_patch        # patch /var/lib/one/remotes/vnm/vxlan/vxlan.rb
                              # to change vtep assignment logic
                              # each bridge created on KVM host during VM start
@@ -186,7 +183,6 @@ claugine_help+=( "\
                              # inspite of VM NIC vtep settings
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -256,14 +252,13 @@ function evpn_vtep_vnm_patch() {
 
 
 
-claugine_help+=( "\
+help_data[evpn_vtep_vnm_unpatch]="\
   evpn_vtep_vnm_unpatch      # recover original /var/lib/one/remotes/vnm/vxlan/vxlan.rb
                              # to return default vtep assignment logic
                              # each bridge created on KVM host during VM start
                              # will have vtep type (local_ip or dev) based of VM NIC settings
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed

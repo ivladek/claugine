@@ -165,12 +165,11 @@ no zone ids in parameters, no periodic refresh.
 Skeleton of a command:
 
 ```bash
-claugine_help+=( "\
+help_data[area_do_something]="\
   area_do_something          # one line: what it does
     platform=NAME            #   platforms.<site>.<platform>
     name=STRING              #   ...
     confirm=yes              #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, or not confirmed
 #        2 - ...
@@ -232,8 +231,10 @@ own search: they accept partial names and return several groups.
   `local arg; for arg in "$@"; do local "${arg}"; done`, then every parameter
   gets a default: `local name="${name:-}"`. All code runs under `set -u`.
 - Layout of every function, in this order:
-  1. a command - its help entry `claugine_help+=( "..." )`: what it does and
-     its arguments; an internal function - a comment: what it does, then its
+  1. a command - its help entry `help_data[name]="..."`, keyed by the
+     command name: what it does and its arguments; its first line - the name
+     and what it does - is the short help (the loaded script sourced again),
+     the whole entry - the full help (`--help`); an internal function - a comment: what it does, then its
      arguments, one per line;
   2. `# return 0 - ...` and one line per further code, with what is printed;
   3. `function name() {`, the argument loop, then **all** `local`

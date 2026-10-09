@@ -9,9 +9,9 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[vm_create]="\
   vm_create                  # create Service VM
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     cluster=ID|NAME          #   cluster for the VM, its images and vnets must be in it
     name=STRING              #
     hostname=STRING          #
@@ -34,7 +34,6 @@ claugine_help+=( "\
     pswd=STRING              # hashed or clear text password
     key=STRING               # public key
     tz=TIMEZONE              # default - the timezone of the zone's site in the inventory"
-)
 # return 0 - VM created
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed

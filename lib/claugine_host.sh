@@ -10,12 +10,11 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[host_maintenance_off]="\
   host_maintenance_off       # enable hosts
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     hosts=LIST               #   host names or ids
     confirm=yes|NO           # to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -94,14 +93,13 @@ function host_maintenance_off() {
 
 
 
-claugine_help+=( "\
+help_data[host_maintenance_on]="\
   host_maintenance_on        # disable hosts than evacuate vms
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     hosts=LIST               #   host names or ids
     interval=N(30)           #
-    limit=N(<CONFIG.onefe.timeouts.host_flush>)            #
+    limit=N(<CONFIG.onefe.timeouts.host_flush>) #
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed

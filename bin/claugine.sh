@@ -1,33 +1,11 @@
 #!/bin/bash
 set -u
-#
+
 export SCRIPT_NAME="CLoud AUtomation enGINE"
 export SCRIPT_AUTHOR="Vladislav Kirilin, [@]ivladek@me.com"
-export SCRIPT_VER="02.00.00"
-export SCRIPT_DATE="2026-10-08"
-
-# BLOCK  global variables
-#######
-
-export DIR_SCRIPT            # script root directory
-export DIR_LIB               # modules
-export DIR_CONFIG            # confiuration data
-export DIR_TEMPLATES         # templates
-export DIR_FILES             # files to copy
-
-export SSH_USER              # user for ssh
-export SSH_KEYF              # file with ssh public key
-
-# variable to import data
-declare -gr INV_VARS="CONFIG TEMPLATES INV SECRETS"
-declare -gA RUNTIME=()       # collected runtime data
-declare -g DIR_RUNTIME=""    # directory to export runtime data
-
-export ssh                   # ssh command including all required keys
-export -a claugine_help=()   # help
-
-##############
-# END OF BLOCK  global variables
+export SCRIPT_VER="02.10.00"
+export SCRIPT_DATE="2026-10-15"
+export SCRIPT_SOURCE="https://github.com/ivladek/claugine/tree/main"
 
 
 
@@ -36,13 +14,25 @@ export -a claugine_help=()   # help
 #   ssh_port=N    (22)
 #   ssh_keyf=FILE (${HOME}/.ssh/${USER}.key)
 # return 0 - loaded
-#        1 - a required tool not found
+#        1 - already loaded
+#            a required tool not found
 #            internal data not loaded
 function _script_INIT() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local module var dir cmd
 
-  DIR_SCRIPT=$(
+  if [[ -n "${DIR_SCRIPT:-}" ]]
+  then
+    echo "script: was loaded before"
+    return 1
+  fi
+
+  declare -gr INV_VARS="CONFIG TEMPLATES INV SECRETS"
+  declare -gA RUNTIME=()       # collected runtime data
+  declare -g DIR_RUNTIME=""    # directory to export runtime data
+  export ssh                   # ssh command including all required keys
+  declare -gA help_data=()     # help: command name -> help text
+  export DIR_SCRIPT=$(
     dirname -- "$(
       readlink -f -- "${BASH_SOURCE[0]}"
     )"
@@ -50,14 +40,14 @@ function _script_INIT() {
   DIR_SCRIPT="${DIR_SCRIPT%/bin}"
   echo "script directory: ${DIR_SCRIPT}"
 
-  DIR_LIB="${DIR_SCRIPT}/lib"
-  DIR_CONFIG="${DIR_SCRIPT}/config/data"
-  DIR_TEMPLATES="${DIR_SCRIPT}/config/templates"
-  DIR_FILES="${DIR_SCRIPT}/config/files"
+  export DIR_LIB="${DIR_SCRIPT}/lib"
+  export DIR_CONFIG="${DIR_SCRIPT}/config/data"
+  export DIR_TEMPLATES="${DIR_SCRIPT}/config/templates"
+  export DIR_FILES="${DIR_SCRIPT}/config/files"
 
-  SSH_USER="${ssh_user:-${USER}}"
-  SSH_PORT="${ssh_port:-22}"
-  SSH_KEYF="${ssh_keyf:-${HOME}/.ssh/${USER}.key}"
+  export SSH_USER="${ssh_user:-${USER}}"
+  export SSH_PORT="${ssh_port:-22}"
+  export SSH_KEYF="${ssh_keyf:-${HOME}/.ssh/${USER}.key}"
   ssh="ssh -p ${SSH_PORT} -l ${SSH_USER} -i ${SSH_KEYF}"
   echo "to connect to all hosts: ${ssh}"
 
@@ -89,45 +79,82 @@ function _script_INIT() {
     echo -n " ${cmd}"
   done  # cmd
   echo " ]"
-
-  echo "now you need load data: data_load_provider inv=PATH secrets=PATH runtime=PATH"
 }  # _script_INIT
 
 
 
-# entry point: refuse a direct run, load once, print the help
-#   arguments of _script_INIT
-# return 0 - loaded
-#        1 - run directly, already loaded or not loaded
+# entry point
+# direct run:
+#   [--help]                 # commands list
+#   [--help] command         # full help for command
+# load by source             # load commands
+# return 0 - loaded or help shown
+#        1 - run directly or not loaded
 function _script_MAIN() {
-  local arg; for arg in "$@"; do local "${arg}"; done
+  local module cmd name
+  local -a cmds
 
-  if [[ "${BASH_SOURCE[0]}" == "$0" ]]
-  then # script executed directly
-    echo "!!! ERROR !!! don't run the script directly - load by source"
-    exit 1
-  fi
+  # load script called using source
+  [[ "${BASH_SOURCE[0]}" != "$0" ]] && _script_INIT "$@"
 
-  # script already loaded
-  if declare -F claugine_help &>/dev/null
+  if [[ -n "${DIR_SCRIPT:-}" ]]
   then
-    echo "!!! WARNING !!! script is already loaded"
-    return 1
+    if [[ "${BASH_SOURCE[0]}" == "$0" ]]
+    then
+      declare -gA help_data=()
+      for module in "${DIR_LIB}"/claugine_*.sh
+      do
+        source "${module}" >/dev/null
+      done  # module
+    fi
+
+    mapfile -t cmds < <(printf '%s\n' "${!help_data[@]}" | sort)
+    echo "commands: ${#cmds[@]}"
+
+    if [[ -z "$*" || "$*" == "--help" ]]
+    then
+      for cmd in "${cmds[@]}"
+      do
+        echo "  ${cmd}"
+      done  # cmd
+    else
+      for cmd in "${cmds[@]}"
+      do
+        for name in "$@"
+        do
+          [[ "${name}" == "--help" ]] && continue
+          if [[ "${cmd}" == *"${name,,}"* ]]
+          then
+            echo "${help_data[${cmd}]}"
+          fi
+        done  # name
+      done  # cmd
+    fi
+
+    echo "commands list: ${BASH_SOURCE[0]} [--help]"
+    echo "command help: ${BASH_SOURCE[0]} [--help] command"
+
+    if [[ -n "${INV:-}" && "${INV}" != "{}" ]]
+    then
+      echo "data: loaded"
+      echo -n "platforms: "
+      jq -r '[.platforms // {} | to_entries[] | .key as $s | .value | keys[] | "\($s).\(.)"] | join(" ")' <<< "${INV}"
+    else
+      echo "data: not loaded"
+      echo "to load data use: data_load_provider inv=PATH secrets=PATH runtime=PATH"
+    fi
+  else
+    echo "script: not loaded"
+    echo "to load use: source ${BASH_SOURCE[0]}"
   fi
 
-  # script loaded by source command
-  if _script_INIT "$@"
-  then
-    claugine_help
-    return 0
-  fi
+  return 0
 }  # _script_MAIN
 
 
-
-echo
 echo "script: ${SCRIPT_NAME}"
 echo "author: ${SCRIPT_AUTHOR}"
 echo "version: ${SCRIPT_VER} #${SCRIPT_DATE}"
+echo "source: ${SCRIPT_SOURCE}"
 
 _script_MAIN "$@"

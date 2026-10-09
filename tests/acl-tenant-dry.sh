@@ -6,7 +6,7 @@
 
 # claugine: load if not loaded yet - the test can be run or sourced
 DIR_TESTS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if ! declare -F claugine_help &>/dev/null
+if [[ ! -v CLAUGINE_LOADED ]]
 then
   source "${DIR_TESTS}/../bin/claugine.sh" || { return 1 2>/dev/null || exit 1; }
 fi

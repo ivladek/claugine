@@ -42,7 +42,7 @@ function _vyos_vm_wait() {
 
 
 
-claugine_help+=( "\
+help_data[vyos_image_build]="\
   vyos_image_build           # phase 1: latest VyOS Stream ISO with claugine scripts, builder VM
     platform=NAME            #   platforms.<site>.<platform> of the builder VM
     cluster=ID|NAME          #   cluster of the builder VM
@@ -55,7 +55,6 @@ claugine_help+=( "\
                              #     from repos.zakroma.url_base/vyos if defined, rsync from this host otherwise
     empty_image=STRING       #   default: \"<CONFIG.vyos.builder.image>\"
     ds=ID                    #   default: the default IMAGE datastore of the platform, see image_upload"
-)
 # return 0 - builder VM created and powered off
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -137,7 +136,7 @@ EOF
 
 
 
-claugine_help+=( "\
+help_data[vyos_image_finalize]="\
   vyos_image_finalize        # phase 2: VyOS image from the builder VM, published to its platform
     platform=NAME            #   platforms.<site>.<platform> of the builder VM
     vm=STRING                #   builder VM name or id
@@ -148,7 +147,6 @@ claugine_help+=( "\
                              #     to other platforms: image_publish platform=... repo=vyos, one by one
     limit=N(<CONFIG.vyos.builder.wait>)       #   seconds to wait for boot and power off
     confirm=yes              #   to suppress interactive confirmation"
-)
 # return 0 - image created and published
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed

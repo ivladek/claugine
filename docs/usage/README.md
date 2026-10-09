@@ -85,11 +85,21 @@ All three parameters of `data_load_provider` are required; the runtime directory
 created if missing.
 
 The loader prints what it loaded into `CONFIG` and `TEMPLATES`, the modules,
-the tool check and the command list; `data_load_provider` - statistics of `INV` and
+the tool check; `data_load_provider` - statistics of `INV` and
 `SECRETS` (see [loading a tree](../data/README.md#loading-a-tree)), the
 runtime directory and the platforms of the inventory:
-`dc1.mgmt dc1.payload1 ...`. `claugine_help` prints the
-command list again at any time.
+`dc1.mgmt dc1.payload1 ...`. Help:
+
+```bash
+bash bin/claugine.sh --help      # full help: every command with all parameters, nothing is loaded
+source bin/claugine.sh --help    # the same in the current shell
+source bin/claugine.sh           # loaded already: nothing is reloaded, short help -
+                                 #   one line per command and the loaded platforms
+```
+
+Run directly without `--help` the script refuses: the commands must live in
+your shell. Tests and your own scripts check `CLAUGINE_LOADED` to load it
+only once: `[[ -v CLAUGINE_LOADED ]] || source bin/claugine.sh`.
 
 ## Platforms
 

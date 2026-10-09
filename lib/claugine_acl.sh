@@ -12,10 +12,9 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[acl_role_rights_get]="\
   acl_role_rights_get        # show rights set in oned.conf for each VM right - USE MANAGE ADMIN
     platform=NAME            #   platforms.<site>.<platform>"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function acl_role_rights_get() {
@@ -44,11 +43,10 @@ function acl_role_rights_get() {
 
 
 
-claugine_help+=( "\
+help_data[acl_role_rights_set]="\
   acl_role_rights_set        # set rights set in oned.conf for each VM right - USE MANAGE ADMIN
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function acl_role_rights_set() {
@@ -81,12 +79,11 @@ function acl_role_rights_set() {
 
 
 
-claugine_help+=( "\
+help_data[acl_tenant_get]="\
   acl_tenant_get             # show ACL for tenant group and group admin
     platform=NAME            #   platforms.<site>.<platform>: any platform of the federation,
                              #     the ACLs are read on its primary platform
     tenants=LIST             #   tenants ids or names"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function acl_tenant_get() {
@@ -174,14 +171,13 @@ function acl_tenant_get() {
 
 
 
-claugine_help+=( "\
+help_data[acl_tenant_set]="\
   acl_tenant_set             # delete than set new ACLs for all tenants
     platform=NAME            #   platforms.<site>.<platform>: any platform of the federation,
                              #     the ACLs are set on its primary platform for every zone of the federation
     tenants=LIST             #   tenants ids or names
     dry=YES|no               #   dry run without deleteing and creating ACLs
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed

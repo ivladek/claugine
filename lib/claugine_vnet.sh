@@ -13,12 +13,11 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[vnet_ar_ip_create]="\
   vnet_ar_ip_create          # create Address Range for 1 IP address
     platform=NAME            #   platforms.<site>.<platform>
     vnet=ID                  #   name or id
     ip=IP                    #   ip address to check"
-)
 # return 0 - an address range for the IP exists or was created
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            wrong IP
@@ -43,12 +42,11 @@ function vnet_ar_ip_create() {
 
 
 
-claugine_help+=( "\
-  vnet_ar_ip_exists             # check that Address Range for IP Address exists
-    platform=NAME                #   platforms.<site>.<platform>
+help_data[vnet_ar_ip_exists]="\
+  vnet_ar_ip_exists          # check that Address Range for IP Address exists
+    platform=NAME            #   platforms.<site>.<platform>
     vnet=ID                  #   name or id
     ip=IP                    #   ip address to check"
-)
 # return 0 - an address range contains the IP
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            wrong IP
@@ -101,11 +99,10 @@ function vnet_ar_ip_exists() {
 
 
 
-claugine_help+=( "\
+help_data[vnet_ar_mac_create]="\
   vnet_ar_mac_create         # returns free MAC address in Address Range
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     vnet=ID                  #   name or id"
-)
 # return 0 - prints a free MAC address, an address range is added if needed
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            wrong VNet
@@ -132,11 +129,10 @@ function vnet_ar_mac_create() {
 
 
 
-claugine_help+=( "\
+help_data[vnet_ar_mac_get]="\
   vnet_ar_mac_get            # return latest free MAC address available  in Address Range
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     vnet=ID                  #   name or id"
-)
 # return 0 - prints the last free MAC address of the address ranges
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            wrong VNet
@@ -195,12 +191,11 @@ function vnet_ar_mac_get() {
 
 
 
-claugine_help+=( "\
+help_data[vnet_ip_leased]="\
   vnet_ip_leased             # check that address has been already leased
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     vnet=ID                  #   name or id
     ip=IP                    #   ip address to check"
-)
 # return 0 - the IP is leased
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            wrong IP
