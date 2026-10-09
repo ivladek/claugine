@@ -340,12 +340,11 @@ function _data_runtime_platform_init() {
 
 
 
-claugine_help+=( "\
-  data_load_provider                  # load user data: the inventory and secrets; call again to switch to another data set
+help_data[data_load_provider]="\
+  data_load_provider         # load user data: the inventory and secrets; call again to switch to another data set
     inv=PATH                 #   inventory directory, like data/SAMPLE/inventory
     secrets=PATH             #   secrets directory
     runtime=PATH             #   directory to save collected runtime data in, created if missing"
-)
 # return 0 - loaded
 #        1 - inventory or secrets not loaded, runtime directory not defined or not created
 #            a zone of a federation is not a platform, or a primary FE not reachable - data not loaded
@@ -403,14 +402,13 @@ function data_load_provider() {
 
 
 
-claugine_help+=( "\
-  data_runtime_refresh            # check and refresh runtime data
+help_data[data_runtime_refresh]="\
+  data_runtime_refresh       # check and refresh runtime data
     platform=NAME            #   platforms.<site>.<platform>, exactly one; passed empty - error;
                              #     collected the first time only, see docs/data/README.md#runtime
     [fe=yes|NO]              #   refresh FE nodes status
     [quota=yes|NO]           #   refresh actual quotas
     [usage=yes|NO]           #   get usage"
-)
 # return 0 - done
 #        1 - no user data, wrong platform name, the runtime data can not be collected
 function data_runtime_refresh() {

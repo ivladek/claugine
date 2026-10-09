@@ -54,14 +54,13 @@ function _iso_repo_dir() {
 
 
 
-claugine_help+=( "\
+help_data[iso_customize]="\
   iso_customize              # copy an ISO with added files, keep it bootable
     src=PATH                 #   original ISO
     dst=PATH                 #   customized ISO, overwritten
     os=NAME                  #   ubuntu|vyos|...: files from internal data
                              #     \${DIR_FILES}/<CONFIG.OS.iso.dir>/<name>
                              #     placed to <path>/<name> for each of config.OS.iso.files"
-)
 # return 0 - built
 #        1 - original ISO not found
 #            dst or os not defined
@@ -123,13 +122,12 @@ function iso_customize() {
 
 
 
-claugine_help+=( "\
+help_data[iso_download]="\
   iso_download               # download a file, resume a partial download, verify sha256
     url=URL                  #
     file=PATH                #   local file
     sha256=HASH              #   optional
     overwrite=yes|NO         #   download again even if the file exists"
-)
 # return 0 - downloaded, sha256 matches
 #        1 - url or file not defined
 #            directory missing
@@ -187,7 +185,7 @@ function iso_download() {
 
 
 
-claugine_help+=( "\
+help_data[iso_get_ubuntu]="\
   iso_get_ubuntu             # latest Ubuntu Server ISO customized with os=ubuntu files
     version=YY.MM            #   default <CONFIG.ubuntu.version>
     site=NAME                #   site whose repos.zakroma.local_dir/ubuntu is the repository
@@ -195,7 +193,6 @@ claugine_help+=( "\
     directory=PATH           #   instead of site: the repository directory
     overwrite=yes|NO         #   download again
                              #   result: global associative array iso_info - version, original_iso, iso, file"
-)
 # return 0 - done; iso_info: version, original_iso, iso, file
 #        1 - no user data, no repository, wrong version or directory
 #            the version not found on the download site
@@ -250,7 +247,7 @@ function iso_get_ubuntu() {
 
 
 
-claugine_help+=( "\
+help_data[iso_get_vyos]="\
   iso_get_vyos               # latest VyOS Stream ISO customized with os=vyos files
     url=URL                  #   optional: ISO url, default - latest from <CONFIG.vyos.url>
     site=NAME                #   site whose repos.zakroma.local_dir/vyos is the repository
@@ -258,7 +255,6 @@ claugine_help+=( "\
     directory=PATH           #   instead of site: the repository directory
     overwrite=yes|NO         #   download again
                              #   result: global associative array iso_info - version, original_iso, iso, file"
-)
 # return 0 - done; iso_info: version, original_iso, iso, file
 #        1 - no user data, no repository or directory
 #            ISO url not found on the download site

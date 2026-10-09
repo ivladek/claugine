@@ -103,7 +103,7 @@ On the installed system the scripts are in `/config/scripts/`
 ## Phase 1: `vyos_image_build`
 
 ```bash
-source bin/claugine.sh
+source bin/claugine
 vyos_image_build platform=platforms.dc1.mgmt cluster=default vnet=core_dc1 addr=10.71.101.223 gw=10.71.101.254
 ```
 

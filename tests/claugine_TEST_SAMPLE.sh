@@ -3,7 +3,7 @@ set -u
 
 # test data for tests/*.sh - sample, published
 #   copy to claugine_TEST.sh and set your values
-#   not loaded by claugine.sh, each test sources it
+#   not loaded by bin/claugine, each test sources it
 
 # user data loaded by the tests with data_load_provider, if nothing is loaded yet
 test_inv="${DIR_TESTS}/../data/SAMPLE/inventory"

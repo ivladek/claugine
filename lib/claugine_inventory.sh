@@ -18,11 +18,10 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[inv_keys]="\
   inv_keys                   # the keys of an object, one per line
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by ".""
-)
 # return 0 - always; missing path - nothing printed
 function inv_keys() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -38,11 +37,10 @@ function inv_keys() {
 
 
 
-claugine_help+=( "\
+help_data[inv_list]="\
   inv_list                   # the items of a list, one per line
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by ".""
-)
 # return 0 - always; missing path - nothing printed
 function inv_list() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -56,12 +54,11 @@ function inv_list() {
 
 
 
-claugine_help+=( "\
+help_data[inv_list_field]="\
   inv_list_field             # one field of each object in a list, one per line
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by "."
     field=NAME               #   field of the objects; inv_list_find - default: name"
-)
 # return 0 - always; missing path - nothing printed
 function inv_list_field() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -76,13 +73,12 @@ function inv_list_field() {
 
 
 
-claugine_help+=( "\
+help_data[inv_list_find]="\
   inv_list_find              # the object in a list whose field is value, one-line JSON
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by "."
     field=NAME               #   field of the objects; inv_list_find - default: name
     value=STRING             #   value of the field"
-)
 # return 0 - always; missing path - nothing printed
 function inv_list_find() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -99,11 +95,10 @@ function inv_list_find() {
 
 
 
-claugine_help+=( "\
+help_data[inv_value]="\
   inv_value                  # a value of a loaded document; an object or a list - one-line JSON
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by ".""
-)
 # return 0 - always; missing path - nothing printed
 function inv_value() {
   local arg; for arg in "$@"; do local "${arg}"; done

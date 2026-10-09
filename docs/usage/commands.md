@@ -2,8 +2,10 @@
 
 [Documentation](../README.md) › [usage](README.md) › commands
 
-Every command with its main parameters. `claugine_help` prints the full
-list with all parameters and defaults. `platform=` is always the first
+Every command with its main parameters. `bin/claugine` lists all commands;
+`bin/claugine PATTERN` prints the full help, with all parameters and
+defaults, of every command with PATTERN in its name - see
+[help](README.md#help). `platform=` is always the first
 parameter: `platform=NAME` - exactly one platform, the full name
 `platforms.<site>.<platform>`. To work on several platforms, call the
 command for each.
@@ -102,4 +104,3 @@ Quota records and fields: [tenant quotas](../data/quota.md).
 
 | Command | Parameters | What it does |
 |---|---|---|
-| `claugine_help` | | list all commands |

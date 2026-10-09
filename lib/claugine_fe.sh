@@ -18,13 +18,12 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[fe_backup]="\
   fe_backup                  # backup all data required toi restore FE from scratch
     platform=NAME            #   platforms.<site>.<platform>
     full=yes|NO              #   include configs or db only
                              #   to repos.backups.local_dir of the site of each platform: <vip>_<time>/;
                              #   the federated DB is saved on the primary platform of a federation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            backups directory can not be created
@@ -47,7 +46,7 @@ function fe_backup() {
     _log_error "backups directory \"${dir_backups}\" can not be created"
     return 1
   fi
-  backup_path="${dir_backups}/${vip}_$(date '+%H-%M-%S')"
+  backup_path="${dir_backups}/${vip}_$(date '++%Y-%m-%d-%H-%M-%S')"
 
   _log_std \
     zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" \
@@ -112,10 +111,9 @@ function fe_backup() {
 
 
 
-claugine_help+=( "\
+help_data[fe_cfg_ver_get]="\
   fe_cfg_ver_get             # show current and required version for configuration and db
     platform=NAME            #   platforms.<site>.<platform>"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function fe_cfg_ver_get() {
@@ -147,11 +145,10 @@ function fe_cfg_ver_get() {
 
 
 
-claugine_help+=( "\
+help_data[fe_configs_backups_cleanup]="\
   fe_configs_backups_cleanup # cleanup all configs backups created during upgrade
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -242,10 +239,9 @@ function fe_configs_backups_cleanup() {
 
 
 
-claugine_help+=( "\
+help_data[fe_configs_backups_list]="\
   fe_configs_backups_list    # show directories with configs backups created during upgrade
     platform=NAME            #   platforms.<site>.<platform>"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function fe_configs_backups_list() {
@@ -273,12 +269,11 @@ function fe_configs_backups_list() {
 
 
 
-claugine_help+=( "\
+help_data[fe_data_refresh]="\
   fe_data_refresh            # collect the runtime data of a platform again: zone, FE nodes, datastores,
                              # VNet template, shared group; every command collects it the first time
                              # it touches a platform, this command only refreshes it
     platform=NAME            #   platforms.<site>.<platform>"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function fe_data_refresh() {
@@ -293,11 +288,10 @@ function fe_data_refresh() {
 
 
 
-claugine_help+=( "\
+help_data[fe_disk_cleanup]="\
   fe_disk_cleanup            # clean data from /var/tmp after unsuccessful image loading
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -329,11 +323,10 @@ function fe_disk_cleanup() {
 
 
 
-claugine_help+=( "\
+help_data[fe_fireedge_restart]="\
   fe_fireedge_restart        # restart fireedge service on FE
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -363,12 +356,11 @@ function fe_fireedge_restart() {
 
 
 
-claugine_help+=( "\
+help_data[fe_fireedge_views_update]="\
   fe_fireedge_views_update   # distribute updated Fireedge views to FE
     platform=NAME            #   platforms.<site>.<platform>
     src=PATH                 #   directory with custom views
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -400,12 +392,11 @@ function fe_fireedge_views_update() {
 
 
 
-claugine_help+=( "\
+help_data[fe_os_update]="\
   fe_os_update               # install OS updates
                              # detect combined KVM/FE nodes and put them in maintenance mode before
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, not confirmed
 #            a node not ready after reboot
@@ -470,11 +461,10 @@ function fe_os_update() {
 
 
 
-claugine_help+=( "\
+help_data[fe_services_restart]="\
   fe_services_restart        # restart OpenNebula services on FE in right order
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed

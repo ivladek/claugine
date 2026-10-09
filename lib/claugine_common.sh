@@ -8,7 +8,6 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 #   _is_ipv4                    check that ip is a valid IP v4 address
 #   _is_mac                     check that mac is a valid MAC address: xx:xx:xx:xx:xx:xx
 #   _stop_without_confirmation  ask to confirm a critical operation; no answer in 1 minute - declined
-#   claugine_help               show help information
 
 
 
@@ -58,21 +57,3 @@ function _stop_without_confirmation() {
   echo "!!! OPERATION CANCELED !!!"
   return 0
 }  # _stop_without_confirmation
-
-
-
-claugine_help+=( "\
-  claugine_help          # show help information"
-)
-# return 0 - always
-function claugine_help() {
-  local cmd
-
-  echo
-  echo "CLaud AUtomation enGINE functions"
-
-  for cmd in "${claugine_help[@]}"
-  do
-    echo "${cmd}"
-  done  # cmd
-}  # claugine_help

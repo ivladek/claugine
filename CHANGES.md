@@ -1,5 +1,14 @@
 # Changelog
 
+## [02.10.00] - 2026-10-15
+
+### Changed
+- help: the entries are kept in the associative array `help_data`, keyed by the command name - `help_data[acl_role_rights_get]="..."` (was the list `claugine_help+=( "..." )`); printed sorted by name
+- entry point renamed `bin/claugine.sh` -> `bin/claugine`
+- help comes from `bin/claugine`, the `claugine_help` command is removed: `source bin/claugine` - load, then the command names and the data status; sourced again - "was loaded before", nothing is reloaded; run directly - `bin/claugine [--help]` the command names, `bin/claugine [--help] PATTERN ...` the full help of every command with PATTERN in its name
+- the global variables are declared in `_script_INIT`, on the first load only
+- tests load claugine if `data_load_provider` is not defined in the shell
+
 ## [02.00.00] - 2026-10-06
 
 Major version, the project is renamed to **claugine**: new layout and file names, all data in YAML loaded into one
@@ -31,7 +40,7 @@ Data files and scripts written for 01.x need the changes listed below.
   - four source documents loaded at start-up, shell globals, not exported: `INV` - inventory, `SECRETS`, `CONFIG` - `config/data`, `TEMPLATES` - `config/templates`
   - return codes: `0` - success, `1` - any error; other codes only where a caller checks them as an answer: `vnet_ar_ip_exists`, `vnet_ip_leased` - `4`, `vnet_ar_mac_get` - `3`
   - modules: functions in alphabetical order, `# INDEX` of the functions at the top of each module
-  - code layout: every function has its help entry (a command) or a description and its arguments (an internal function), then its return codes; all `local` declarations at the start; every `for` loop ends with `done  # <variable>`, every function with `}  # name`; functions not called by hand start with `_` (`_is_ipv4`, `_is_mac`, `_stop_without_confirmation`, `_os_service_wait`, `_data_load_var`, `_script_INIT`, `_script_MAIN`); the help array is `claugine_help`
+  - code layout: every function has its help entry (a command) or a description and its arguments (an internal function), then its return codes; all `local` declarations at the start; every `for` loop ends with `done  # <variable>`, every function with `}  # name`; functions not called by hand start with `_` (`_is_ipv4`, `_is_mac`, `_stop_without_confirmation`, `_os_service_wait`, `_data_load_var`, `_script_INIT`, `_script_MAIN`); the help entries are in `help_data`
   - `claugine_inventory` module: getters per shape of the data, after `_archive/lib/lib_inventory.sh` - `inv_value`, `inv_list`, `inv_list_field`, `inv_keys`, `inv_list_find`; each document is used on its own: `var=CONFIG|TEMPLATES|INV|SECRETS path=A.B`
   - modules only define functions and help texts, nothing is read while loading: `source` loads the modules, then `CONFIG` and `TEMPLATES`; a default from internal data is shown in the help as its key, `limit=N(<CONFIG.onefe.timeouts.image_wait>)` - its value: `inv_value var=CONFIG path=onefe.timeouts.image_wait`
   - `_data_load_var var= dir=` - loads a YAML tree only into one of `INV_VARS`, prints statistics of the loaded document; the variables hold pretty-printed JSON

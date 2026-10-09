@@ -27,8 +27,8 @@ exported**, so child processes (`ssh`, `rsync`, ...) never see them:
 
 | Variable | From | Loaded by | Read with |
 |---|---|---|---|
-| `CONFIG` | `config/data/` | `source bin/claugine.sh` | `inv_value var=CONFIG path=<subsystem>.<key>` |
-| `TEMPLATES` | `config/templates/` | `source bin/claugine.sh` | `inv_value var=TEMPLATES path=<group>.<name>` |
+| `CONFIG` | `config/data/` | `source bin/claugine` | `inv_value var=CONFIG path=<subsystem>.<key>` |
+| `TEMPLATES` | `config/templates/` | `source bin/claugine` | `inv_value var=TEMPLATES path=<group>.<name>` |
 | `INV` | `inv=PATH` - an inventory directory | `data_load_provider` | `inv_value var=INV path=<path>` |
 | `SECRETS` | `secrets=PATH` - a secrets directory | `data_load_provider` | `inv_value var=SECRETS path=<path>` |
 
@@ -38,7 +38,7 @@ data may be saved, and clears `RUNTIME`. Calling `data_load_provider` again swit
 to another data set:
 
 ```bash
-source bin/claugine.sh
+source bin/claugine
 data_load_provider inv=~/data/acme/inventory secrets=~/data/acme/secrets runtime=~/data/acme/runtime
 ```
 
@@ -82,7 +82,7 @@ inv_keys var=CONFIG path=onefe.configs.oned.vm_operations    # ADMIN MANAGE USE
 ### Loading a tree
 
 `_data_load_var var=NAME dir=PATH` loads one YAML tree into one of the four
-variables; `source bin/claugine.sh` calls it for `CONFIG` and `TEMPLATES`,
+variables; `source bin/claugine` calls it for `CONFIG` and `TEMPLATES`,
 `data_load_provider` for `INV` and `SECRETS`:
 
 1. **checks the name** - one of `INV_VARS`: `CONFIG TEMPLATES INV SECRETS`, so

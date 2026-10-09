@@ -57,11 +57,11 @@ cp -r ~/code/claugine/data/SAMPLE ~/claugine-data   # keep real data outside the
 
 ## Start
 
-claugine is a set of shell functions: `source` it into your shell, do not
-execute it. Then load your data:
+claugine is a set of shell functions: `source` it into your shell, then load
+your data (run directly, `bin/claugine` only prints [help](#help)):
 
 ```bash
-source ~/code/claugine/bin/claugine.sh                 # internal data and modules
+source ~/code/claugine/bin/claugine                 # internal data and modules
 data_load_provider inv=~/claugine-data/inventory \
   secrets=~/claugine-data/secrets runtime=~/claugine-data/runtime
 ```
@@ -73,7 +73,7 @@ or a primary FE that can not be reached, is not loaded. Calling it again
 switches to another data set. Without user data, commands stop with a
 message.
 
-Start-up options of `source bin/claugine.sh`, all optional:
+Start-up options of `source bin/claugine`, all optional:
 
 | Option | Default |
 |---|---|
@@ -85,11 +85,30 @@ All three parameters of `data_load_provider` are required; the runtime directory
 created if missing.
 
 The loader prints what it loaded into `CONFIG` and `TEMPLATES`, the modules,
-the tool check and the command list; `data_load_provider` - statistics of `INV` and
+the tool check; `data_load_provider` - statistics of `INV` and
 `SECRETS` (see [loading a tree](../data/README.md#loading-a-tree)), the
 runtime directory and the platforms of the inventory:
-`dc1.mgmt dc1.payload1 ...`. `claugine_help` prints the
-command list again at any time.
+`dc1.mgmt dc1.payload1 ...`.
+
+## Help
+
+```bash
+source bin/claugine              # load, then: the command names, the help calls, the data status
+source bin/claugine              # loaded already: "script: was loaded before", nothing is reloaded,
+                                 #   the same list and the loaded platforms
+bin/claugine [--help]            # in a shell where claugine is loaded: the command names
+bin/claugine [--help] acl        # full help of every command with "acl" in its name
+bin/claugine tenant vyos         # several patterns: commands matching any of them
+```
+
+A pattern matches any part of a command name, in lower case: `acl`,
+`tenant_get`, `vyos`. `--help` is optional. A command that matches two
+patterns is printed twice.
+
+A direct run is a separate process: it reads the help texts of the modules
+itself, but it does not see the data loaded in your shell - the data status
+is meaningful only after `source`. In a shell where claugine was never
+loaded, a direct run prints `script: not loaded` and how to load it.
 
 ## Platforms
 

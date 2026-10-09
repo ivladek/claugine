@@ -23,11 +23,13 @@ platform.
 
 Three steps:
 
-1. `source bin/claugine.sh` - **internal data only**: `_script_INIT` sets the
+1. `source bin/claugine` - **internal data only**: `_script_INIT` sets the
    directories (`DIR_SCRIPT`, `DIR_LIB`, `DIR_CONFIG` - `config/data`,
    `DIR_FILES` - `config/files`, `DIR_TEMPLATES` - `config/templates`), loads
    the modules, then `CONFIG` and `TEMPLATES`, checks the tools of
-   `config.admin.tools` and prints the commands. A module only defines
+   `config.admin.tools`; `_script_MAIN` then prints the commands. A direct
+   run (`bin/claugine [--help] [PATTERN ...]`) only prints help: it reads the
+   modules for their `help_data`, nothing else; A module only defines
    functions and help texts and reads nothing while loading: a default from
    internal data is shown in the help as its key, `limit=N(<CONFIG.onefe.timeouts.image_wait>)`, the value: `inv_value var=CONFIG path=onefe.timeouts.image_wait`;
 2. `data_load_provider inv=PATH secrets=PATH runtime=PATH` - **user data**: `INV`
@@ -47,7 +49,7 @@ command that walks the FE nodes (`fe=yes`). How a YAML tree becomes a document:
 [loading a tree](../data/README.md#loading-a-tree).
 
 ```
- config/data, config/templates ─► source bin/claugine.sh ─► CONFIG, TEMPLATES ───────┐
+ config/data, config/templates ─► source bin/claugine ─► CONFIG, TEMPLATES ───────┐
  inventory, secrets             ─► data_load_provider     ─► INV, SECRETS            ├─► commands
                                    ├─ every platform     ─► RUNTIME (from its FE)    │
                                    └─ _data_consistancy_check: federations           │
@@ -73,7 +75,7 @@ command that walks the FE nodes (`fe=yes`). How a YAML tree becomes a document:
 
 | Path | Content |
 |---|---|
-| `bin/claugine.sh` | loader of the internal data and modules, see [Design](#design) |
+| `bin/claugine` | loader of the internal data and modules (`source`), help (direct run), see [Design](#design) |
 | `lib/claugine_<area>.sh` | one module per area |
 | `config/data/<subsystem>.yaml` | internal data of the tool: `config.<subsystem>.*`, see [internal data](../data/config.md) |
 | `config/templates/<name>.yaml` | YAML templates of config files |
@@ -165,12 +167,11 @@ no zone ids in parameters, no periodic refresh.
 Skeleton of a command:
 
 ```bash
-claugine_help+=( "\
+help_data[area_do_something]="\
   area_do_something          # one line: what it does
     platform=NAME            #   platforms.<site>.<platform>
     name=STRING              #   ...
     confirm=yes              #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, or not confirmed
 #        2 - ...
@@ -232,8 +233,9 @@ own search: they accept partial names and return several groups.
   `local arg; for arg in "$@"; do local "${arg}"; done`, then every parameter
   gets a default: `local name="${name:-}"`. All code runs under `set -u`.
 - Layout of every function, in this order:
-  1. a command - its help entry `claugine_help+=( "..." )`: what it does and
-     its arguments; an internal function - a comment: what it does, then its
+  1. a command - its help entry `help_data[name]="..."`, keyed by the
+     command name: what it does and its arguments; the whole entry is what
+     `bin/claugine PATTERN` prints for a matching command; an internal function - a comment: what it does, then its
      arguments, one per line;
   2. `# return 0 - ...` and one line per further code, with what is printed;
   3. `function name() {`, the argument loop, then **all** `local`

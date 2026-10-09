@@ -12,11 +12,10 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[quota_cpu_to_vcpu_set]="\
   quota_cpu_to_vcpu_set      # set CPU to VCPU for each VM where CPU != VCPU
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -58,13 +57,12 @@ function quota_cpu_to_vcpu_set() {
 
 
 
-claugine_help+=( "\
+help_data[quota_ds_set]="\
   quota_ds_set               # set quotas for IMAGES, FILES and BACKUPS datastores
     platform=NAME            #   platforms.<site>.<platform>
     tenants=LIST             #   tenants ids or names
     confirm=yes|NO           #   to suppress interactive confirmation
                              #   quotas, GiB: patch.yaml ds_quotas of the inventory platform with the zone VIP"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -260,11 +258,10 @@ function quota_ds_set() {
 
 
 
-claugine_help+=( "\
+help_data[quota_tenant_get]="\
   quota_tenant_get           # show quota and usage for tenant
     platform=NAME            #   platforms.<site>.<platform>
     tenant=STRING            #"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function quota_tenant_get() {
@@ -481,10 +478,9 @@ function quota_tenant_get() {
 
 
 
-claugine_help+=( "\
+help_data[quota_vcpu_conf_show]="\
   quota_vcpu_conf_show       # show VCPU configuration in oned.conf
     platform=NAME            #   platforms.<site>.<platform>"
-)
 # return 0 - done
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function quota_vcpu_conf_show() {

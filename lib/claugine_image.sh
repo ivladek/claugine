@@ -13,14 +13,13 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 
-claugine_help+=( "\
+help_data[image_archive]="\
   image_archive              # free the image name NAME for a new image:
                              #   not used by VMs - the image is deleted
                              #   used by VMs     - renamed to \"NAME (YYYY-MM-DD)\", date of its registration
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     name=STRING              #   image name
-    limit=N(<CONFIG.onefe.timeouts.image_wait>)       #   seconds to wait for the deletion"
-)
+    limit=N(<CONFIG.onefe.timeouts.image_wait>) #   seconds to wait for the deletion"
 # return 0 - no image with the name, or it was deleted or renamed
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            can not delete the image
@@ -90,12 +89,11 @@ function image_archive() {
 
 
 
-claugine_help+=( "\
+help_data[image_download]="\
   image_download             # copy an image file from the FE datastore to a local file
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     image=STRING             #   name or id
     file=PATH                #   local file"
-)
 # return 0 - downloaded
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            image not found or its source is not a file
@@ -132,7 +130,7 @@ function image_download() {
 
 
 
-claugine_help+=( "\
+help_data[image_publish]="\
   image_publish              # upload a local image file to a platform: image_upload, from the site repository if repo=
     platform=NAME            #   platforms.<site>.<platform>
     file=PATH                #   local file
@@ -143,7 +141,6 @@ claugine_help+=( "\
     ds=ID                    #   default: the default IMAGE datastore of the platform, see image_upload
     prefix=vd|sd             #   default: vd
     format=qcow2|raw         #   optional"
-)
 # return 0 - published
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            file not found or name not defined
@@ -182,9 +179,9 @@ function image_publish() {
 
 
 
-claugine_help+=( "\
+help_data[image_upload]="\
   image_upload               # upload a local file as a new image, an existing image with the same name is deleted or archived
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     file=PATH                #   local file, copied to the FE by rsync
     url=URL                  #   instead of file: the FE downloads the image from this url
     name=STRING              #   image name
@@ -193,7 +190,6 @@ claugine_help+=( "\
                              #     the built-in \"default\" (id 1) only if it is the only one
     prefix=vd|sd             #   default: vd, use sd for CDROM on q35
     format=qcow2|raw         #   optional"
-)
 # return 0 - uploaded and READY
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
@@ -271,12 +267,11 @@ function image_upload() {
 
 
 
-claugine_help+=( "\
+help_data[image_wait]="\
   image_wait                 # wait until the image is READY
-    platform=NAME                #   platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>
     image=STRING             #   name or id
-    limit=N(<CONFIG.onefe.timeouts.image_wait>)       #   seconds"
-)
+    limit=N(<CONFIG.onefe.timeouts.image_wait>) #   seconds"
 # return 0 - the image is READY
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, image in ERROR
 #            timeout
