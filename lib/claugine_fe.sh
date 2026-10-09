@@ -46,7 +46,7 @@ function fe_backup() {
     _log_error "backups directory \"${dir_backups}\" can not be created"
     return 1
   fi
-  backup_path="${dir_backups}/${vip}_$(date '+%H-%M-%S')"
+  backup_path="${dir_backups}/${vip}_$(date '++%Y-%m-%d-%H-%M-%S')"
 
   _log_std \
     zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" \
