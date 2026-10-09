@@ -2,9 +2,10 @@
 
 [Documentation](../README.md) › [usage](README.md) › commands
 
-Every command with its main parameters. Sourcing the loaded script again
-lists all commands; `source bin/claugine.sh --help` prints the full help,
-with all parameters and defaults. `platform=` is always the first
+Every command with its main parameters. `bin/claugine` lists all commands;
+`bin/claugine PATTERN` prints the full help, with all parameters and
+defaults, of every command with PATTERN in its name - see
+[help](README.md#help). `platform=` is always the first
 parameter: `platform=NAME` - exactly one platform, the full name
 `platforms.<site>.<platform>`. To work on several platforms, call the
 command for each.

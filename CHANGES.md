@@ -4,8 +4,10 @@
 
 ### Changed
 - help: the entries are kept in the associative array `help_data`, keyed by the command name - `help_data[acl_role_rights_get]="..."` (was the list `claugine_help+=( "..." )`); printed sorted by name
-- help comes from `bin/claugine.sh`, the `claugine_help` command is removed: `bash bin/claugine.sh --help` or `source bin/claugine.sh --help` - full help of every command, nothing is loaded into the shell; `source bin/claugine.sh` when already loaded - short help: one line per command and the loaded platforms, nothing is reloaded
-- `CLAUGINE_LOADED` - set once the script is loaded; the global variables are set on the first load only, sourcing again keeps `RUNTIME` and the loaded data; tests check it instead of `declare -F claugine_help`
+- entry point renamed `bin/claugine.sh` -> `bin/claugine`
+- help comes from `bin/claugine`, the `claugine_help` command is removed: `source bin/claugine` - load, then the command names and the data status; sourced again - "was loaded before", nothing is reloaded; run directly - `bin/claugine [--help]` the command names, `bin/claugine [--help] PATTERN ...` the full help of every command with PATTERN in its name
+- the global variables are declared in `_script_INIT`, on the first load only
+- tests load claugine if `data_load_provider` is not defined in the shell
 
 ## [02.00.00] - 2026-10-06
 

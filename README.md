@@ -15,7 +15,7 @@ describing your platforms, then call the functions - every command names its
 target platform from the inventory:
 
 ```bash
-source bin/claugine.sh                       # internal data and modules
+source bin/claugine                          # internal data and modules
 data_load_provider inv=data/SAMPLE/inventory secrets=data/SAMPLE/secrets runtime=data/SAMPLE/runtime   # user data; again - switch
 fe_cfg_ver_get platform=platforms.dc1.payload1         # read-only
 quota_tenant_get platform=platforms.dc1.payload1 tenant=romashka
@@ -28,7 +28,7 @@ Requirements: bash 4.3+, `jq`, `yq`, ssh with sudo to the FE nodes - see
 ## Layout
 
 ```
-bin/claugine.sh   loader of internal data and modules - source it, do not execute it
+bin/claugine      loader of internal data and modules - source it; run it for help
 lib/              modules: claugine_<area>.sh
 config/           data of the tool: data/ (YAML), templates/, files/
 data/             a data set during development: inventory/, secrets/, runtime/;

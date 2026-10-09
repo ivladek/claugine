@@ -5,9 +5,9 @@
 
 # claugine: load if not loaded yet - the test can be run or sourced
 DIR_TESTS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if [[ ! -v CLAUGINE_LOADED ]]
+if ! declare -F data_load_provider &>/dev/null
 then
-  source "${DIR_TESTS}/../bin/claugine.sh" || { return 1 2>/dev/null || exit 1; }
+  source "${DIR_TESTS}/../bin/claugine" || { return 1 2>/dev/null || exit 1; }
 fi
 
 # test data, shared by all tests in this directory
