@@ -33,5 +33,5 @@ test_vm_key="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEEXAMPLEEXAMPLEEXAMPLEEX
 # vyos-image-build.sh: builder VM
 test_vyos_cluster=0
 test_vyos_vnet=core_dc1
-test_vyos_addr=10.71.101.223
+test_vyos_addr=auto                 # or a fixed IP
 test_vyos_gw=10.71.101.254

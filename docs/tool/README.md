@@ -274,8 +274,10 @@ own search: they accept partial names and return several groups.
 ## Output and errors
 
 Every line is printed by one of the log helpers of `lib/claugine_helpers.sh`
-- no hand-written `echo` of a log line. They take `key=value` arguments and
-print them as is, separated by spaces: `name=value`, no quotes, no checks.
+- `_log` is the only way to stdout, no hand-written `echo` of a log line.
+`echo` is left only for a value a caller captures with `$(...)` (an id, a
+directory, a MAC) and for the lines printed before the modules are loaded.
+The helpers take `key=value` arguments and print them as is, separated by spaces: `name=value`, no quotes, no checks.
 `-n` as the first argument leaves the line open for progress dots; the
 rest of such a line is printed with `_log` too: `_log -n "."`, `_log "] state=READY"`.
 

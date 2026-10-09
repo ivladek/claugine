@@ -15,13 +15,14 @@ help_data[vyos_image_build]="\
     platform=NAME            #   platforms.<site>.<platform> of the builder VM
     cluster=ID|NAME(0)       #   cluster of the builder VM
     vnet=STRING              #   builder VM network, name or id
-    addr=IP                  #   builder VM address, must be reachable by ssh from this host
+    addr=IP|AUTO             #   builder VM address, default - a free IP leased from the VNet;
+                             #     must be reachable by ssh from this host
     empty_image=STRING       #   default: \"<CONFIG.vyos.builder.image>\"
     ds=ID                    #   default: the default IMAGE datastore of the platform, see image_upload"
 # return 0 - builder VM created and powered off
 #        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 #            not confirmed
-#            cluster, vnet, addr or the public key missing, no repository
+#            vnet or the public key missing, no repository
 #            iso_get_vyos failed
 #            builder VM already exists
 #            ISO upload failed
@@ -31,10 +32,10 @@ function vyos_image_build() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local cluster="${cluster:-0}"
   local vnet="${vnet:-}"
-  local addr="${addr:auto}"
+  local addr="${addr:-auto}"
   local empty_image="${empty_image:-$(inv_value var=CONFIG path=vyos.builder.image)}"
   local ds="${ds:-}"
-  local fe ver iso_name iso_url iso_file vm_name site directory repo_url vip content
+  local fe ver iso_name iso_url iso_file vm_name vm_ip site directory repo_url vip content
 
   data_runtime_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
@@ -99,6 +100,13 @@ function vyos_image_build() {
     user=vyos pswd="$(inv_value var=CONFIG path=vyos.builder.password)" key="$(< "${SSH_KEYF}.pub")" \
     autostart=no \
     || return 1
+
+  # the address of the builder VM: as given, or leased from the VNet with addr=auto
+  vm_ip=$(
+    $ssh ${fe} "sudo -u oneadmin onevm show \"${vm_name}\" -j 2>/dev/null" |
+    jq -r '.VM.TEMPLATE.NIC | if type == "array" then .[0] else . end | .IP // ""'
+  )
+  _log_std vm_name="${vm_name}" vm_ip="${vm_ip}" action="builder_created"
 
   _log
   # the text of config/templates, its ${variables} filled in from this function

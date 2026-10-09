@@ -104,7 +104,7 @@ On the installed system the scripts are in `/config/scripts/`
 
 ```bash
 source bin/claugine
-vyos_image_build platform=platforms.dc1.mgmt cluster=default vnet=core_dc1 addr=10.71.101.223 gw=10.71.101.254
+vyos_image_build platform=platforms.dc1.mgmt cluster=default vnet=core_dc1 gw=10.71.101.254   # addr=auto: a free IP of the VNet
 ```
 
 | Parameter | Meaning |
@@ -112,7 +112,7 @@ vyos_image_build platform=platforms.dc1.mgmt cluster=default vnet=core_dc1 addr=
 | `platform=NAME` | platform where the builder VM runs, `platforms.<site>.<platform>` |
 | `cluster=ID\|NAME` | cluster of the builder VM; `builder.image` of `config/data/vyos.yaml`, the ISO datastore and `vnet` must belong to it |
 | `vnet=STRING` | builder VM network, name or id |
-| `addr=IP` | builder VM address, reachable by ssh from the workstation |
+| `addr=IP\|auto` | builder VM address, reachable by ssh from the workstation; default `auto` - a free IP leased from the VNet, logged as `vm_ip=` |
 | `gw=IP`, `dns=IP` | optional |
 | `url=URL` | optional: ISO URL, default - the latest from `url` of `config/data/vyos.yaml` |
 | `empty_image=STRING` | optional: default `builder.image` of `config/data/vyos.yaml` |
@@ -276,7 +276,7 @@ messages and what to do:
 | Step | Message | What to do |
 |---|---|---|
 | build | platform not in the inventory, FE not reachable | check the inventory and the VIP |
-| build | `cluster`, `vnet` or `addr` not set, `${SSH_KEYF}.pub` missing | pass them; create the key |
+| build | `vnet` not set, `${SSH_KEYF}.pub` missing | pass it; create the key |
 | build | ISO not found, not downloaded or not customized | check the download site and `config/data/vyos.yaml` |
 | build | builder VM already exists | terminate it, or finish it with phase 2 |
 | build | ISO upload failed, VM creation failed | cluster, image or network not found or not unique, address leased |

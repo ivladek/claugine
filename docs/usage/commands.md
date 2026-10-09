@@ -68,7 +68,7 @@ command for each.
 | `iso_get_ubuntu` | `site=\|platform=\|directory=` `[version=]` | latest Ubuntu Server ISO, boots straight into autoinstall |
 | `iso_get_vyos` | `site=\|platform=\|directory=` `[url=]` | latest VyOS Stream ISO with the claugine scripts |
 | `iso_download`, `iso_customize` | | building blocks of `iso_get_*` |
-| `vyos_image_build` | `platform=NAME` `cluster=` `vnet=` `addr=` | VyOS image, phase 1: ISO and builder VM, see [VyOS image](../network/vyos-image.md) |
+| `vyos_image_build` | `platform=NAME` `cluster=` `vnet=` `[addr=IP\|auto]` | VyOS image, phase 1: ISO and builder VM, see [VyOS image](../network/vyos-image.md) |
 | `vyos_image_finalize` | `platform=NAME` `vm=` | VyOS image, phase 2: image created and published to the builder's platform; to others - `image_publish` |
 
 ## EVPN / VXLAN (`evpn_*`)

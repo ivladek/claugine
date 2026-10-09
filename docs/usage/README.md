@@ -108,9 +108,9 @@ A pattern matches any part of a command name, in lower case: `acl`,
 patterns is printed twice.
 
 A direct run is a separate process: it reads the help texts of the modules
-itself, but it does not see the data loaded in your shell - the data status
-is meaningful only after `source`. In a shell where claugine was never
-loaded, a direct run prints `script: not loaded` and how to load it.
+itself; the data status comes from the exported `PLATFORMS` - the platforms
+loaded by `data_load_provider` in your shell. In a shell where claugine was
+never loaded, a direct run prints `script: not loaded` and how to load it.
 
 ## Platforms
 
@@ -195,7 +195,7 @@ Images:
 iso_get_ubuntu site=dc1                                 # latest Ubuntu Server ISO, autoinstall: <name>-claugine.iso
 image_publish platform=platforms.dc1.payload1 file=<local_dir>/ubuntu/ubuntu-26.04.1-live-server-amd64-claugine.iso name="Ubuntu 26.04 ISO" \
   type=CDROM prefix=sd repo=ubuntu                      # the FE downloads from repos.zakroma.url_base/ubuntu
-vyos_image_build platform=platforms.dc1.mgmt cluster=0 vnet=core addr=10.71.101.223   # see network/vyos-image.md
+vyos_image_build platform=platforms.dc1.mgmt cluster=0 vnet=core                     # addr=auto, see network/vyos-image.md
 ```
 
 Service VM:
