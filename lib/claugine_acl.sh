@@ -137,6 +137,7 @@ function acl_tenant_get() {
 
   for group_id in ${tenants_list[@]}
   do
+    (( group_id < 100 )) || [[ "${group_id}" == "${RUNTIME[${platform},shared]:-}" ]] && continue
     json=$($ssh ${vip} "sudo -u oneadmin onegroup show ${group_id} -j 2>/dev/null")
     group_name=$(jq -r '.GROUP.NAME' <<< "${json}")
     tenant="${group_name#*-}"
