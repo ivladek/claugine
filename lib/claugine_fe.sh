@@ -5,7 +5,7 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 # INDEX
-#   fe_backup                   backup all data required toi restore FE from scratch
+#   fe_backup                   backup all data required to restore FE from scratch
 #   fe_cfg_ver_get              show current and required version for configuration and db
 #   fe_configs_backups_cleanup  cleanup all configs backups created during upgrade
 #   fe_configs_backups_list     show directories with configs backups created during upgrade
@@ -19,20 +19,18 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 
 help_data[fe_backup]="\
-  fe_backup                  # backup all data required toi restore FE from scratch
+  fe_backup                  # backup all data required to restore FE from scratch
     platform=NAME            #   platforms.<site>.<platform>
     full=yes|NO              #   include configs or db only
                              #   to repos.backups.local_dir of the site of each platform: <vip>_<time>/;
                              #   the federated DB is saved on the primary platform of a federation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            backups directory can not be created
 function fe_backup() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local full="${full:-no}"
-  local node dir
+  local node dir ip
   local backup_path backup_base backup_file
   local dir_backups vip site
+  local errors=0
 
   data_runtime_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
@@ -41,12 +39,12 @@ function fe_backup() {
   site="${platform#platforms.}"
   site="${site%%.*}"
   dir_backups=$(inv_value var=INV path=resources.${site}.repos.backups.local_dir)
-  if ! mkdir -p "${dir_backups}"
+  backup_path="${dir_backups}/${vip}_$(date '+%Y-%m-%d-%H-%M-%S')"
+  if [[ -z "${dir_backups}" ]] || ! mkdir -p "${backup_path}"
   then
-    _log_error "backups directory \"${dir_backups}\" can not be created"
+    _log_error "backups directory can not be created: dir=[${backup_path}]"
     return 1
   fi
-  backup_path="${dir_backups}/${vip}_$(date '++%Y-%m-%d-%H-%M-%S')"
 
   _log_std \
     zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" \
@@ -55,7 +53,8 @@ function fe_backup() {
 
   for node in $(inv_list var=CONFIG path=onefe.nodes_order.direct)
   do
-    backup_base="${RUNTIME[${platform},id]}-${RUNTIME[${platform},name]}-${vip}_${RUNTIME[${platform},${node},id]}-${RUNTIME[${platform},${node},name]}-${RUNTIME[${platform},${node},ip]}-${node}"
+    ip=${RUNTIME[${platform},${node},ip]}
+    backup_base="${RUNTIME[${platform},id]}-${RUNTIME[${platform},name]}-${vip}_${RUNTIME[${platform},${node},id]}-${RUNTIME[${platform},${node},name]}-${ip}-${node}"
     if [[ "${full}" == "yes" ]]
     then
       for dir in $(inv_list var=CONFIG path=onefe.backup.dirs)
@@ -63,9 +62,15 @@ function fe_backup() {
         _log_fe backup_from="${dir}" backup_to="${backup_path}"
         backup_file=$(sed 's|^/||; s|/|-|g; s|\.||g' <<< "${dir}")
         backup_file="${backup_base}_${backup_file}.zip"
-        $ssh ${RUNTIME[${platform},${node},ip]} "sudo zip -rq /tmp/${backup_file} ${dir}"
-        rsync --progress -e "$ssh" --rsync-path "sudo rsync" ${RUNTIME[${platform},${node},ip]}:/tmp/${backup_file} ${backup_path}/
-        $ssh ${RUNTIME[${platform},${node},ip]} "sudo rm -vf /tmp/${backup_file}"
+        if ! {
+          $ssh ${ip} "sudo zip -rq /tmp/${backup_file} ${dir}" &&
+          rsync --progress -e "$ssh" --rsync-path "sudo rsync" ${ip}:/tmp/${backup_file} ${backup_path}/
+        }
+        then
+          _log_error "can not back up: node=${node} node_ip=${ip} dir=[${dir}]"
+          errors=$((errors + 1))
+        fi
+        $ssh ${ip} "sudo rm -f /tmp/${backup_file}"
       done  # dir
     fi
 
@@ -73,24 +78,44 @@ function fe_backup() {
     then
       _log_fe backup_from="onedb-zone" backup_to="${backup_path}"
       backup_file="${backup_base}_onedb-zone"
-      $ssh ${RUNTIME[${platform},${node},ip]} "sudo onedb backup /tmp/${backup_file}.sql --force"
-      $ssh ${RUNTIME[${platform},${node},ip]} "sudo zip -q /tmp/${backup_file}.zip /tmp/${backup_file}.sql"
-      rsync --progress -e "$ssh" --rsync-path "sudo rsync" ${RUNTIME[${platform},${node},ip]}:/tmp/${backup_file}.zip ${backup_path}/
-      $ssh ${RUNTIME[${platform},${node},ip]} "sudo rm -vf /tmp/${backup_file}.sql"
-      $ssh ${RUNTIME[${platform},${node},ip]} "sudo rm -vf /tmp/${backup_file}.zip"
+      if ! {
+        $ssh ${ip} "sudo onedb backup /tmp/${backup_file}.sql --force" &&
+        $ssh ${ip} "sudo zip -q /tmp/${backup_file}.zip /tmp/${backup_file}.sql" &&
+        rsync --progress -e "$ssh" --rsync-path "sudo rsync" ${ip}:/tmp/${backup_file}.zip ${backup_path}/
+      }
+      then
+        _log_error "can not back up: node=${node} node_ip=${ip} db=[zone]"
+        errors=$((errors + 1))
+      fi
+      $ssh ${ip} "sudo rm -f /tmp/${backup_file}.sql /tmp/${backup_file}.zip"
 
       if [[ "$(inv_value var=INV path=${platform}.fe.mode)" == "primary" ]]
       then
         _log_fe backup_from="onedb-federated" backup_to="${backup_path}"
         backup_file="${backup_base}_onedb-federated"
-        $ssh ${RUNTIME[${platform},${node},ip]} "sudo onedb backup /tmp/${backup_file}.sql --federated --force"
-        $ssh ${RUNTIME[${platform},${node},ip]} "sudo zip /tmp/${backup_file}.zip /tmp/${backup_file}.sql"
-        rsync --progress -e "$ssh" --rsync-path "sudo rsync" ${RUNTIME[${platform},${node},ip]}:/tmp/${backup_file}.zip ${backup_path}/
-        $ssh ${RUNTIME[${platform},${node},ip]} "sudo rm -vf /tmp/${backup_file}.sql"
-        $ssh ${RUNTIME[${platform},${node},ip]} "sudo rm -vf /tmp/${backup_file}.zip"
+        if ! {
+          $ssh ${ip} "sudo onedb backup /tmp/${backup_file}.sql --federated --force" &&
+          $ssh ${ip} "sudo zip -q /tmp/${backup_file}.zip /tmp/${backup_file}.sql" &&
+          rsync --progress -e "$ssh" --rsync-path "sudo rsync" ${ip}:/tmp/${backup_file}.zip ${backup_path}/
+        }
+        then
+          _log_error "can not back up: node=${node} node_ip=${ip} db=[federated]"
+          errors=$((errors + 1))
+        fi
+        $ssh ${ip} "sudo rm -f /tmp/${backup_file}.sql /tmp/${backup_file}.zip"
       fi
     fi
   done  # node
+
+  _log_std backup="${backup_path}"
+  ls -lah ${backup_path}
+
+  # old backups are removed only after a backup without errors
+  if (( errors > 0 ))
+  then
+    _log_error "backup with errors, old backups kept: errors=${errors} backup=[${backup_path}]"
+    return 1
+  fi
 
   _log dir="${dir_backups}" action="cleanup" backups_age="$(inv_value var=CONFIG path=onefe.backup.days)d"
   find "${dir_backups}" \
@@ -103,9 +128,6 @@ function fe_backup() {
   du -hd0 ${dir_backups}
   du -hd1 ${dir_backups}/*
 
-  _log_std backup="${backup_path}"
-  ls -lah ${backup_path}
-
   return 0
 }  # fe_backup
 
@@ -114,8 +136,6 @@ function fe_backup() {
 help_data[fe_cfg_ver_get]="\
   fe_cfg_ver_get             # show current and required version for configuration and db
     platform=NAME            #   platforms.<site>.<platform>"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function fe_cfg_ver_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node cfg cur new vip
@@ -149,9 +169,6 @@ help_data[fe_configs_backups_cleanup]="\
   fe_configs_backups_cleanup # cleanup all configs backups created during upgrade
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function fe_configs_backups_cleanup() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local src="${src:-${DIR_FILES}/$(inv_value var=CONFIG path=onefe.fireedge_views.dir)}"
@@ -242,8 +259,6 @@ function fe_configs_backups_cleanup() {
 help_data[fe_configs_backups_list]="\
   fe_configs_backups_list    # show directories with configs backups created during upgrade
     platform=NAME            #   platforms.<site>.<platform>"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function fe_configs_backups_list() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local src="${src:-${DIR_FILES}/$(inv_value var=CONFIG path=onefe.fireedge_views.dir)}"
@@ -274,8 +289,6 @@ help_data[fe_data_refresh]="\
                              # VNet template, shared group; every command collects it the first time
                              # it touches a platform, this command only refreshes it
     platform=NAME            #   platforms.<site>.<platform>"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function fe_data_refresh() {
   local arg; for arg in "$@"; do local "${arg}"; done
 
@@ -292,9 +305,6 @@ help_data[fe_disk_cleanup]="\
   fe_disk_cleanup            # clean data from /var/tmp after unsuccessful image loading
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function fe_disk_cleanup() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node vip
@@ -327,9 +337,6 @@ help_data[fe_fireedge_restart]="\
   fe_fireedge_restart        # restart fireedge service on FE
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function fe_fireedge_restart() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node vip
@@ -361,9 +368,6 @@ help_data[fe_fireedge_views_update]="\
     platform=NAME            #   platforms.<site>.<platform>
     src=PATH                 #   directory with custom views
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function fe_fireedge_views_update() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local src="${src:-${DIR_FILES}/$(inv_value var=CONFIG path=onefe.fireedge_views.dir)}"
@@ -397,10 +401,6 @@ help_data[fe_os_update]="\
                              # detect combined KVM/FE nodes and put them in maintenance mode before
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, not confirmed
-#            a node not ready after reboot
-#            an FE node that is also a KVM host can not enter maintenance
 function fe_os_update() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node service type hosts vip
@@ -465,9 +465,6 @@ help_data[fe_services_restart]="\
   fe_services_restart        # restart OpenNebula services on FE in right order
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function fe_services_restart() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node service vip

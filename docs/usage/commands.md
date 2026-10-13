@@ -5,8 +5,8 @@
 Every command with its main parameters. `bin/claugine` lists all commands;
 `bin/claugine PATTERN` prints the full help, with all parameters and
 defaults, of every command with PATTERN in its name - see
-[help](README.md#help). `platform=` is always the first
-parameter: `platform=NAME` - exactly one platform, the full name
+[help](README.md#help). `platform=` is the first parameter of every command
+that works on a platform (`data_load_provider`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform): `platform=NAME` - exactly one platform, the full name
 `platforms.<site>.<platform>`. To work on several platforms, call the
 command for each.
 
@@ -50,6 +50,7 @@ command for each.
 |---|---|---|
 | `vm_create` | `platform=NAME` `cluster=` `name=` `cpu=` `ram=` `image1=` `disk1=` `vnet1=` `addr1=` ... | create a service VM in a cluster: several disks (ISO too), NICs with a fixed IP and aliases, `addrN=auto` - a free IP leased by OpenNebula, or `addrN=mac` - a MAC only; routes, boot order, user, password, ssh key |
 | `vm_wait` | `platform=NAME` `vm=` `state=RUNNING` `limit=` | wait until a VM is in a state: a VM state (`POWEROFF`, `STOPPED`, `DONE`, ...) or an LCM state of an active VM (`RUNNING`, `BOOT`, ...); stops at once on a `*_FAILURE`, `UNKNOWN` or unexpected `DONE` state |
+| `vm_delete` | `platform=NAME` `vm=` `limit=` `confirm=` | terminate a VM (`onevm terminate --hard`, non-persistent disks deleted with it) and wait until it is gone |
 | `vnet_ar_ip_create` | `platform=NAME` `vnet=` `ip=` | address range for one IP, if missing |
 | `vnet_ar_ip_exists` | `platform=NAME` `vnet=` `ip=` | check the address range for an IP |
 | `vnet_ar_mac_create` | `platform=NAME` `vnet=` | address range for one MAC, returns the MAC |
@@ -60,16 +61,16 @@ command for each.
 
 | Command | Parameters | What it does |
 |---|---|---|
-| `image_upload` | `platform=NAME` `file=\|url=` `name=` `type=` `[ds=]` | new image from a local file or a URL; an existing image with the name is deleted if unused, renamed otherwise |
-| `image_publish` | `platform=NAME` `file=` `name=` `[repo=NAME]` | `image_upload` to the platform; with `repo` the FE downloads the file from `repos.zakroma.url_base/NAME` of its site |
+| `image_upload` | `platform=NAME` `file=` `name=` `type=` `[cluster=]` | new image from a local file, copied to the FE by rsync into the IMAGES datastore of the cluster (default `0`); an existing image with the name is deleted if unused, renamed otherwise |
 | `image_download` | `platform=NAME` `image=` `file=` | copy an image file from the datastore |
 | `image_archive` | `platform=NAME` `name=` | free an image name: delete or rename |
 | `image_wait` | `platform=NAME` `image=` | wait until an image is READY |
-| `iso_get_ubuntu` | `site=\|platform=\|directory=` `[version=]` | latest Ubuntu Server ISO, boots straight into autoinstall |
-| `iso_get_vyos` | `site=\|platform=\|directory=` `[url=]` | latest VyOS Stream ISO with the claugine scripts |
+| `iso_get_ubuntu` | `platform=\|directory=` `result=` `[version=]` | latest Ubuntu Server ISO, boots straight into autoinstall |
+| `iso_get_vyos` | `platform=\|directory=` `result=` `[url=]` | latest VyOS Stream ISO with the claugine scripts |
 | `iso_download`, `iso_customize` | | building blocks of `iso_get_*` |
-| `vyos_image_build` | `platform=NAME` `cluster=` `vnet=` `[addr=IP\|auto]` | VyOS image, phase 1: ISO and builder VM, see [VyOS image](../network/vyos-image.md) |
-| `vyos_image_finalize` | `platform=NAME` `vm=` | VyOS image, phase 2: image created and published to the builder's platform; to others - `image_publish` |
+| `vyos_image_vm_create` | `platform=NAME` `cluster=` `vnet=` `vmfile=` `[addr=IP\|auto]` | VyOS image, phase 1: ISO and image VM, its id saved to `vmfile`, see [VyOS image](../network/vyos-image.md) |
+| `vyos_image_to_platforms` | `platform=NAME` `vmfile=` `[target=LIST\|all]` `[wait=600]` | VyOS image, phase 2: the image VM of `vmfile`, waits up to `wait` seconds until `vyos-image-prepare` powered it off - no ssh to the VM; image created and published to the image VM's platform and to the `target` platforms (`all` or empty - every platform), the image VM and the ISO image deleted |
+| `vyos_image_create` | `platform=NAME` `cluster=` `vnet=` `[addr=]` `[gw=]` `[target=LIST\|all]` `[wait=600]` | VyOS image in one run, the image VM id in `<runtime>/vyos_image_create-<seconds>`: `vyos_image_vm_create`, then `vyos_image_to_platforms` - it waits up to `wait` seconds for the power off by `vyos-image-prepare` (console steps meanwhile); on timeout the image VM stays for `vyos_image_to_platforms` by hand |
 
 ## EVPN / VXLAN (`evpn_*`)
 
@@ -88,7 +89,7 @@ command for each.
 | `acl_role_rights_get` | `platform=NAME` | show VM ADMIN/MANAGE/USE operation sets in `oned.conf` |
 | `acl_role_rights_set` | `platform=NAME` `[confirm=yes]` | apply the operation sets of `configs.oned.vm_operations` in `config/data/onefe.yaml` |
 | `acl_tenant_get` | `platform=NAME` `[tenants=]` | show ACLs of tenants, read on the primary platform of the federation |
-| `acl_tenant_set` | `platform=NAME` `[tenants=]` `[dry=YES\|no]` `[confirm=yes]` | replace ACLs of tenants for every zone of the federation - the primary and its `fe.secondaries` - on the primary platform; dry run by default |
+| `acl_tenant_set` | `platform=NAME` `[tenants=]` `[dry=YES\|no]` `[confirm=yes]` | replace ACLs of tenants for every zone of the federation - the primary and its `fe.secondaries` - on the primary platform; the rights go to the role groups `sa-`, `power-`, `user-`, `ro-<name>` of each tenant, see [Roles](../platform/payload.md#roles); dry run by default |
 
 ## Quotas (`quota_*`)
 

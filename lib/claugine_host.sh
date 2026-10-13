@@ -15,12 +15,6 @@ help_data[host_maintenance_off]="\
     platform=NAME            #   platforms.<site>.<platform>
     hosts=LIST               #   host names or ids
     confirm=yes|NO           # to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
-#            hosts not defined or not found
-#            host unreachable
-#            wrong host state
 function host_maintenance_off() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local interval="${interval:-30}"
@@ -100,13 +94,6 @@ help_data[host_maintenance_on]="\
     interval=N(30)           #
     limit=N                  #   seconds, default is <CONFIG.onefe.timeouts.host_flush>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
-#            hosts not defined or not found
-#            host unreachable
-#            wrong host state
-#            VMs can not be moved off the host
 function host_maintenance_on() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local interval="${interval:-30}"

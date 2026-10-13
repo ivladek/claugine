@@ -6,6 +6,7 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 # INDEX
 #   vm_create  create Service VM
+#   vm_delete  terminate the VM and wait until it is gone
 #   vm_wait    wait until the VM is in a state
 
 
@@ -37,17 +38,6 @@ help_data[vm_create]="\
     pswd=STRING              # hashed or clear text password
     key=STRING               # public key
     tz=TIMEZONE              # default - the timezone of the zone's site in the inventory"
-# return 0 - VM created
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
-#            a required parameter or the time zone not defined
-#            cluster not found
-#            image not found
-#            wrong disk size
-#            VNet not found or IP already leased
-#            wrong address
-#            address range can not be created
-#            VM not created
 function vm_create() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local tz="${tz:-}"
@@ -252,6 +242,63 @@ function vm_create() {
 
 
 
+help_data[vm_delete]="\
+  vm_delete                  # terminate the VM and wait until it is gone
+    platform=NAME            #   platforms.<site>.<platform>
+    vm=ID|NAME               #   name or id
+    limit=N                  #   seconds, default is <CONFIG.onefe.timeouts.vm_wait>
+    confirm=yes|NO           #   to suppress interactive confirmation
+                             #   onevm terminate --hard: the non-persistent disks are deleted with the VM"
+function vm_delete() {
+  local arg; for arg in "$@"; do local "${arg}"; done
+  local vm="${vm:-}"
+  local limit="${limit:-$(inv_value var=CONFIG path=onefe.timeouts.vm_wait)}"
+  local start json vm_id vm_name vm_state vip
+
+  data_runtime_refresh platform="${platform:-}" || return 1
+  vip=$(inv_value var=INV path=${platform}.fe.vip)
+
+  json=$($ssh ${vip} "sudo -u oneadmin onevm show \"${vm}\" -j 2>/dev/null")
+  vm_id=$(jq -r '.VM.ID // ""' <<< "${json}" 2>/dev/null)
+  vm_name=$(jq -r '.VM.NAME // ""' <<< "${json}" 2>/dev/null)
+  if [[ -z "${vm}" || -z "${vm_id}" ]]
+  then
+    _log_error "VM \"${vm}\" not found"
+    return 1
+  fi
+
+  _log_std vm_name="${vm_name}" vm_id="${vm_id}" action="delete"
+  _stop_without_confirmation confirm=${confirm:-no} && return 1
+
+  if ! $ssh ${vip} "sudo -u oneadmin onevm terminate --hard ${vm_id}"
+  then
+    _log_error "can not terminate VM \"${vm_name}\" [${vm_id}]"
+    return 1
+  fi
+
+  # gone: not found any more or DONE
+  start=$(date '+%s')
+  _log_std -n vm_id="${vm_id}" action="wait_deleted" status="[."
+  while :
+  do
+    vm_state=$($ssh ${vip} "sudo -u oneadmin onevm show ${vm_id} -j 2>/dev/null" | jq -r '.VM.STATE // ""' 2>/dev/null)
+    if [[ -z "${vm_state}" || "${vm_state}" == "6" ]]   # 6 - DONE
+    then
+      _log "] result=deleted"
+      return 0
+    fi
+    if (( $(date '+%s') - start > limit ))
+    then
+      _log "] state=${vm_state} result=timeout limit=${limit}s"
+      return 1
+    fi
+    sleep 5
+    _log -n "."
+  done
+}  # vm_delete
+
+
+
 
 help_data[vm_wait]="\
   vm_wait                    # wait until the VM is in a state
@@ -261,10 +308,6 @@ help_data[vm_wait]="\
                              #     or an LCM state of an ACTIVE VM: RUNNING, BOOT, ...
                              #     names: <CONFIG.onefe.states.vm>, <CONFIG.onefe.states.vm_lcm>
     limit=N                  #   seconds, default is <CONFIG.onefe.timeouts.vm_wait>"
-# return 0 - the VM is in the state
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, unknown state name
-#            VM not found, VM in a failure state, VM DONE while waiting for another state
-#            timeout
 function vm_wait() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local vm="${vm:-}"

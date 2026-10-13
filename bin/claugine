@@ -14,16 +14,14 @@ export SCRIPT_SOURCE="https://github.com/ivladek/claugine/tree/main"
 #   ssh_port=N    (22)
 #   ssh_keyf=FILE (${HOME}/.ssh/${USER}.key)
 # return 0 - loaded
-#        1 - already loaded
-#            a required tool not found
-#            internal data not loaded
+#        1 - already loaded, or error
 function _script_INIT() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local module var dir cmd
 
-  if [[ -n "${DIR_SCRIPT:-}" ]]
+  if declare -F _log
   then
-    echo "script: was loaded before"
+    _log "script: was loaded before"
     return 1
   fi
 
@@ -32,54 +30,56 @@ function _script_INIT() {
   declare -g DIR_RUNTIME=""    # directory to export runtime data
   export ssh                   # ssh command including all required keys
   declare -gA help_data=()     # help: command name -> help text
-  export DIR_SCRIPT=$(
-    dirname -- "$(
-      readlink -f -- "${BASH_SOURCE[0]}"
-    )"
-  )
+  export DIR_SCRIPT=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")
   DIR_SCRIPT="${DIR_SCRIPT%/bin}"
-  echo "script directory: ${DIR_SCRIPT}"
 
   export DIR_LIB="${DIR_SCRIPT}/lib"
   export DIR_CONFIG="${DIR_SCRIPT}/config/data"
   export DIR_TEMPLATES="${DIR_SCRIPT}/config/templates"
   export DIR_FILES="${DIR_SCRIPT}/config/files"
 
-  export SSH_USER="${ssh_user:-${USER}}"
-  export SSH_PORT="${ssh_port:-22}"
-  export SSH_KEYF="${ssh_keyf:-${HOME}/.ssh/${USER}.key}"
-  ssh="ssh -p ${SSH_PORT} -l ${SSH_USER} -i ${SSH_KEYF}"
-  echo "to connect to all hosts: ${ssh}"
-  export PLATFORMS=""
-
-  # modules only define functions and help texts - nothing is read while loading
   echo "modules: load from ${DIR_LIB}"
   for module in "${DIR_LIB}"/claugine_*.sh
   do
     source "${module}"
   done  # module
+  _log "script directory: ${DIR_SCRIPT}"
+
+  export SSH_USER="${ssh_user:-${USER}}"
+  export SSH_PORT="${ssh_port:-22}"
+  export SSH_KEYF="${ssh_keyf:-${HOME}/.ssh/${USER}.key}"
+  export SSH_PUB="$(ssh-keygen -y -f "${SSH_KEYF}" 2>/dev/null)"
+  if [[ -z "${SSH_PUB}" ]]
+  then
+    _log_error "SSH key file ${SSH_KEYF} not accessible"
+    return 1
+  fi
+
+  ssh="ssh -p ${SSH_PORT} -l ${SSH_USER} -i ${SSH_KEYF}"
+  _log "to connect to all hosts: ${ssh}"
+  export PLATFORMS=""
 
   for var in CONFIG TEMPLATES
   do
     dir="DIR_${var}"
-    echo "internal data: load data from ${!dir} to ${var}"
+    _log "internal data: load data from ${!dir} to ${var}"
     _data_load_var var=${var} dir="${!dir}" || return 1
   done  # var
-  echo "internal data: files in directory ${DIR_FILES}"
+  _log "internal data: files in directory ${DIR_FILES}"
   ls -l "${DIR_FILES}"
 
-  echo -n "required tools: ["
+  _log -n "required tools: ["
   for cmd in $(inv_list var=CONFIG path=admin.tools)
   do
     if ! command -v "${cmd}" &>/dev/null
     then
-      echo " - ]"
+      _log " - ]"
       _log_error "required tool \"${cmd}\" not found"
       return 1
     fi
-    echo -n " ${cmd}"
+    _log -n " ${cmd}"
   done  # cmd
-  echo " ]"
+  _log " ]"
 }  # _script_INIT
 
 
@@ -96,7 +96,10 @@ function _script_MAIN() {
   local -a cmds
 
   # load script called using source
-  [[ "${BASH_SOURCE[0]}" != "$0" ]] && _script_INIT "$@"
+  if [[ "${BASH_SOURCE[0]}" != "$0" ]]
+  then
+    _script_INIT "$@" || return 1
+  fi
 
   if [[ -n "${DIR_SCRIPT:-}" ]]
   then
@@ -110,13 +113,13 @@ function _script_MAIN() {
     fi
 
     mapfile -t cmds < <(printf '%s\n' "${!help_data[@]}" | sort)
-    echo "commands: ${#cmds[@]}"
+    _log "commands: ${#cmds[@]}"
 
     if [[ -z "$*" || "$*" == "--help" ]]
     then
       for cmd in "${cmds[@]}"
       do
-        echo "  ${cmd}"
+        _log "  ${cmd}"
       done  # cmd
     else
       for cmd in "${cmds[@]}"
@@ -126,26 +129,27 @@ function _script_MAIN() {
           [[ "${name}" == "--help" ]] && continue
           if [[ "${cmd}" == *"${name,,}"* ]]
           then
-            echo "${help_data[${cmd}]}"
+            _log "${help_data[${cmd}]}"
           fi
         done  # name
       done  # cmd
     fi
 
-    echo "commands list: ${BASH_SOURCE[0]} [--help]"
-    echo "command help: ${BASH_SOURCE[0]} [--help] command"
+    _log "commands list: ${BASH_SOURCE[0]} [--help]"
+    _log "command help: ${BASH_SOURCE[0]} [--help] command"
 
     if [[ -n "${PLATFORMS:-}" ]]
     then
-      echo "data: loaded"
-      echo "platforms: [${PLATFORMS}]"
+      _log "data: loaded"
+      _log "platforms: [${PLATFORMS}]"
     else
-      echo "data: not loaded"
-      echo "to load data use: data_load_provider inv=PATH secrets=PATH runtime=PATH"
+      _log "data: not loaded"
+      _log "to load data use: data_load_provider inv=PATH secrets=PATH runtime=PATH"
     fi
   else
     echo "script: not loaded"
     echo "to load use: source ${BASH_SOURCE[0]}"
+    return 1
   fi
 
   return 0

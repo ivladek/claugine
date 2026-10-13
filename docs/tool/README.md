@@ -17,8 +17,8 @@ The data the tool works with is described in [data](../data/README.md).
 
 claugine is a set of Bash functions loaded into the admin's shell. It keeps
 no daemon and no state on disk. The **inventory is the only source of
-platform data**: every command names its target as an inventory platform,
-`platform=platforms.<site>.<platform>`. There is no context and no current
+platform data**: every command that works on a platform names it as an
+inventory platform, `platform=platforms.<site>.<platform>`. There is no context and no current
 platform.
 
 Three steps:
@@ -80,8 +80,9 @@ command that walks the FE nodes (`fe=yes`). How a YAML tree becomes a document:
 | `config/data/<subsystem>.yaml` | internal data of the tool: `config.<subsystem>.*`, see [internal data](../data/config.md) |
 | `config/templates/<name>.yaml` | YAML templates of config files |
 | `config/files/<area>/` | files copied as is to targets or into ISOs |
-| `data/` | a data set during development: `inventory/`, `secrets/`, `runtime/`; only `data/SAMPLE` is published |
-| `tests/` | test scripts, run or sourced; test data `claugine_TEST.sh` |
+| `data/<set>/` | a data set: `inventory/`, `secrets/`, `runtime/`, `tests-data.sh`, `jobs-data.sh`; only `data/SAMPLE` is published |
+| `tests/` | test scripts, run or sourced; data set `CLAUGINE_DATA`, values in its `tests-data.sh` |
+| `jobs/` | production scripts for cron; job data - the argument `DATA=`, a `jobs-data.sh` of a data set |
 | `docs/` | documentation |
 
 ## Platforms
@@ -99,7 +100,8 @@ Why: commands used to work inside a *context* - a platform loaded by
 refreshed on a timer. Now the inventory names every target: no context,
 no zone ids in parameters, no periodic refresh.
 
-- Every command takes the target platform as its first parameter:
+- Every command that works on a platform takes it as its first parameter
+  (`data_load_provider`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform):
 
   | Parameter | Use |
   |---|---|
@@ -172,9 +174,6 @@ help_data[area_do_something]="\
     platform=NAME            #   platforms.<site>.<platform>
     name=STRING              #   ...
     confirm=yes              #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, or not confirmed
-#        2 - ...
 function area_do_something() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local name="${name:-}"
@@ -237,7 +236,8 @@ own search: they accept partial names and return several groups.
      command name: what it does and its arguments; the whole entry is what
      `bin/claugine PATTERN` prints for a matching command; an internal function - a comment: what it does, then its
      arguments, one per line;
-  2. `# return 0 - ...` and one line per further code, with what is printed;
+  2. `# return 0 - ...` and one line per further code, with what is printed -
+     only when a code is a result of the function itself, see Return below;
   3. `function name() {`, the argument loop, then **all** `local`
      declarations - nothing is declared further down: `local vip` at the
      top, `vip=$(...)` where it is needed;
@@ -260,16 +260,19 @@ own search: they accept partial names and return several groups.
 - Return: `0` success, `1` - any error (and declined confirmation); never
   `exit` in a module. A different code only where a caller checks it as an
   answer, not an error: `vnet_ar_ip_exists` and `vnet_ip_leased` - `4`,
-  `vnet_ar_mac_get` - `3`. The `# return` block lists the reasons of `1`,
-  one per line.
+  `vnet_ar_mac_get` - `3`. A `# return` block is written only for such
+  results (`1` that is an answer, as in `evpn_vtep_nic_get`, or another
+  code); a plain `0` done / `1` error has none, and the reasons of an error
+  are not listed - the error message says them.
 - `jq` defaults: a single value - `// ""`, also a value built with `join`:
   one input always gives one line, `read` and `$(...)` get an empty value;
   a list or a stream - `// empty`: a missing item drops out instead of an
   empty line (`.[] | .X // empty`, `mapfile`). `//` replaces `null` and
   `false` - read a boolean without it.
-- A command returns a status only; a file it makes has a name the caller can
-  work out (`<name>-claugine.iso`). Commands do not print results meant for
-  `$(...)` capture together with logs.
+- A command returns a status only; a file name it makes goes to a variable of
+  the caller named by `result=VAR` (`iso_get_ubuntu`, `iso_get_vyos`, set by
+  `printf -v`). Commands do not print results meant for `$(...)` capture
+  together with logs.
 
 ## Output and errors
 
@@ -339,7 +342,8 @@ platform=platforms.dc1.payload1 zone_id=0 zone_vip=10.71.101.30 node_role=leader
 | internal data, templates | `config/data`, `config/templates`; `CONFIG`, `TEMPLATES` | `inv_* var=CONFIG path=<...>`, `inv_value var=TEMPLATES path=<group>.<name>.content` |
 | secrets | data set `secrets/` | never read by the CLI |
 | runtime data | `RUNTIME`, filled on the first touch of a platform, cleared by `data_load_provider` | after `data_runtime_refresh`: `${RUNTIME[${platform},...]}` |
-| test data | `tests/claugine_TEST.sh`, sample `tests/claugine_TEST_SAMPLE.sh` | plain `name=value`, `test_` prefix |
+| test data | `tests-data.sh` of the data set, sample `data/SAMPLE/tests-data.sh` | plain `name=value`, `test_` prefix |
+| job data | `jobs-data.sh` of the data set, sample `data/SAMPLE/jobs-data.sh` | plain `NAME=value` |
 | function locals | | `local`; namerefs start with `_`: `local -n _list=${name}` |
 
 - New internal data: a key in the right `config/data` file and a line in
@@ -350,12 +354,14 @@ platform=platforms.dc1.payload1 zone_id=0 zone_vip=10.71.101.30 node_role=leader
   list - `inv_list` in a `for` loop or `mapfile -t`, a field of each object
   in a list - `inv_list_field`, one object of a list -
   `inv_list_find`, the keys of an object - `inv_keys`.
-- Real data never goes into published files: only `data/SAMPLE` and
-  `tests/*SAMPLE*` are published (see `.gitignore`).
+- Real data never goes into published files: of `data/` only `data/SAMPLE`
+  is published (see `.gitignore`); `tests/` and `jobs/` hold no values - a
+  token, an address or a name goes into `tests-data.sh` or `jobs-data.sh`.
 
 ## Tests
 
-- One script per scenario in `tests/`, data only from `tests/claugine_TEST.sh`;
-  user data - `data_load_provider` with `test_inv`, `test_secrets`, `test_runtime` of the test data, if nothing is loaded yet.
+- One script per scenario in `tests/`, data only from `tests-data.sh` of
+  the data set `CLAUGINE_DATA` (its directory - `DIR_DATA`); user data -
+  `data_load_provider` with `test_inv`, `test_secrets`, `test_runtime` of
+  the test data, if nothing is loaded yet.
 - Each script loads the CLI if it is not loaded and works both run and sourced.
-- The line to switch to the sample data stays commented in every script.

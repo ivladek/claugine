@@ -17,8 +17,7 @@ help_data[evpn_vtep_nic_get]="\
   evpn_vtep_nic_get          # show vtep type (dev or local_ip) for each VM nic
     platform=NAME            #   platforms.<site>.<platform>"
 # return 0 - no NIC with VXLAN_TEP=dev
-#        1 - a NIC with VXLAN_TEP=dev found
-#            no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
+#        1 - a NIC with VXLAN_TEP=dev found, or error
 function evpn_vtep_nic_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node
@@ -73,8 +72,7 @@ help_data[evpn_vtep_vnet_get]="\
   evpn_vtep_vnet_get         # show vtep type (dev or local_ip) for each VNet and VNTemplate
     platform=NAME            #   platforms.<site>.<platform>"
 # return 0 - no VXLAN network or VNet template with VXLAN_TEP=dev
-#        1 - VXLAN_TEP=dev found
-#            no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
+#        1 - VXLAN_TEP=dev found, or error
 function evpn_vtep_vnet_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node
@@ -125,9 +123,6 @@ help_data[evpn_vtep_vnet_set]="\
   evpn_vtep_vnet_set         # set vtep to local_ip for each VNet and VNTemplate
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function evpn_vtep_vnet_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node
@@ -183,9 +178,6 @@ help_data[evpn_vtep_vnm_patch]="\
                              # inspite of VM NIC vtep settings
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function evpn_vtep_vnm_patch() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node file vip
@@ -259,9 +251,6 @@ help_data[evpn_vtep_vnm_unpatch]="\
                              # will have vtep type (local_ip or dev) based of VM NIC settings
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function evpn_vtep_vnm_unpatch() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node file vip

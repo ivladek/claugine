@@ -1,86 +1,201 @@
 #!/bin/bash
 #
-# /opt/vyatta/etc/config/scripts/vyos-postconfig-bootup.script
-#   - called from /etc/rc.local on boot
-#   - starts after the VyOS configuration is fully applied
+# /config/scripts/vyos-postconfig-bootup.script
+#   - called by VyOS on boot, after the config is loaded
+#   - first run: no flag /opt/vyatta/etc/init.flag; the flag is written after the first run
 #
-#   - runs /opt/vyatta/etc/config/scripts/vyos-first-run.script
-#       default behavior - run only once
-#       FIRSTRUN_SCRIPT_DISABLE=yes - never run
-#       after execution, disable the script by renaming it to *.disabled
+#   Custom context variables:
+#     VYOS_CONFIG_REAPPLY=YES|NO (NO) - apply context variables on every boot, not only the first
+#     CONTEXT_SCRIPTS_ENFORCE=YES|NO (NO) - run custom context scripts on every boot, not only the first
 #
-#   - runs all *.sh from context cd-rom in alphabetical order
-#       default behavior - run only once
-#       CONTEXT_SCRIPTS_DISABLE=yes - never run and ignore CONTEXT_SCRIPTS_ENFORCE
-#       CONTEXT_SCRIPTS_ENFORCE=yes - run on every boot, ignoring FLAG file
+#   - applied context variables:
+#       - ETH{0..9}_ - all ethernet interfaces and static routes deleted before
+#           _MAC - the interface ethN is configured only if present
+#           _MTU (1500)
+#           _IP
+#           _MASK (255.255.255.0)
+#           _GATEWAY
+#           _METRIC (100) - distance of the default route and of _ROUTES
+#           _ROUTES - "NET via GW, NET via GW"
+#      - SET_HOSTNAME (vyos-router)
+#      - USERNAME (vyos) - the login user; user vyos disabled if USERNAME is another user;
+#          a user of a former USERNAME stays
+#      - CRYPTED_PASSWORD_BASE64 - changed for USERNAME
+#      - TIMEZONE (Asia/Almaty)
+#      - SSH_PORT (22) - enabled on all interfaces
+#      - SSH_PUBLIC_KEY - with a key: password authentication disabled; without: allowed
 #
-#   - create a flag file after contextualization has completed
+#  Custom context scripts:
+#    - all *.sh on context cd-rom except context.sh
+#    - runs in alphabetical order
+#    - will run on first run
+#    - on next runs will run only if CONTEXT_SCRIPTS_ENFORCE=YES
+#    - run with group vyattacfg
 #
-# Vladislav Kirilin, [@]ivladek@me.com, 2026-07-21
+# Vladislav Kirilin, [@]ivladek@me.com, 2026-10-13
 
+CONTEXT_DIR="/mnt"
+CONTEXT_DATA="${CONTEXT_DIR}/context.sh"
+FLAG="/opt/vyatta/etc/init.flag"
+conf="/opt/vyatta/sbin/vyatta-cfg-cmd-wrapper"
+# the VyOS environment of the config commands (validators, templates)
+source /etc/default/vyatta
+
+
+# ---- boot: the context CD, the context variables, the context scripts, the flag
 echo "----------------------------------------"
 echo "contextualization - started"
-export CONTEXT_DIR="/mnt"
-export CONTEXT_DATA="${CONTEXT_DIR}/context.sh"
-export FLAG="/opt/vyatta/etc/init.flag"
-export FIRST_RUN="/opt/vyatta/etc/config/scripts/vyos-first-run.script"
-PASSWORD="ChangeMeN0W*2026"
 
-mount /dev/sr0 ${CONTEXT_DIR} &>/dev/null
+# the context CD by its label: an ISO attached to the VM can be /dev/sr0; sr0 only if no label is found
+CONTEXT_DEV="$(blkid -L CONTEXT 2>/dev/null)"
+mount "${CONTEXT_DEV:-/dev/sr0}" ${CONTEXT_DIR} &>/dev/null
 source ${CONTEXT_DATA}
-FIRSTRUN_SCRIPT_DISABLE="${FIRSTRUN_SCRIPT_DISABLE:-}"
-CONTEXT_SCRIPTS_ENFORCE="${CONTEXT_SCRIPTS_ENFORCE:-}"
-CONTEXT_SCRIPTS_DISABLE="${CONTEXT_SCRIPTS_DISABLE:-}"
 
-if [[ -f ${FIRST_RUN} ]]
+VYOS_CONFIG_REAPPLY="${VYOS_CONFIG_REAPPLY:-NO}"
+CONTEXT_SCRIPTS_ENFORCE="${CONTEXT_SCRIPTS_ENFORCE:-NO}"
+
+# first run: no flag - the image after vyos-image-prepare
+FIRST_RUN=no
+[[ -f "${FLAG}" ]] || FIRST_RUN=yes
+
+# context variables: on the first run, on the next runs only if VYOS_CONFIG_REAPPLY=YES
+if [[ "${FIRST_RUN}" == "yes" || "${VYOS_CONFIG_REAPPLY^^}" == "YES" ]]
 then
-  if [[ "${FIRSTRUN_SCRIPT_DISABLE}" == "yes" ]]
+  echo "context variables - applied: first run=${FIRST_RUN}, VYOS_CONFIG_REAPPLY=${VYOS_CONFIG_REAPPLY}"
+
+  SET_HOSTNAME="${SET_HOSTNAME:-vyos-router}"
+  TIMEZONE="${TIMEZONE:-Asia/Almaty}"
+  USERNAME="${USERNAME:-vyos}"
+  CRYPTED_PASSWORD_BASE64="${CRYPTED_PASSWORD_BASE64:-}"
+  SSH_PORT="${SSH_PORT:-22}"
+  SSH_PUBLIC_KEY="${SSH_PUBLIC_KEY:-}"
+  DEFAULT_MTU=1500
+  DEFAULT_METRIC=100
+
+  vyos_config=( begin )
+  vyos_config+=( "set system host-name ${SET_HOSTNAME}" )
+  vyos_config+=( "set system time-zone ${TIMEZONE}" )
+  vyos_config+=( "set service ssh port ${SSH_PORT}" )
+  vyos_config+=( "set service ssh disable-password-authentication" )
+
+  if [[ "${USERNAME}" == "vyos" ]]
   then
-    echo "initial configuration - skipped because FIRSTRUN_SCRIPT_DISABLE=yes"
-    echo "user: vyos"
-    echo "password: ${PASSWORD}"
+    vyos_config+=( "delete system login user vyos disable" )
   else
-    echo "initial configuration - started"
-    sg vyattacfg -c "/bin/bash ${FIRST_RUN}"
-    echo "initial configuration - completed"
+    vyos_config+=( "set system login user vyos disable" )
   fi
-  mv ${FIRST_RUN} ${FIRST_RUN}.disabled
-else
-  echo "initial configuration - disabled because this is not first run"
-fi
 
-if [[ "${CONTEXT_SCRIPTS_DISABLE}" == "yes" ]]
-then
-  echo "context scripts - disabled because CONTEXT_SCRIPTS_DISABLE=yes"
-  CONTEXT_SCRIPTS_RUN=no
-else
-  if [[ -f "${FLAG}" ]]
+  if [[ -n "${CRYPTED_PASSWORD_BASE64}" ]]
   then
-    if [[ "${CONTEXT_SCRIPTS_ENFORCE}" == "yes" ]]
-    then
-      echo "context scripts - running because CONTEXT_SCRIPTS_ENFORCE=yes"
-      CONTEXT_SCRIPTS_RUN=yes
-    else
-      echo "context scripts - skipped because they have already run"
-      CONTEXT_SCRIPTS_RUN=no
-    fi
-  else
-    echo "context scripts - running because they have never run"
-    CONTEXT_SCRIPTS_RUN=yes
+    pswd="$(base64 -d -w 0 <<< "${CRYPTED_PASSWORD_BASE64}")"
+    vyos_config+=( "set system login user ${USERNAME} authentication encrypted-password '${pswd}'" )
   fi
-fi
 
-if [[ "${CONTEXT_SCRIPTS_RUN}" == "yes" ]]
-then
-  for s in ${CONTEXT_DIR}/*.sh
+  if [[ -n "${SSH_PUBLIC_KEY}" ]]
+  then
+    key_type="$(cut -f 1 -d " " <<< "${SSH_PUBLIC_KEY}")"
+    key_pub="$(cut -f 2 -d " " <<< "${SSH_PUBLIC_KEY}")"
+    vyos_config+=( 
+      "set system login user ${USERNAME} authentication public-keys ${USERNAME} type ${key_type}"
+      "set system login user ${USERNAME} authentication public-keys ${USERNAME} key ${key_pub}"
+      "set service ssh disable-password-authentication"
+    )
+  else
+    vyos_config+=( "delete service ssh disable-password-authentication" )
+  fi
+  vyos_config+=( "delete service ssh listen-address" )
+
+  vyos_config+=( "delete interfaces ethernet" )
+  vyos_config+=( "delete protocols static" )
+
+  for n in {0..9}
   do
-    if [[ "$s" != "${CONTEXT_DATA}" ]]
+    MAC="ETH${n}_MAC"
+    [[ -z "${!MAC:-}" ]] && continue
+
+    mtu="ETH${n}_MTU"
+    ip="ETH${n}_IP"
+    mask="ETH${n}_MASK"
+    gw="ETH${n}_GATEWAY"
+    metric="ETH${n}_METRIC"
+    routes="ETH${n}_ROUTES"
+
+    mtu="${!mtu:-${DEFAULT_MTU}}"
+    ip="${!ip:-}"
+    mask="${!mask:-255.255.255.0}"
+    gw="${!gw:-}"
+    metric="${!metric:-${DEFAULT_METRIC}}"
+    routes="${!routes:-}"
+
+    vyos_config+=( "set interfaces ethernet eth${n} mtu ${mtu}" )
+    vyos_config+=( "set interfaces ethernet eth${n} ipv6 address no-default-link-local" )
+    vyos_config+=( "set interfaces ethernet eth${n} ipv6 disable-forwarding" )
+
+    [[ -z "${ip}" ]] && continue
+
+    prefix=0
+    for oct in ${mask//./ }
+    do
+      case ${oct} in
+        255) (( prefix += 8 )) ;;
+        254) (( prefix += 7 )) ;;
+        252) (( prefix += 6 )) ;;
+        248) (( prefix += 5 )) ;;
+        240) (( prefix += 4 )) ;;
+        224) (( prefix += 3 )) ;;
+        192) (( prefix += 2 )) ;;
+        128) (( prefix += 1 )) ;;
+          0) break ;;
+      esac
+    done  # oct
+    vyos_config+=( "set interfaces ethernet eth${n} address ${ip}/${prefix}" )
+
+    if [[ ${gw} =~ ([0-9]{1,3}\.){3}[0-9]{1,3} ]]
     then
-      echo "context script - $s"
-      echo "- - - - - - - - - -"
-      sg vyattacfg -c "/bin/bash $s"
+      vyos_config+=( "set protocols static route 0.0.0.0/0 next-hop ${gw} distance ${metric}" )
     fi
-  done
+
+    IFS=',' read -ra routes <<< "${routes}"
+    for route in "${routes[@]}"
+    do
+      route_data=( ${route} )
+      [[ ${#route_data[@]} == 3 ]] && vyos_config+=( "set protocols static route ${route_data[0]} next-hop ${route_data[2]} distance ${metric}" )
+    done  # route
+  done  # n
+
+  # every step prints its result, a failed step stops the session
+  vyos_config+=(
+    "commit && echo 'commit: ok' || { echo 'commit: failed'; exit 1; }"
+    "save && echo 'save: ok' || { echo 'save: failed'; exit 1; }"
+    "end && echo 'end: ok' || { echo 'end: failed'; exit 1; }"
+  )
+
+  script=""
+  for line in "${vyos_config[@]}"
+  do
+    echo "  ${line}"
+    script+="${conf} ${line}"$'\n'
+  done  # line
+  if ! sg vyattacfg -c "${script}"
+  then
+    echo "!!! ERROR !!! context variables - not applied, see above"
+    FIRST_RUN=failed   # the first run is repeated on the next boot - no flag
+  fi
+else
+  echo "context variables - skipped: not the first run, VYOS_CONFIG_REAPPLY=${VYOS_CONFIG_REAPPLY}"
+fi
+
+if [[ "${FIRST_RUN}" == "yes" || "${CONTEXT_SCRIPTS_ENFORCE^^}" == "YES" ]]
+then
+  for script in ${CONTEXT_DIR}/*.sh
+  do
+    [[ "${script}" == "${CONTEXT_DATA}" || ! -f "${script}" ]] && continue
+    echo "context script - ${script}"
+    echo "- - - - - - - - - -"
+    sg vyattacfg -c "/bin/bash ${script}"
+  done  # script
+else
+  echo "context scripts - skipped: not the first run, CONTEXT_SCRIPTS_ENFORCE=${CONTEXT_SCRIPTS_ENFORCE}"
 fi
 
 umount ${CONTEXT_DIR} &>/dev/null
@@ -88,15 +203,16 @@ echo "contextualization - finished"
 echo "----------------------------------------"
 
 
-if [[ -f "${FLAG}" ]]
+# first run: the flag and a reboot - the routing engine (FRR) installs the static routes only after it
+if [[ "${FIRST_RUN}" == "yes" ]]
 then
-  cat "${FLAG}"
-else
   date '+initialized on %A, %B %d, %Y at %H:%M:%S GMT%Z' > ${FLAG}
   echo "----------------------------------------"
-  /opt/vyatta/sbin/vyatta-cfg-cmd-wrapper show configuration | /usr/bin/vyos-config-to-commands
+  ${conf} show configuration | /usr/bin/vyos-config-to-commands
   echo "----------------------------------------"
-  echo reboot in 10 seconds
+  echo "reboot in 10 seconds"
   sleep 10
   reboot
+else
+  cat "${FLAG}" 2>/dev/null
 fi

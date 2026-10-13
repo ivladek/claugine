@@ -2,13 +2,13 @@
 set -u
 
 # test data for tests/*.sh - sample, published
-#   copy to claugine_TEST.sh and set your values
-#   not loaded by bin/claugine, each test sources it
+#   copy to data/<set>/tests-data.sh and set your values
+#   not loaded by bin/claugine, each test sources it from CLAUGINE_DATA, its directory is DIR_DATA
 
 # user data loaded by the tests with data_load_provider, if nothing is loaded yet
-test_inv="${DIR_TESTS}/../data/SAMPLE/inventory"
-test_secrets="${DIR_TESTS}/../data/SAMPLE/secrets"
-test_runtime="${DIR_TESTS}/../data/SAMPLE/runtime"
+test_inv="${DIR_DATA}/inventory"
+test_secrets="${DIR_DATA}/secrets"
+test_runtime="${DIR_DATA}/runtime"
 
 # common: inventory platforms of the tests
 test_platform=platforms.dc1.payload1        # the platform of the test objects; primary of a federation
@@ -30,8 +30,11 @@ test_vm_user=claugine-user
 test_vm_pswd="ChangeMe*2026"
 test_vm_key="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLEEXAMPLE admin@example.com"
 
-# vyos-image-build.sh: builder VM
+# vyos-image-build.sh: image VM
 test_vyos_cluster=0
 test_vyos_vnet=core_dc1
 test_vyos_addr=auto                 # or a fixed IP
 test_vyos_gw=10.71.101.254
+
+# fe-backup-job.sh: the job data of jobs/fe-backup.sh - its SITES; the test replaces the rest by stand-ins
+test_jobs_data="${DIR_DATA}/jobs-data.sh"

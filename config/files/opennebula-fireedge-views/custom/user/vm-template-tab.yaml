@@ -39,7 +39,7 @@ info-tabs:
     information_panel:
       enabled: true
       actions:
-        rename: true
+        rename: false
     permissions_panel:
       enabled: false
       actions:
@@ -75,20 +75,3 @@ dialogs:
     booting: true
 
   create_dialog:
-    ownership: false
-    capacity: true
-    showback: false
-    vm_group: false
-    network: true
-    storage: true
-    pci: true
-    placement: false
-    input_output: true
-    sched_action: true
-    context: true
-    booting: true
-    numa:
-      enabled: true
-      not_on:
-        - lxc
-    backup: true

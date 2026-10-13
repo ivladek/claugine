@@ -10,9 +10,14 @@ then
   source "${DIR_TESTS}/../bin/claugine" || { return 1 2>/dev/null || exit 1; }
 fi
 
-# test data, shared by all tests in this directory
-source "${DIR_TESTS}/claugine_TEST.sh" || { return 1 2>/dev/null || exit 1; }
-#source "${DIR_TESTS}/claugine_TEST_SAMPLE.sh" || { return 1 2>/dev/null || exit 1; }
+# test data: tests-data.sh of the data set CLAUGINE_DATA, e.g. CLAUGINE_DATA=data/SAMPLE
+if [[ ! -f "${CLAUGINE_DATA:-}/tests-data.sh" ]]
+then
+  _log_error "CLAUGINE_DATA must be a data set directory with tests-data.sh: CLAUGINE_DATA=\"${CLAUGINE_DATA:-}\""
+  return 1 2>/dev/null || exit 1
+fi
+DIR_DATA="$(cd -- "${CLAUGINE_DATA}" && pwd)"
+source "${DIR_DATA}/tests-data.sh" || { return 1 2>/dev/null || exit 1; }
 
 # run one check in a subshell - its output is shown - and count the result
 #   name=TEXT                # what is checked

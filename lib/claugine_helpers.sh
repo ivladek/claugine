@@ -90,10 +90,7 @@ function _log_std() {
 #   name=STRING             # name or id
 #   usage: id=$(_one_object_id platform=P object=image name="Ubuntu 26.04") || return 1
 # return 0 - the id printed
-#        1 - wrong parameters
-#            not found
-#            the name is not unique
-#            errors go to stderr
+#        1 - error, printed to stderr
 function _one_object_id() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local platform="${platform:-}"
@@ -141,3 +138,38 @@ function _one_object_id() {
   echo "${ids[0]}"
   return 0
 }  # _one_object_id
+
+
+
+# print the id of the IMAGES or VMS datastore of a cluster on a platform
+#   platform=NAME           # collected by data_runtime_refresh
+#   cluster_id=ID           # cluster id, see _one_object_id
+#   type=images|vms         # IMAGES or VMS datastore
+# return 0 - the id printed
+#        1 - error, printed to stderr
+function _cluster_ds_id() {
+  local arg; for arg in "$@"; do local "${arg}"; done
+  local platform="${platform:-}"
+  local cluster_id="${cluster_id:-}"
+  local type="${type:-}"
+  local ds_id
+
+  if [[ ! "${type}" =~ ^(images|vms)$ || ! "${cluster_id}" =~ ^[0-9]+$ || -z "${platform}" ]]
+  then
+    _log_error "type must be [images|vms], cluster_id a number and platform defined: type=\"${type}\" cluster_id=\"${cluster_id}\" platform=\"${platform}\""
+    return 1
+  fi
+
+  # exactly one per cluster, checked by data_load_provider
+  for ds_id in ${RUNTIME[${platform},${type}_ds_list]:-}
+  do
+    if [[ " ${RUNTIME[${platform},${type}_ds,${ds_id},clusters]:-} " == *" ${cluster_id} "* ]]
+    then
+      echo "${ds_id}"
+      return 0
+    fi
+  done  # ds_id
+
+  _log_error "no ${type^^} datastore in cluster" platform=${platform} cluster_id=${cluster_id}
+  return 1
+}  # _cluster_ds_id

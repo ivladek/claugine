@@ -37,6 +37,6 @@ reach their addresses, and only permitted transit traffic passes.
 
 ## Operations
 
-- EGWs and route reflectors run the VyOS image from `vyos_image_build` /
-  `vyos_image_finalize` ([VyOS image](vyos-image.md)); EGW VMs are created with
+- EGWs and route reflectors run the VyOS image from `vyos_image_vm_create` /
+  `vyos_image_to_platforms` ([VyOS image](vyos-image.md)); EGW VMs are created with
   `vm_create`, their IX and tenant addresses with `vnet_*`.

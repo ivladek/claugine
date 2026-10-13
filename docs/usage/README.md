@@ -4,7 +4,7 @@
 
 For platform administrators: how to install and start claugine, load
 platforms and run commands. Command reference: [commands.md](commands.md).
-Included tests: [tests.md](tests.md).
+Included tests: [tests.md](tests.md). Jobs for cron: [jobs.md](jobs.md).
 
 - [Requirements](#requirements)
 - [Install](#install)
@@ -44,7 +44,6 @@ OpenNebula does not know:
 | FE of the platform | `fe.yaml`: `vip`, `mode`, `primary` | all |
 | backups directory | `repos.backups.local_dir` of the platform's site | `fe_backup` |
 | local repository of images and ISOs | `repos.zakroma.local_dir` of the site: `<local_dir>/ubuntu`, `<local_dir>/vyos`, ... | `iso_get_*`, `vyos_image_*` |
-| URL of that repository for the FEs | `repos.zakroma.url_base` of the platform's site | `image_publish repo=`, `vyos_image_*` |
 | time zone of VMs | `timezone` of the platform's site | `vm_create` without `tz=` |
 | tenant datastore quotas | `patch.yaml` of the platform | `quota_ds_set` |
 | shared group | `shared_owner` in `platform.yaml` | tenant commands |
@@ -81,7 +80,7 @@ Start-up options of `source bin/claugine`, all optional:
 |---|---|
 | `ssh_user=NAME` | `${USER}` |
 | `ssh_port=N` | `22` |
-| `ssh_keyf=FILE` | `~/.ssh/${USER}.key` |
+| `ssh_keyf=FILE` | `~/.ssh/${USER}.key` - the init stops with an error if the key can not be read, its public key is `SSH_PUB` |
 
 All three parameters of `data_load_provider` are required; the runtime directory is
 created if missing.
@@ -114,8 +113,9 @@ never loaded, a direct run prints `script: not loaded` and how to load it.
 
 ## Platforms
 
-Parameters are always `name=value`. Every command names its target as an
-inventory platform - the first parameter, `platform=`:
+Parameters are always `name=value`. Every command that works on a platform
+names it as an inventory platform - the first parameter, `platform=`;
+`data_load_provider`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform:
 
 ```bash
 fe_cfg_ver_get platform=platforms.dc1.payload1      # exactly one platform, the full name
@@ -192,10 +192,10 @@ quota_ds_set platform=platforms.dc1.payload1 tenants=romashka            # datas
 Images:
 
 ```bash
-iso_get_ubuntu site=dc1                                 # latest Ubuntu Server ISO, autoinstall: <name>-claugine.iso
-image_publish platform=platforms.dc1.payload1 file=<local_dir>/ubuntu/ubuntu-26.04.1-live-server-amd64-claugine.iso name="Ubuntu 26.04 ISO" \
-  type=CDROM prefix=sd repo=ubuntu                      # the FE downloads from repos.zakroma.url_base/ubuntu
-vyos_image_build platform=platforms.dc1.mgmt cluster=0 vnet=core                     # addr=auto, see network/vyos-image.md
+iso_get_ubuntu platform=platforms.dc1.mgmt result=iso   # latest Ubuntu Server ISO, autoinstall: <name>-claugine.iso, in repos.zakroma of dc1
+image_upload platform=platforms.dc1.payload1 file=<local_dir>/ubuntu/ubuntu-26.04.1-live-server-amd64-claugine.iso name="Ubuntu 26.04 ISO" \
+  type=CDROM                                            # copied to the FE by rsync
+vyos_image_vm_create platform=platforms.dc1.mgmt cluster=0 vnet=core result=vm           # addr=auto, see network/vyos-image.md
 ```
 
 Service VM:

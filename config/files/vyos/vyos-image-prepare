@@ -1,77 +1,100 @@
 #!/bin/bash
 #
-# vyos-image-prepare
-#   runs in the VyOS live session booted from the claugine ISO,
-#   right after "install image" (answer "no" to the reboot question):
+# /usr/lib/live/mount/medium/claugine/vyos-image-prepare - on customized VyOS ISO
+# Creates initial config and writes vyos-postconfig-bootup.script
 #
-#     sudo bash /usr/lib/live/mount/medium/claugine/vyos-image-prepare
+# Runs in VM console session booted from the customized VyOS ISO:
+#   - login using vyos/vyos
+#   - run "install image" - answer "yes" on all questions
+#   - run "bash /usr/lib/live/mount/medium/claugine/vyos-image-prepare"
 #
-#   - finds the installed VyOS on the local disk (partition labeled "persistence")
-#   - replaces grub.cfg with /claugine/grub.cfg from the ISO (single OpenNebula boot entry)
-#   - copies vyos-postconfig-bootup.script, vyos-first-run.script and
-#     vyos-image-finalize to the installed config scripts directory
-#   - powers the VM off
+# When the VM is powered off: phase=finalize (vyos_image_to_platforms)
 #
-# next step on the admin host: vyos_image_finalize
-#
-# Vladislav Kirilin, [@]ivladek@me.com, 2026-10-04
+# Vladislav Kirilin, [@]ivladek@me.com, 2026-10-13
 
 set -u
-SRC="$(dirname "$(readlink -f "$0")")"
-TARGET="/mnt/claugine-target"
-SCRIPTS=(
-  vyos-postconfig-bootup.script
-  vyos-first-run.script
-  vyos-image-finalize
-)
 
-function stop() {
-  echo "!!! ERROR !!! $*"
-  mountpoint -q "${TARGET}" && umount "${TARGET}"
+SCRIPT_NAME=$(readlink -f "$0")
+SOURCE_DIR=$(dirname ${SCRIPT_NAME})
+VYOS_DIR="/mnt/vyos"
+CONTEXT_DIR="/mnt/context"
+
+if ! part=$(sudo blkid -L persistence)
+then
+  echo "!!! ERROR !!! Run \"install image\" first"
   exit 1
+fi
+echo "installed VyOS: ${part}"
+
+sudo mkdir -p "${VYOS_DIR}"
+sudo mount "${part}" "${VYOS_DIR}"
+CONFIG=$(sudo ls -d "${VYOS_DIR}"/boot/*/rw/opt/vyatta/etc/config)
+
+sudo mkdir -p "${CONTEXT_DIR}"
+sudo mount -o ro "$(sudo blkid -L CONTEXT)" "${CONTEXT_DIR}"
+source <(sudo cat "${CONTEXT_DIR}/context.sh")
+echo "context data: loaded"
+
+pswd="$(base64 -d -w 0 <<< "${CRYPTED_PASSWORD_BASE64:-}" 2>/dev/null)"
+footer="$(sudo grep '^//' "${CONFIG}/config.boot" 2>/dev/null)"
+
+echo "setup config:"
+sudo tee /tmp/config.boot <<EOF
+interfaces {
+    loopback lo {
+    }
+}
+service {
+    ssh {
+        client-keepalive-interval 120
+        disable-host-validation
+        port 22
+    }
+}
+system {
+    config-management {
+        commit-revisions 100
+    }
+    host-name vyos-router
+    login {
+        user vyos {
+            authentication {
+                encrypted-password "${pswd}"
+            }
+        }
+    }
+    option {
+        ctrl-alt-delete ignore
+        reboot-on-panic
+        reboot-on-upgrade-failure 5
+    }
+    syslog {
+        local {
+            facility all {
+                level info
+            }
+            facility local7 {
+                level debug
+            }
+        }
+    }
 }
 
-[[ ${EUID} -ne 0 ]] && { echo "!!! ERROR !!! run with sudo"; exit 1; }
-
-echo "installed VyOS: search"
-part="$(blkid -L persistence)" || stop "installed VyOS not found - run \"install image\" first"
-mkdir -p "${TARGET}"
-mount "${part}" "${TARGET}" || stop "can not mount ${part}"
-
-VYOS_VER=""
-for dir in "${TARGET}"/boot/*/
-do
-  [[ -f "${dir}vmlinuz" ]] && VYOS_VER="$(basename "${dir}")"
-done
-[[ -z "${VYOS_VER}" ]] && stop "no installed image in ${part}:/boot"
-
-CONFIG="${TARGET}/boot/${VYOS_VER}/rw/opt/vyatta/etc/config"
-[[ -d "${CONFIG}" ]] || stop "config directory not found: ${part}:${CONFIG#${TARGET}}"
-echo "installed VyOS: ${VYOS_VER} on ${part}"
-
-for script in grub.cfg "${SCRIPTS[@]}"
-do
-  [[ -f "${SRC}/${script}" ]] || stop "${SRC}/${script} not found"
-done
-
-
-echo "setup grub"
-GRUB="${TARGET}/boot/grub/grub.cfg"
-[[ -f "${GRUB}.original" ]] || cp "${GRUB}" "${GRUB}.original"
-grep -v '^#' "${SRC}/grub.cfg" | sed "s|\${VYOS_VER}|${VYOS_VER}|g" > "${GRUB}"
-
+${footer}
+EOF
+sudo install -m 660 -g vyattacfg /tmp/config.boot "${CONFIG}/config.boot"
 
 echo "setup scripts"
-install -d -m 775 -g vyattacfg "${CONFIG}/scripts"
-for script in "${SCRIPTS[@]}"
+sudo install -d -m 775 -g vyattacfg "${CONFIG}/scripts"
+for script in "${SOURCE_DIR}"/*
 do
-  install -m 775 -g vyattacfg "${SRC}/${script}" "${CONFIG}/scripts/${script}"
-  echo "  /config/scripts/${script}"
-done
-
+  [[ "${script}" == "${SCRIPT_NAME}" ]] && continue
+  echo "  ${script}"
+  sudo install -m 775 -g vyattacfg "${script}" "${CONFIG}/scripts/"
+done  # script
 
 sync
-umount "${TARGET}"
-echo "done - power off in 10 seconds"
+sudo umount "${VYOS_DIR}"
+echo "done - power off in 10 seconds; then on the admin host: vyos_image_to_platforms"
 sleep 10
 poweroff

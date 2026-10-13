@@ -18,11 +18,6 @@ help_data[vnet_ar_ip_create]="\
     platform=NAME            #   platforms.<site>.<platform>
     vnet=ID                  #   name or id
     ip=IP                    #   ip address to check"
-# return 0 - an address range for the IP exists or was created
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            wrong IP
-#            wrong VNet
-#            onevnet addar failed
 function vnet_ar_ip_create() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local vnet="${vnet:-}"
@@ -48,9 +43,7 @@ help_data[vnet_ar_ip_exists]="\
     vnet=ID                  #   name or id
     ip=IP                    #   ip address to check"
 # return 0 - an address range contains the IP
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            wrong IP
-#            wrong VNet
+#        1 - error
 #        4 - no address range contains the IP
 function vnet_ar_ip_exists() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -103,10 +96,6 @@ help_data[vnet_ar_mac_create]="\
   vnet_ar_mac_create         # returns free MAC address in Address Range
     platform=NAME            #   platforms.<site>.<platform>
     vnet=ID                  #   name or id"
-# return 0 - prints a free MAC address, an address range is added if needed
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            wrong VNet
-#            no free MAC address
 function vnet_ar_mac_create() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local vnet="${vnet:-}"
@@ -134,8 +123,7 @@ help_data[vnet_ar_mac_get]="\
     platform=NAME            #   platforms.<site>.<platform>
     vnet=ID                  #   name or id"
 # return 0 - prints the last free MAC address of the address ranges
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            wrong VNet
+#        1 - error
 #        3 - no free MAC address
 function vnet_ar_mac_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
@@ -197,9 +185,7 @@ help_data[vnet_ip_leased]="\
     vnet=ID                  #   name or id
     ip=IP                    #   ip address to check"
 # return 0 - the IP is leased
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            wrong IP
-#            wrong VNet
+#        1 - error
 #        4 - the IP is not leased
 function vnet_ip_leased() {
   local arg; for arg in "$@"; do local "${arg}"; done

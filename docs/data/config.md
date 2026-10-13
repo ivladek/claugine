@@ -32,6 +32,7 @@ subsystem; loaded into `INV` as `config.<name>.*`.
 | [`repos.yaml`](#datareposyaml) | third-party APT repositories |
 | [`timezones.yaml`](#datatimezonesyaml) | time zones |
 | [`ubuntu.yaml`](#dataubuntuyaml) | Ubuntu Server ISO |
+| [`vms.yaml`](#datavmsyaml) | service VMs |
 | [`vyos.yaml`](#datavyosyaml) | VyOS image |
 
 Keys never contain a dot: a path splits on `.`.
@@ -101,6 +102,12 @@ Ubuntu Server ISO for `iso_get_ubuntu`: `url` - the release server,
 `files` - list of `{name, path}`: `files/<dir>/<name>` is placed at
 `<path>/<name>` on the ISO).
 
+### `data/vms.yaml`
+
+| Key | Meaning |
+|---|---|
+| `password` | default password of the service VMs; the VyOS image: user `vyos` - `vm_create` puts its hash into the image VM context, `vyos-image-prepare` reads it there |
+
 ### `data/vyos.yaml`
 
 VyOS image, see [VyOS image](../network/vyos-image.md):
@@ -109,12 +116,10 @@ VyOS image, see [VyOS image](../network/vyos-image.md):
 |---|---|
 | `url` | page with the latest VyOS Stream ISO link |
 | `image_name` | image name prefix, the version is appended |
-| `builder.cpu`, `builder.ram` | builder VM size, RAM in GiB |
-| `builder.image` | image of the builder VM disk, resized to `builder.disk` |
-| `builder.disk` | builder VM disk, GiB - the size of the image |
-| `builder.prefix` | builder VM name prefix |
-| `builder.password` | password of user `vyos` in the image |
-| `builder.wait` | seconds to wait for a boot or a power off |
+| `vm.cpu`, `vm.ram` | image VM size, RAM in GiB |
+| `vm.image` | image of the image VM disk, resized to `vm.disk` |
+| `vm.disk` | image VM disk, GiB - the size of the image |
+| `vm.hostname` | host name of the image VM |
 | `iso` | files added to the ISO - as for Ubuntu |
 
 ## templates
@@ -143,7 +148,6 @@ content: |                                  # the text, with ${variables}
 | `ssh/` | `config_default`, `config_service` |
 | `onehost/` - KVM hosts | `apparmor`, `ufw`, `frr` |
 | `onefe/` - FE: database and OpenNebula | `mysql_binlog`, `mysql_onedb_create`, `oned_mysql`, `oned_raft`, `api_endpoints`, `opennebula-service`, `nodejs` |
-| `vyos/` - texts of the VyOS image build | `builder` - manual steps on the console after `vyos_image_build`; `finalize_confirm` - what happens to existing images, before the confirmation; `finalize_done` - next steps after `vyos_image_finalize` |
 | `one_objects/` - OpenNebula objects | `datastore_{vms,images,files,backups}`, `network_{vlan,bridge,template}`, `vm_context`, `vm_context_disk`, `vm_context_nic`, `vm_context_nic_alias` - the last four assembled into one VM template |
 
 ## files
@@ -153,7 +157,7 @@ content: |                                  # the text, with ${variables}
 | Directory | Content |
 |---|---|
 | `ubuntu/` | `grub.cfg` of the autoinstall ISO |
-| `vyos/` | scripts and `grub.cfg` added to the VyOS ISO, see [VyOS image](../network/vyos-image.md#files) |
+| `vyos/` | scripts added to the VyOS ISO, see [VyOS image](../network/vyos-image.md#files) |
 | `opennebula-fireedge-views/` | FireEdge views: `original/` - as shipped by OpenNebula, `custom/` - pushed to the FEs |
 
 ## Rules

@@ -1,28 +1,23 @@
 # VyOS image
 
 url: https://vyos.net/get/stream/
-image_name: VyOS Router            # the version is appended
+image_name: VyOS Router
 
-builder:
+vm:
   cpu: 1
   ram: 1
   image: Empty disk
   disk: 2
-  prefix: vyos-builder-
-  password: ChangeMeN0W*2026
-  wait: 900
+  hostname: vyos
 
 # files added to iso
 iso:
   dir: vyos                        # in config/files/
   files:                           # added to the ISO by iso_customize
-    - name: grub.cfg               # grub.cfg of the installed system, written by vyos-image-prepare
+    - name: vyos-image-prepare     # run manually in the live session after "install image": the image config
       path: /claugine/
-    - name: vyos-image-prepare     # run manually in the live session after "install image"
+      mode: "0755"
+    - name: vyos-postconfig-bootup.script   # VyOS hook of the image, every boot: the context on the first boot or VYOS_CONFIG_REAPPLY=YES
       path: /claugine/
-    - name: vyos-image-finalize    # run by vyos_image_finalize after the first boot
-      path: /claugine/
-    - name: vyos-postconfig-bootup.script   # VyOS hook, every boot
-      path: /claugine/
-    - name: vyos-first-run.script  # first boot only
-      path: /claugine/
+      mode: "0755"
+

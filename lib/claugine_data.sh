@@ -22,13 +22,6 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 #      every zone is a platform of the inventory: the host of its ENDPOINT is the fe.vip of the platform;
 #      exactly one of them is fe.mode primary, its fe.secondaries lists exactly all the others;
 #      every other one is fe.mode secondary, its fe.primary is the primary
-# return 0 - consistent
-#        1 - a platform without runtime data: its FE not reachable
-#            a cluster without or with more than one IMAGES or VMS datastore
-#            an IMAGES or VMS datastore without a cluster
-#            clusters of a platform can not be read
-#            a zone of a federation is not a platform
-#            not exactly one primary, fe.secondaries or fe.primary of a federation wrong
 function _data_consistancy_check() {
   local platform vip member zone_id host checked members primaries primary expected actual mode ref
   local type ds_id cluster_id clusters cluster_list ids failed result=0
@@ -201,8 +194,6 @@ function _data_consistancy_check() {
 # load one YAML tree into a variable: directories and file names become keys, all files are merged into one JSON document
 #   var=NAME                # one of ${INV_VARS}: CONFIG, TEMPLATES, INV, SECRETS
 #   dir=PATH
-# return 0 - loaded, statistics printed
-#        1 - wrong variable name, no directory or nothing loaded
 function _data_load_var() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local var="${var:-}"
@@ -342,8 +333,6 @@ function _data_runtime_fe_nodes_refresh() {
 #   images_ds_list  vms_ds_list
 #
 #   platform=NAME
-# return 0 - collected
-#        1 - the runtime data can not be collected
 function _data_runtime_platform_init() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local platform="${platform:-}"
@@ -481,9 +470,6 @@ help_data[data_load_provider]="\
     inv=PATH                 #   inventory directory, like data/SAMPLE/inventory
     secrets=PATH             #   secrets directory
     runtime=PATH             #   directory to save collected runtime data in, created if missing"
-# return 0 - loaded
-#        1 - inventory or secrets not loaded, runtime directory not defined or not created
-#            a zone of a federation is not a platform, or a primary FE not reachable - data not loaded
 function data_load_provider() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local inv="${inv:-}"
@@ -545,10 +531,8 @@ help_data[data_runtime_refresh]="\
     [fe=yes|NO]              #   refresh FE nodes status
     [quota=yes|NO]           #   refresh actual quotas
     [usage=yes|NO]           #   get usage"
-# return 0 - done
-#        1 - no user data, wrong platform name, the runtime data can not be collected
 function data_runtime_refresh() {
-  local platform              # unset: platform= not passed - only the data check; never the caller's variable
+  local platform="${platform:-}"
   local arg; for arg in "$@"; do local "${arg}"; done
   local fe="${fe:-no}"
 
@@ -558,10 +542,9 @@ function data_runtime_refresh() {
     return 1
   fi
 
-  [[ -v platform ]] || return 0   # no platform= - only the data check
   if [[ -z "${platform:-}" || ! "${platform}" =~ ^platforms\.[^.[:space:]]+\.[^.[:space:]]+$ ]]
   then
-    _log_error "platform=NAME must be defined, exactly one full name: platforms.<site>.<platform>; got \"${platform}\""
+    _log_error "platform must be exactly one full name: platforms.<site>.<platform>; got \"${platform}\""
     return 1
   fi
 

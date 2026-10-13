@@ -1,0 +1,8 @@
+content: |
+  Next steps:
+    - open the VM console in FireEdge (VNC)
+    - log in as vyos / vyos
+    - run "install image" - answer "yes" to all questions
+    - run "bash /usr/lib/live/mount/medium/claugine/vyos-image-prepare"
+    - the VM powers off - vyos_image_create continues with vyos_image_to_platforms by itself;
+      after vyos_image_vm_create alone: vyos_image_to_platforms by hand

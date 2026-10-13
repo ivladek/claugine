@@ -37,5 +37,5 @@ fe_cfg_ver_get platform=<site>.mgmt                    # any command: platform=<
 
 - FE and host maintenance: `fe_*`, `host_maintenance_*`;
 - service VMs: `vm_create` with `cluster=`, `vnet_*`;
-- images: `iso_get_ubuntu`, `vyos_image_build` / `vyos_image_finalize` - the
+- images: `iso_get_ubuntu`, `vyos_image_vm_create` / `vyos_image_to_platforms` - the
   VyOS image for the route reflectors.

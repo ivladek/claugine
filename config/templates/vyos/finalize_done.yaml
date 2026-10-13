@@ -1,4 +1,0 @@
-content: |
-  to other platforms, one by one:
-    image_publish platform=platforms.<site>.<platform> file="${file}" repo=vyos name="${name}" format=${format}
-  builder VM "${vm_name}" [${vm_id}] is powered off - terminate it when not needed

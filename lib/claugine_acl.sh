@@ -15,8 +15,6 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 help_data[acl_role_rights_get]="\
   acl_role_rights_get        # show rights set in oned.conf for each VM right - USE MANAGE ADMIN
     platform=NAME            #   platforms.<site>.<platform>"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function acl_role_rights_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node op_set vip
@@ -47,8 +45,6 @@ help_data[acl_role_rights_set]="\
   acl_role_rights_set        # set rights set in oned.conf for each VM right - USE MANAGE ADMIN
     platform=NAME            #   platforms.<site>.<platform>
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function acl_role_rights_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node op_set vip
@@ -84,8 +80,6 @@ help_data[acl_tenant_get]="\
     platform=NAME            #   platforms.<site>.<platform>: any platform of the federation,
                              #     the ACLs are read on its primary platform
     tenants=LIST             #   tenants ids or names"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
 function acl_tenant_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local primary
@@ -179,9 +173,6 @@ help_data[acl_tenant_set]="\
     tenants=LIST             #   tenants ids or names
     dry=YES|no               #   dry run without deleteing and creating ACLs
     confirm=yes|NO           #   to suppress interactive confirmation"
-# return 0 - done
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
 function acl_tenant_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local primary member
@@ -191,6 +182,7 @@ function acl_tenant_set() {
   local zones zone_id cluster_id acl acl_id acl_subj acl_obj acl_ops acl_zone
   local -a acls
   local json tenant group_id group_name admin_id admin_name vip
+  local sa_id sa_name power_id power_name user_id user_name ro_id ro_name
   local -A clusters
 
   # switch to the primary FE if the corresponding platform is a secondary
@@ -251,9 +243,34 @@ function acl_tenant_set() {
         else .
         end
     ' <<< "${json}")
+
     admin_name=$(
       $ssh ${vip} "sudo -u oneadmin oneuser show ${admin_id} -j 2>/dev/null" |
       jq -r '.USER.NAME'
+    )
+
+    sa_name="sa-${tenant}"
+    sa_id=$(
+      $ssh ${vip} "sudo -u oneadmin onegroup show ${sa_name} -j 2>/dev/null" |
+      jq -r '.GROUP.ID'
+    )
+
+    power_name="power-${tenant}"
+    power_id=$(
+      $ssh ${vip} "sudo -u oneadmin onegroup show ${power_name} -j 2>/dev/null" |
+      jq -r '.GROUP.ID'
+    )
+
+    user_name="power-${tenant}"
+    user_id=$(
+      $ssh ${vip} "sudo -u oneadmin onegroup show ${user_name} -j 2>/dev/null" |
+      jq -r '.GROUP.ID'
+    )
+
+    ro_name="ro-${tenant}"
+    ro_id=$(
+      $ssh ${vip} "sudo -u oneadmin onegroup show ${ro_name} -j 2>/dev/null" |
+      jq -r '.GROUP.ID'
     )
 
     zones=""
@@ -293,9 +310,16 @@ function acl_tenant_set() {
 
     # grant rights to tenant admin for users management
     acls=(
-      "#${admin_id} GROUP/#${group_id} USE+MANAGE       *"
-      "#${admin_id} USER/@${group_id}  USE+MANAGE+ADMIN *"
-      "#${admin_id} USER/*             CREATE           *"
+      # SA: manage tenant and role groups
+      "@${sa_id} GROUP/#${group_id} USE+MANAGE       *"
+      "@${sa_id} GROUP/#${sa_id}    USE+MANAGE       *"
+      "@${sa_id} GROUP/#${power_id} USE+MANAGE       *"
+      "@${sa_id} GROUP/#${user_id}  USE+MANAGE       *"
+      "@${sa_id} GROUP/#${ro_id}    USE+MANAGE       *"
+
+      # SA: manage tenant users and create new users
+      "@${sa_id} USER/@${group_id}  USE+MANAGE+ADMIN *"
+      "@${sa_id} USER/*             CREATE           *"
     )
     # every zone of the tenant: the primary and its fe.secondaries - all of them platforms, checked by data_load_provider
     for member in ${platform} $(inv_list var=INV path=${platform}.fe.secondaries)
@@ -304,24 +328,52 @@ function acl_tenant_set() {
       zone_id="${RUNTIME[${member},id]}"
       [[ " ${zones} " == *" ${zone_id} "* ]] || continue   # the tenant has no cluster in this zone
       # grant rights to tenant for cluster and cluster resources
-      acls+=( "@${group_id} ZONE/#${zone_id}           USE    #${zone_id}" )
+      acls+=( "@${group_id} ZONE/#${zone_id}     USE    #${zone_id}" )
       for cluster_id in ${clusters[${zone_id}]}
       do
-        acls+=( "@${group_id} CLUSTER/#${cluster_id}   USE    #${zone_id}" )
-        acls+=( "@${group_id} HOST/%${cluster_id}      MANAGE #${zone_id}" )
-        acls+=( "@${group_id} DATASTORE/%${cluster_id} USE    #${zone_id}" )
+        acls+=(
+          # All roles
+          "@${group_id} CLUSTER/#${cluster_id}   USE    #${zone_id}"
+          "@${group_id} DATASTORE/%${cluster_id} USE    #${zone_id}"
+
+          # Super Admins
+          "@${sa_id}    HOST/%${cluster_id}      MANAGE #${zone_id}"
+
+          # Power Users
+          "@${power_id} HOST/%${cluster_id}      MANAGE #${zone_id}"
+
+          # Users
+          "@${user_id}  HOST/%${cluster_id}      MANAGE #${zone_id}"
+
+          # Read Only
+          "@${ro_id}    HOST/%${cluster_id}      USE    #${zone_id}"
+        )
       done  # cluster_id
 
       # grant rights to tenant for using shared and tenant resources
       [[ -n "${RUNTIME[${platform},shared]:-}" ]] && acls+=( "@${group_id} IMAGE+TEMPLATE/@${RUNTIME[${platform},shared]} USE    #${zone_id}" )
-      acls+=( "@${group_id} NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP/@${group_id}     USE    #${zone_id}" )
-      acls+=( "@${group_id} VM+DOCUMENT/*                                         CREATE #${zone_id}" )
+      acls+=(
+        # Super Admins
+        "@${sa_id}    MARKETPLACEAPP/*                                                       USE        #${zone_id}"
+        "@${sa_id}    VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]}                        USE        #${zone_id}"
+        "@${sa_id}    VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE+MANAGE #${zone_id}"
+        "@${sa_id}    VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/*            CREATE     #${zone_id}"
 
-      # grant rights to tenant admin for tenant resources management
-      acls+=( "#${admin_id} MARKETPLACEAPP/*                                                       USE              #${zone_id}" )
-      acls+=( "#${admin_id} VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]}                  USE              #${zone_id}" )
-      acls+=( "#${admin_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE+MANAGE       #${zone_id}" )
-      acls+=( "#${admin_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/*            CREATE           #${zone_id}" )
+        # Power Users
+        "@${power_id} MARKETPLACEAPP/*                                                       USE        #${zone_id}"
+        "@${power_id} VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]}                        USE        #${zone_id}"
+        "@${power_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE+MANAGE #${zone_id}"
+        "@${power_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/*            CREATE     #${zone_id}"
+
+        # Users
+        "@${user_id}  NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP/@${group_id}                      USE        #${zone_id}"
+        "@${user_id}  VM+TEMPLATE+DOCUMENT/*                                                 CREATE     #${zone_id}"
+
+        # Read Only
+        "@${ro_id}    MARKETPLACEAPP/*                                                       USE        #${zone_id}"
+        "@${ro_id}    VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]}                        USE        #${zone_id}"
+        "@${ro_id}    VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE        #${zone_id}"
+      )
     done  # member
 
     if [[ "${dry}" == "no" ]]
@@ -336,6 +388,7 @@ function acl_tenant_set() {
       if [[ "${dry}" == "no" ]]
       then
         acl_id=$($ssh ${vip} "sudo -u oneadmin oneacl create \"${acl}\" 2>/dev/null")
+        acl_id="${acl_id##* }"
         _log -n " ${acl_id}"
       else
         read -r acl_subj acl_obj acl_ops acl_zone <<< "${acl}"

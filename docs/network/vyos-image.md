@@ -9,9 +9,9 @@ for OpenNebula and how VMs created from that image configure themselves.
 - [How it works](#how-it-works)
 - [Before you start](#before-you-start)
 - [Files](#files)
-- [Phase 1: `vyos_image_build`](#phase-1-vyos_image_build)
+- [Phase 1: `vyos_image_vm_create`](#phase-1-vyos_image_vm_create)
 - [Manual steps on the console](#manual-steps-on-the-console)
-- [Phase 2: `vyos_image_finalize`](#phase-2-vyos_image_finalize)
+- [Phase 2: `vyos_image_to_platforms`](#phase-2-vyos_image_to_platforms)
 - [VMs created from the image](#vms-created-from-the-image)
 - [Publishing to another platform](#publishing-to-another-platform)
 - [Existing images with the same name](#existing-images-with-the-same-name)
@@ -20,8 +20,9 @@ for OpenNebula and how VMs created from that image configure themselves.
 
 ## Result
 
-- An OS image `VyOS Router <version>` (qcow2) in the images datastore of every
-  zone of the current platform (or of the zones you choose).
+- An OS image `VyOS Router <version>` (qcow2) in the IMAGES datastore of the
+  image VM's cluster on the image VM's platform; to other
+  platforms - `image_upload`, see [Publishing](#publishing-to-another-platform).
 - A local copy of the image, `vyos-<version>.qcow2`, in the local repository.
 - A VM created from the image applies the OpenNebula context on its first boot:
   addresses, gateway, routes, MTU, host name, user, password, ssh key, time zone.
@@ -34,54 +35,49 @@ on the VM console in between.
 
 ```mermaid
 flowchart TD
-  A["vyos_image_build<br/>(admin host)"] -->|ISO + builder VM| B["VM console<br/>live session from the ISO"]
-  B -->|"install image<br/>vyos-image-prepare<br/>VM powers off"| C["vyos_image_finalize<br/>(admin host)"]
-  C -->|"first boot: context applied, reboot"| D["vyos-image-finalize<br/>(on the VM): reset, power off"]
-  D --> E["disk saved, downloaded,<br/>published to the zones"]
+  A["vyos_image_vm_create<br/>(admin host)"] -->|ISO + image VM| B["VM console<br/>live session from the ISO"]
+  B -->|"install image<br/>vyos-image-prepare: image config, scripts,<br/>power off - no ssh"| C["vyos_image_to_platforms<br/>(admin host)"]
+  C --> E["disk saved, downloaded, published to the platform,<br/>image VM and ISO image deleted"]
 ```
 
 | Step | Where | Who | What happens |
 |---|---|---|---|
-| 1 | admin host | `vyos_image_build` | download the latest VyOS Stream ISO, add the claugine files, upload the ISO, create the builder VM |
-| 2 | VM console | you | `install image`, then `vyos-image-prepare`: grub and scripts written to the installed disk, VM powers off |
-| 3 | admin host | `vyos_image_finalize` | detach the ISO, boot the installed system, wait for the first run |
-| 4 | builder VM | `vyos-image-finalize` | reset the configuration to the image defaults, re-enable the first run, power off |
-| 5 | admin host | `vyos_image_finalize` | save the disk as an image, download it, publish it to the zones |
+| 1 | admin host | `vyos_image_vm_create` | download the latest VyOS Stream ISO, add the claugine files, upload the ISO, create the image VM |
+| 2 | VM console | you | `install image`, then `vyos-image-prepare`: the image config built in the live session and saved to the installed disk, the scripts copied, VM powered off - the installed system never boots |
+| 3 | admin host | `vyos_image_to_platforms` | save the disk as an image, download it, publish it to the image VM's platform, delete the image VM and the ISO image |
 
 ## Before you start
 
 **Workstation** - the tools from `config/data/admin.yaml` (checked at start-up), in
 particular `curl`, `xorriso`, `rsync`, `jq`, `ssh`.
 
-**Data set** - the site of the builder zone in the inventory:
+**Data set** - the site of the image VM zone in the inventory:
 `repos.zakroma.local_dir` - the local repository, the ISOs and the image go
-to its `vyos/` subdirectory (created if missing); `repos.zakroma.url_base` -
-the URL the FEs reach it by: the FE downloads files from `<url_base>/vyos`
-instead of an rsync copy from the workstation.
+to its `vyos/` subdirectory (created if missing). Images are copied from it
+to the FE by rsync.
 
-**Internal data** (`config/data/vyos.yaml`) - defaults, change
-only if needed:
+**Internal data** - the default password of the image: `password` of
+`config/data/vms.yaml`; `config/data/vyos.yaml` - defaults, change only if
+needed:
 
 | Key | Default | Meaning |
 |---|---|---|
 | `url` | `https://vyos.net/get/stream/` | page with the latest Stream ISO link |
 | `image_name` | `VyOS Router` | image name prefix, the version is appended |
-| `builder.cpu`, `builder.ram` | `1`, `1` | builder VM size, RAM in GiB |
-| `builder.prefix` | `vyos-builder-` | builder VM name prefix |
-| `builder.disk` | `2` | builder VM disk, GiB - the size of the image |
-| `builder.image` | `Empty disk` | image used for the builder VM disk, resized to `builder.disk` |
-| `builder.password` | | password of user `vyos` in the image |
-| `builder.wait` | `900` | seconds to wait for a boot or a power off |
+| `vm.cpu`, `vm.ram` | `1`, `1` | image VM size, RAM in GiB |
+| `vm.disk` | `2` | image VM disk, GiB - the size of the image |
+| `vm.image` | `Empty disk` | image used for the image VM disk, resized to `vm.disk` |
+| `vm.hostname` | `vyos` | host name of the image VM |
 | `iso.dir`, `iso.files` | | files added to the ISO: directory in `config/files/`, list of `name` + `path`, see [Files](#files) |
 
 **OpenNebula**
 
-- the builder platform in the inventory: `platform=platforms.<site>.<platform>`;
-- an image named `builder.image` of `config/data/vyos.yaml` on the zone FE;
-- a virtual network for the builder VM with a free address;
-- that address must be reachable by ssh from the workstation;
-- ssh key pair `${SSH_KEYF}` / `${SSH_KEYF}.pub` on the workstation - the
-  public key is put into the builder VM context and used in phase 2.
+- the image VM platform in the inventory: `platform=platforms.<site>.<platform>`;
+- an image named `vm.image` of `config/data/vyos.yaml` on the zone FE;
+- a virtual network for the image VM with a free address - a VM needs a NIC,
+  the build does not use it: **no ssh to the image VM** in any phase;
+- `SSH_PUB` - the public key of `${SSH_KEYF}`, made by claugine when it loads;
+  `vm_create` requires a key, it goes into the image VM context and is not used.
 
 ## Files
 
@@ -91,32 +87,27 @@ All files live in `config/files/vyos/`. `iso_get_vyos` adds them to the ISO unde
 
 | File | Runs | Purpose |
 |---|---|---|
-| `grub.cfg` | - | boot menu of the installed system: one entry, `net.ifnames=0`; `${VYOS_VER}` is replaced by the installed version |
-| `vyos-image-prepare` | manually, live session | writes `grub.cfg` and the scripts below to the installed disk, powers off |
-| `vyos-postconfig-bootup.script` | every boot (VyOS standard hook) | mounts the context CD, runs the first run script once, runs context scripts, creates the flag `/opt/vyatta/etc/init.flag`, reboots after the first run |
-| `vyos-first-run.script` | first boot only | applies the context: interfaces, routes, host name, user, password, ssh key, time zone; renamed to `*.disabled` afterwards |
-| `vyos-image-finalize` | by `vyos_image_finalize` over ssh | resets the builder configuration, re-enables the first run, removes host keys, machine-id and history, powers off |
+| `vyos-image-prepare` | manually, live session, VM console | builds the image config: `VYOS_INITITAL_CONFIG` applied to the live session in one config session - the password hash of `CRYPTED_PASSWORD_BASE64` of the context; saved by VyOS and copied to the installed disk as `/config/config.boot`; copies the scripts below, powers off; the grub of the installer is kept. To change the image defaults, edit `VYOS_INITITAL_CONFIG` and build a new ISO |
+| `vyos-postconfig-bootup.script` | every boot (VyOS standard hook) | mounts the context CD (label `CONTEXT`); applies the context variables on the first boot (no flag `/opt/vyatta/etc/init.flag`) or with `VYOS_CONFIG_REAPPLY=YES`; runs the custom context scripts on the first boot or with `CONTEXT_SCRIPTS_ENFORCE=YES`; creates the flag and reboots after the first run |
 
 On the installed system the scripts are in `/config/scripts/`
 (`/opt/vyatta/etc/config/scripts/`).
 
-## Phase 1: `vyos_image_build`
+## Phase 1: `vyos_image_vm_create`
 
 ```bash
 source bin/claugine
-vyos_image_build platform=platforms.dc1.mgmt cluster=default vnet=core_dc1 gw=10.71.101.254   # addr=auto: a free IP of the VNet
+vyos_image_vm_create platform=platforms.dc1.mgmt cluster=default vnet=core_dc1 gw=10.71.101.254   # addr=auto: a free IP of the VNet
 ```
 
 | Parameter | Meaning |
 |---|---|
-| `platform=NAME` | platform where the builder VM runs, `platforms.<site>.<platform>` |
-| `cluster=ID\|NAME` | cluster of the builder VM; `builder.image` of `config/data/vyos.yaml`, the ISO datastore and `vnet` must belong to it |
-| `vnet=STRING` | builder VM network, name or id |
-| `addr=IP\|auto` | builder VM address, reachable by ssh from the workstation; default `auto` - a free IP leased from the VNet, logged as `vm_ip=` |
-| `gw=IP`, `dns=IP` | optional |
-| `url=URL` | optional: ISO URL, default - the latest from `url` of `config/data/vyos.yaml` |
-| `empty_image=STRING` | optional: default `builder.image` of `config/data/vyos.yaml` |
-| `ds=ID` | optional: default - the default IMAGE datastore of the zone: the lowest id, the built-in `default` (id 1) only if it is the only one |
+| `platform=NAME` | platform where the image VM runs, `platforms.<site>.<platform>` |
+| `cluster=ID\|NAME` | cluster of the image VM, default `0`; `vm.image` of `config/data/vyos.yaml` and `vnet` must belong to it; the ISO goes to the IMAGES datastore of the cluster |
+| `vnet=STRING` | image VM network, name or id |
+| `addr=IP\|auto` | image VM address, default `auto` - a free IP leased from the VNet, logged as `vm_ip=`; not used by the build |
+| `gw=IP` | optional: gateway of the image VM |
+| `result=VAR` | variable of the caller: gets the image VM name `VyOS Router <version>` |
 
 What it does:
 
@@ -125,15 +116,17 @@ What it does:
    `vyos-<version>-generic-amd64-claugine.iso` - the name of the downloaded
    file with `-claugine` - with the files from
    `config/files/vyos/` in `/claugine/`. The ISO stays bootable.
-2. Stops if the builder VM `vyos-builder-<version>` already exists.
-3. Uploads the ISO as CDROM image `VyOS Router <version> ISO` (prefix `sd`).
+2. Stops if the image VM `VyOS Router <version>` already exists - the image
+   VM is named as the image it makes: `image_name` and the version.
+3. Uploads the ISO as CDROM image `VyOS Router <version> ISO`.
    An existing image with this name is handled as described in
    [Existing images](#existing-images-with-the-same-name).
-4. Creates the builder VM `vyos-builder-<version>` in `cluster`: 1 CPU, 1 GB RAM,
-   disk 0 - `builder.image` resized to `builder.disk` GiB (`config/data/vyos.yaml`), disk 1 -
+4. Creates the image VM `VyOS Router <version>` in `cluster`: 1 CPU, 1 GB RAM,
+   disk 0 - `vm.image` resized to `vm.disk` GiB (`config/data/vyos.yaml`), disk 1 -
    the ISO, boot order ISO first, NIC with `addr`, user `vyos` with the
    default password and your public key in the context, no hourly autostart.
-5. Prints the manual steps - the text of `config/templates/vyos/builder.yaml`.
+5. Returns the image VM name in the caller variable of `result=VAR` - the
+   default name of the image of `vyos_image_to_platforms`.
 
 ## Manual steps on the console
 
@@ -146,86 +139,107 @@ Open the VM console in FireEdge (VNC):
    ```
    sudo bash /usr/lib/live/mount/medium/claugine/vyos-image-prepare
    ```
-   It finds the installed system (partition labeled `persistence`), saves the
-   original `grub.cfg` as `grub.cfg.original`, writes the claugine `grub.cfg`,
-   copies the scripts to `/config/scripts/` and powers the VM off after 10
-   seconds.
+   Run it on the VM console: it changes the config of the live session, its
+   network goes down. It
+   - finds the installed system (partition labeled `persistence`);
+   - reads the password hash from `CRYPTED_PASSWORD_BASE64` of the context CD
+     (label `CONTEXT`) - the default password of `config/data/vms.yaml`, put
+     there by `vm_create`;
+   - applies `VYOS_INITITAL_CONFIG` to the live session in one config session,
+     as `vyos-postconfig-bootup.script` does - by default it deletes `interfaces
+     ethernet`, `protocols static`, `service` and the ssh keys of user `vyos`;
+     sets the default password, host name `vyos-router`, ssh on port 22,
+     `ctrl-alt-delete ignore`, `reboot-on-panic`;
+   - copies the config saved by VyOS to the installed disk,
+     `/config/config.boot` - the syntax and the version line are VyOS's own;
+   - copies `vyos-postconfig-bootup.script` to `/config/scripts/`;
+   - powers the VM off after 10 seconds.
 
-## Phase 2: `vyos_image_finalize`
+   The installed system never boots during the build: no ssh host keys,
+   `machine-id` or shell history to clean up - a VM created from the image
+   makes its own on the first boot.
 
-Run it when the builder VM is in state POWEROFF:
+The grub of the installer is kept as VyOS writes it (VyOS 1.5, Stream
+2026.03): `grub.cfg` loads `grub.cfg.d/` - the image versions, the default
+image, the console type and the kernel options of the config. So the
+standard VyOS behavior stays: `add system image`, `set system image
+default-boot`, `set system option kernel ...`, `set system console` and the
+password recovery entry of the boot menu work. At `install image` keep the
+default console - KVM (`tty0`), the VNC console of OpenNebula.
+
+## Phase 2: `vyos_image_to_platforms`
+
+Run it when the image VM is in state POWEROFF - powered off by `vyos-image-prepare`:
 
 ```bash
-vyos_image_finalize platform=platforms.dc1.mgmt vm=vyos-builder-2026.03
+vyos_image_to_platforms platform=platforms.dc1.mgmt vm="VyOS Router 2026.03"
 ```
 
 | Parameter | Meaning |
 |---|---|
-| `platform=NAME` | platform of the builder VM |
-| `vm=STRING` | builder VM name or id |
-| `ip=IP` | optional: builder VM address, default - the first NIC |
-| `name=STRING` | optional: image name, default `VyOS Router <version>` |
-| `ds=ID` | optional: default - the default IMAGE datastore of the platform |
-| `limit=N` | optional: seconds for a boot or a power off, default `builder.wait` of `config/data/vyos.yaml` |
+| `platform=NAME` | platform of the image VM |
+| `vm=STRING` | image VM name or id - in state POWEROFF, after `vyos-image-prepare` |
 | `confirm=yes` | skip the confirmation |
+
+The image is named as the image VM, `VyOS Router <version>`, and goes to the IMAGES datastore of the image VM's cluster.
 
 What it does:
 
-1. Detaches the ISO and waits until it is gone. From now on the only CD-ROM
-   is the context CD, which `vyos-postconfig-bootup.script` mounts as `/dev/sr0`.
-2. Boots the installed system. On this first boot the first run script applies
-   the context (address, your ssh key), creates the flag and reboots.
-3. Waits until ssh as `vyos` works **and** the flag is older than the current
-   boot - that is, the first run reboot is over.
-4. Starts `vyos-image-finalize` on the VM, detached from the ssh session
-   (the session drops when the interfaces are removed). The script:
-   - deletes `interfaces ethernet`, `protocols static`, `service` and the
-     ssh keys of user `vyos`;
-   - sets the default password, host name `vyos-router`, ssh on port 22,
-     `ctrl-alt-delete ignore`, `reboot-on-panic`;
-   - restores `vyos-first-run.script` and removes the flag, so the next VM
-     created from the image runs its first run;
-   - removes ssh host keys, the config archive, `machine-id` and shell
-     history;
-   - powers off. Log while it runs: `/tmp/vyos-image-finalize.log`.
-5. Saves the VM disk as a temporary image and waits until it is READY.
-6. Downloads it to `<directory>/vyos-<version>.qcow2`.
-7. Publishes it with `image_publish` to every zone in `zones` as OS image
-   `VyOS Router <version>`: by URL from `repos.zakroma.url_base/vyos` of each zone's site, by rsync otherwise.
-8. Deletes the temporary image.
+No ssh to the image VM: the command only saves the disk.
+
+1. Saves the VM disk as a temporary image and waits until it is READY - the ISO stays attached.
+2. Downloads it to `<directory>/vyos-<version>.qcow2`.
+3. Uploads it with `image_upload` to the image VM's platform as OS image
+   `VyOS Router <version>` - copied to the FE by rsync.
+4. Deletes the temporary image, the image VM and then the ISO image `VyOS Router <version> ISO` of the build.
+
+## Both phases in one run: `vyos_image_create`
+
+```bash
+vyos_image_create platform=platforms.dc1.mgmt cluster=0 vnet=core_dc1 result=image   # addr=auto, limit=600
+```
+
+`vyos_image_vm_create`, then it waits up to `limit` seconds (default 600) for the image VM to be
+powered off - do the [manual steps on the console](#manual-steps-on-the-console) meanwhile -
+then `vyos_image_to_platforms`. `result=` gets the image name. On timeout the image VM stays:
+run `vyos_image_to_platforms` by hand when it is powered off. `jobs/create-vyos-image.sh` uses it.
 
 ## VMs created from the image
 
-On the first boot `vyos-first-run.script` reads the OpenNebula context:
+`vyos-postconfig-bootup.script` applies the OpenNebula context on the first
+boot - no flag `/opt/vyatta/etc/init.flag` - and on the next boots only with
+`VYOS_CONFIG_REAPPLY=YES`. All ethernet interfaces and static routes are
+deleted before and set from the context:
 
 | Context variable | Default | Effect |
 |---|---|---|
-| `ETHn_MAC` | | the interface is configured only if present |
+| `ETHn_MAC` | | the interface `ethN` is configured only if present |
 | `ETHn_IP`, `ETHn_MASK` | mask `255.255.255.0` | interface address |
 | `ETHn_GATEWAY` | | default route via this gateway |
 | `ETHn_ROUTES` | | `NET via GW, NET via GW` - static routes |
 | `ETHn_METRIC` | `100` | distance of the routes of this interface |
 | `ETHn_MTU` | `1500` | MTU; IPv6 link-local and forwarding disabled |
-| `HOSTNAME` | `vyos-router` | host name |
-| `USERNAME` | `vyos` | another name creates that user and disables `vyos` |
-| `CRYPTED_PASSWORD_BASE64` | default password | base64 of the password hash |
-| `SSH_PUBLIC_KEY` | | key of the user; ssh password login is disabled when set |
-| `SSH_PORT` | `22` | ssh port |
+| `SET_HOSTNAME` | `vyos-router` | host name |
+| `USERNAME` | `vyos` | the user; another name disables `vyos`, `vyos` enables it again; a user of a former `USERNAME` stays |
+| `CRYPTED_PASSWORD_BASE64` | the password of the image | base64 of the password hash, changed for `USERNAME`; without it the password is kept - `password` of `config/data/vms.yaml` |
+| `SSH_PUBLIC_KEY` | | key of the user; with it ssh password authentication is disabled, without it allowed |
+| `SSH_PORT` | `22` | ssh port, all interfaces - a listen address is removed |
 | `TIMEZONE` | `Asia/Almaty` | time zone |
+| `VYOS_CONFIG_REAPPLY` | `NO` | `YES` - apply the context on every boot, not only the first |
+| `CONTEXT_SCRIPTS_ENFORCE` | `NO` | `YES` - run the custom context scripts on every boot, not only the first |
 
-`vyos-postconfig-bootup.script` also understands:
+Custom context scripts - every `*.sh` on the context CD except `context.sh`,
+in alphabetical order, as group `vyattacfg` - run on the first boot and on
+the next boots only with `CONTEXT_SCRIPTS_ENFORCE=YES`.
 
-| Context variable | Effect |
-|---|---|
-| `FIRSTRUN_SCRIPT_DISABLE=yes` | skip the first run, keep the image defaults |
-| `CONTEXT_SCRIPTS_DISABLE=yes` | never run `*.sh` from the context CD |
-| `CONTEXT_SCRIPTS_ENFORCE=yes` | run `*.sh` from the context CD on every boot, not only the first |
+After the first run the VM reboots once - the routing engine starts only
+after a reboot; the flag file holds the initialization date. A reapply does
+not reboot: the commit applies it. To move a router to a new address of
+OpenNebula: change the NIC, set `VYOS_CONFIG_REAPPLY=YES` in the context,
+reboot; then remove it, or keep it to keep the context the source of truth.
 
-After the first run the VM reboots once; the flag file
-`/opt/vyatta/etc/init.flag` holds the initialization date.
-
-> The default password is published with the scripts. Always set
-> `SSH_PUBLIC_KEY` or `CRYPTED_PASSWORD_BASE64` in the VM template.
+> The default password (`password` of `config/data/vms.yaml`) is published with claugine.
+> Always set `SSH_PUBLIC_KEY` or `CRYPTED_PASSWORD_BASE64` in the VM template.
 
 `vm_create` fills these variables from its parameters (`vnetN`, `addrN`,
 `gwN`, `routesN`, `metricN`, `mtuN`, `hostname`, `user`, `pswd`, `key`, `tz`).
@@ -233,19 +247,18 @@ After the first run the VM reboots once; the flag file
 ## Publishing to another platform
 
 To put the same image into other platforms, publish the local copy - no
-second builder VM is needed:
+second image VM is needed:
 
 ```bash
 for p in platforms.dc2.payload1 platforms.dc1.payload2
 do
-  image_publish platform=${p} \
+  image_upload platform=${p} \
     file=/srv/claugine/repo/zakroma/vyos/vyos-2026.03.qcow2 name="VyOS Router 2026.03" \
-    repo=vyos type=OS format=qcow2                  # the FE downloads from its site's repository
+    type=OS                                         # copied to the FE by rsync
 done
 ```
 
-`vyos_image_finalize` publishes to the builder's platform only and prints
-this command for the others.
+`vyos_image_to_platforms` publishes to the image VM's platform only.
 
 ## Existing images with the same name
 
@@ -261,9 +274,9 @@ templates that refer to it by name get the new image.
 
 ## Cleanup
 
-`vyos_image_finalize` leaves for you to decide:
+`vyos_image_to_platforms` leaves for you to decide:
 
-- the builder VM `vyos-builder-<version>`, powered off - terminate it;
+- the image VM `VyOS Router <version>`, powered off - terminate it;
 - the ISO image `VyOS Router <version> ISO` on the zone FE;
 - in the local repository: the original ISO, the customized ISO and
   `vyos-<version>.qcow2`.
@@ -276,18 +289,17 @@ messages and what to do:
 | Step | Message | What to do |
 |---|---|---|
 | build | platform not in the inventory, FE not reachable | check the inventory and the VIP |
-| build | `vnet` not set, `${SSH_KEYF}.pub` missing | pass it; create the key |
+| build | `vnet` not set | pass it |
 | build | ISO not found, not downloaded or not customized | check the download site and `config/data/vyos.yaml` |
-| build | builder VM already exists | terminate it, or finish it with phase 2 |
+| build | image VM already exists | terminate it, or finish it with phase 2 |
 | build | ISO upload failed, VM creation failed | cluster, image or network not found or not unique, address leased |
-| finalize | builder VM not found | check `vm=` |
-| finalize | VM not powered off, or no IP | finish the manual steps first |
-| finalize | ISO not detached, VM did not start | check the VM in OpenNebula |
-| finalize | no ssh after the first run | check the VM console: context, address, key |
-| finalize | `vyos-image-finalize` did not power the VM off | see `/tmp/vyos-image-finalize.log` on the VM |
+| finalize | image VM not found | check `vm=` |
+| finalize | VM not powered off | finish the manual steps first |
+| finalize | VM not powered off, disk not saved | check the VM in OpenNebula |
+| console | `vyos-image-prepare` stops with an error | the message names the step: no `persistence` partition (run `install image`), no context CD or `CRYPTED_PASSWORD_BASE64`, a command of `VYOS_INITITAL_CONFIG` rejected |
 | finalize | disk not saved, image download failed | check the datastore and the local repository |
-| finalize | publishing failed | the image is in the local repository - rerun `image_publish` |
+| finalize | upload failed | the image is in the local repository - rerun `image_upload` |
 
 Test scripts: `tests/vyos-image-build.sh` and
-`tests/vyos-image-finalize.sh vyos-builder-<version>`, data in
-`tests/claugine_TEST.sh`.
+`tests/vyos-image-finalize.sh "VyOS Router <version>"`, data in
+`tests-data.sh` of the data set.

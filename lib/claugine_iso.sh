@@ -15,47 +15,47 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 help_data[iso_customize]="\
   iso_customize              # copy an ISO with added files, keep it bootable
     src=PATH                 #   original ISO
-    dst=PATH                 #   optional: customized ISO, overwritten; default - <src without .iso>-claugine.iso
-    os=NAME                  #   ubuntu|vyos|..."
-# return 0 - built
-#        1 - original ISO not found
-#            os not defined
-#            iso.dir or iso.files not defined in internal data
-#            a file of iso.files not found
-#            ISO can not be built
+    dst=PATH                 #   customized ISO, overwritten
+    os=NAME                  #   ubuntu|vyos|...
+    dir=PATH                 #   optional: directory of the files, default - config/files/<CONFIG.<os>.iso.dir>
+                             #   CONFIG.<os>.iso.files: name - file in dir; path - directory in the ISO;
+                             #     mode - optional, like 0755, default - the mode of the file"
 function iso_customize() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local src="${src:-}"
-  local dst="${dst:-${src%.iso}-claugine.iso}"
+  local dst="${dst:-}"
   local os="${os:-}"
-  local file path dir
+  local dir="${dir:-}"
+  local file path mode target
   local -a maps=() files=()
 
-  if [[ ! -f "${src}" || -z "${os}" ]]
+  if [[ ! -f "${src}" || -z "${dst}" || "${dst}" == "${src}" || -z "${os}" ]]
   then
-    _log_error "original ISO \"${src}\" not found or os \"${os}\" not defined"
+    _log_error "original ISO \"${src}\" not found, dst \"${dst}\" not defined or the same as src, or os \"${os}\" not defined"
     return 1
   fi
 
-  dir="$(inv_value var=CONFIG path=${os}.iso.dir)"
+  [[ -z "${dir}" && -n "$(inv_value var=CONFIG path=${os}.iso.dir)" ]] && dir="${DIR_FILES}/$(inv_value var=CONFIG path=${os}.iso.dir)"
   mapfile -t files < <(inv_list_field var=CONFIG path=${os}.iso.files field=name)
-  if [[ -z "${dir}" ]] || (( ${#files[@]} == 0 ))
+  if [[ ! -d "${dir}" ]] || (( ${#files[@]} == 0 ))
   then
-    _log_error "config.${os}.iso.dir and config.${os}.iso.files must be defined in internal data"
+    _log_error "config.${os}.iso.dir and config.${os}.iso.files must be defined in internal data: dir=[${dir}]"
     return 1
   fi
-  dir="${DIR_FILES}/${dir}"
 
   for file in "${files[@]}"
   do
     path="$(inv_list_find var=CONFIG path=${os}.iso.files field=name value="${file}" | jq -r '.path // ""')"
+    mode="$(inv_list_find var=CONFIG path=${os}.iso.files field=name value="${file}" | jq -r '.mode // ""')"
     if [[ ! -f "${dir}/${file}" || -z "${path}" ]]
     then
       _log_error "${dir}/${file} not found or path not defined in config ${os}.iso.files"
       return 1
     fi
-    maps+=( -map "${dir}/${file}" "${path%/}/${file}" )
-    _log iso="${dst}" action="add" file="${dir}/${file}" target="${path%/}/${file}"
+    target="${path%/}/${file}"
+    maps+=( -map "${dir}/${file}" "${target}" )
+    [[ -n "${mode}" ]] && maps+=( -chmod "${mode}" "${target}" -- )
+    _log iso="${dst}" action="add" file="${dir}/${file}" target="${target}" mode="${mode:-as_file}"
   done  # file
 
   _log iso="${dst}" action="customize" source="${src}"
@@ -84,11 +84,6 @@ help_data[iso_download]="\
     file=PATH                #   local file
     sha256=HASH              #   optional
     overwrite=yes|NO         #   download again even if the file exists"
-# return 0 - downloaded, sha256 matches
-#        1 - url or file not defined
-#            directory missing
-#            download failed
-#            sha256 does not match
 function iso_download() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local sha256="${sha256:-}"
@@ -143,16 +138,14 @@ function iso_download() {
 
 help_data[iso_get_ubuntu]="\
   iso_get_ubuntu             # latest Ubuntu Server ISO customized with os=ubuntu files
-    platform=NAME            #   instead of site: the site of this platform, platforms.<site>.<platform>
+    platform=NAME            #   platforms.<site>.<platform>: the repository is repos.zakroma.local_dir/ubuntu of its site
+    directory=PATH           #   the repository directory
     version=YY.MM            #   default <CONFIG.ubuntu.version>
-    directory=PATH           #   instead of site: the repository directory
     overwrite=yes|NO         #   download again
-                             #   the ISO: <name of the downloaded file>-claugine.iso in the repository"
-# return 0 - done
-#        1 - no user data, no repository, wrong version or directory
-#            the version not found on the download site
-#            iso_download failed
-#            iso_customize failed
+    result=VAR               #   variable of the caller: gets the full path of the ISO -
+                             #     <name of the downloaded file>-claugine.iso in the repository
+                             #     must not be _result or a local name of iso_get_ubuntu: arg, file, ver, ...
+                             #     the variable is set only if the function returns 0"
 function iso_get_ubuntu() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local version="${version:-$(inv_value var=CONFIG path=ubuntu.version)}"
@@ -161,6 +154,15 @@ function iso_get_ubuntu() {
   local directory="${directory:-}"
   local file ver url sha256 original_iso
   local overwrite="${overwrite:-no}"
+  local result="${result:-}"
+
+  if [[ ! "${result}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]
+  then
+    _log_error "result must be a variable name: result=\"${result}\""
+    return 1
+  fi
+  # the variable of the caller by name reference
+  local -n _result="${result}"
 
   data_runtime_refresh || return 1
   if [[ -z "${directory:-}" ]]
@@ -199,12 +201,13 @@ function iso_get_ubuntu() {
     curl -fsSL "$(inv_value var=CONFIG path=ubuntu.url)/${ver}/SHA256SUMS" |
     awk -v f="${file}" '$2 == "*"f || $2 == f {print $1}'
   )"
-  # the file name from the url; iso_customize makes <name>-claugine.iso next to it
+  # the file name from the url; the customized ISO <name>-claugine.iso next to it
   original_iso="${directory}/${file}"
   _log ubuntu_version="${ver}" url="${url}" sha256="${sha256:-unknown}"
 
   iso_download url="${url}" file="${original_iso}" sha256="${sha256}" overwrite="${overwrite}" || return 1
-  iso_customize src="${original_iso}" os=ubuntu || return 1
+  iso_customize src="${original_iso}" dst="${original_iso%.iso}-claugine.iso" os=ubuntu || return 1
+  _result="${original_iso%.iso}-claugine.iso"
 
   return 0
 }  # iso_get_ubuntu
@@ -213,16 +216,14 @@ function iso_get_ubuntu() {
 
 help_data[iso_get_vyos]="\
   iso_get_vyos               # latest VyOS Stream ISO customized with os=vyos files
+    platform=NAME            #   platforms.<site>.<platform>: the repository is repos.zakroma.local_dir/vyos of its site
+    directory=PATH           #   the repository directory
     url=URL                  #   optional: ISO url, default - latest from <CONFIG.vyos.url>
-    platform=NAME            #   instead of site: the site of this platform, platforms.<site>.<platform>
-    directory=PATH           #   instead of site: the repository directory
     overwrite=yes|NO         #   download again
-                             #   the ISO: <name of the downloaded file>-claugine.iso in the repository"
-# return 0 - done
-#        1 - no user data, no repository or directory
-#            ISO url not found on the download site
-#            iso_download failed
-#            iso_customize failed
+    result=VAR               #   variable of the caller: gets the full path of the ISO -
+                             #     <name of the downloaded file>-claugine.iso in the repository
+                             #     must not be _result or a local name of iso_get_vyos: arg, file, ver, ...
+                             #     the variable is set only if the function returns 0"
 function iso_get_vyos() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local url="${url:-}"
@@ -231,6 +232,15 @@ function iso_get_vyos() {
   local directory="${directory:-}"
   local file ver original_iso
   local overwrite="${overwrite:-no}"
+  local result="${result:-}"
+
+  if [[ ! "${result}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]
+  then
+    _log_error "result must be a variable name: result=\"${result}\""
+    return 1
+  fi
+  # the variable of the caller by name reference
+  local -n _result="${result}"
 
   data_runtime_refresh || return 1
   if [[ -z "${directory:-}" ]]
@@ -238,7 +248,7 @@ function iso_get_vyos() {
     site="${platform#platforms.}"
     site="${site%%.*}"
     directory=$(inv_value var=INV path=resources.${site:-none}.repos.zakroma.local_dir)
-    [[ -n "${directory}" ]] && directory="${directory%/}/ubuntu"
+    [[ -n "${directory}" ]] && directory="${directory%/}/vyos"
   fi
   mkdir -p "${directory}" 2>/dev/null
 
@@ -266,12 +276,14 @@ function iso_get_vyos() {
     return 1
   fi
 
-  # the file name from the url; iso_customize makes <name>-claugine.iso next to it
+  # the file name from the url; the customized ISO <name>-claugine.iso next to it
   original_iso="${directory}/${file}"
   _log vyos_version="${ver}" url="${url}"
 
   iso_download url="${url}" file="${original_iso}" overwrite="${overwrite}" || return 1
-  iso_customize src="${original_iso}" os=vyos || return 1
+
+  iso_customize src="${original_iso}" dst="${original_iso%.iso}-claugine.iso" os=vyos || return 1
+  _result="${original_iso%.iso}-claugine.iso"
 
   return 0
 }  # iso_get_vyos

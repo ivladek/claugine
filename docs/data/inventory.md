@@ -128,7 +128,7 @@ Repositories claugine uses:
 
 | Repository | Content | Used by |
 |---|---|---|
-| `repos.zakroma` | images and ISOs: `<local_dir>/ubuntu`, `<local_dir>/vyos`, ... - created if missing; FEs download from `<url_base>/<name>` | `iso_get_*`, `vyos_image_*`, `image_publish repo=` |
+| `repos.zakroma` | images and ISOs: `<local_dir>/ubuntu`, `<local_dir>/vyos`, ... - created if missing; images go to the FEs by rsync | `iso_get_*`, `vyos_image_*` |
 | `repos.host_data` | files for host initialization | |
 | `repos.backups` | FE backups, `local_dir` only | `fe_backup` |
 

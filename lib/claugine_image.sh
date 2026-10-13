@@ -7,7 +7,6 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 # INDEX
 #   image_archive   free the image name NAME for a new image
 #   image_download  copy an image file from the FE datastore to a local file
-#   image_publish   upload a local image file to a platform: image_upload, from the site repository if repo=
 #   image_upload    upload a local file as a new image, an existing image with the same name is deleted or archived
 #   image_wait      wait until the image is READY
 
@@ -20,11 +19,6 @@ help_data[image_archive]="\
     platform=NAME            #   platforms.<site>.<platform>
     name=STRING              #   image name
     limit=N                  #   seconds to wait for the deletion, default is <CONFIG.onefe.timeouts.image_wait>"
-# return 0 - no image with the name, or it was deleted or renamed
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            can not delete the image
-#            image not deleted in time
-#            can not rename the image
 function image_archive() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local fe
@@ -94,10 +88,6 @@ help_data[image_download]="\
     platform=NAME            #   platforms.<site>.<platform>
     image=STRING             #   name or id
     file=PATH                #   local file"
-# return 0 - downloaded
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            image not found or its source is not a file
-#            download failed
 function image_download() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local fe
@@ -130,136 +120,67 @@ function image_download() {
 
 
 
-help_data[image_publish]="\
-  image_publish              # upload a local image file to a platform: image_upload, from the site repository if repo=
-    platform=NAME            #   platforms.<site>.<platform>
-    file=PATH                #   local file
-    repo=NAME                #   optional: the file is also in repos.zakroma/NAME of the platform's site - the FE downloads it
-                             #     from repos.zakroma.url_base/NAME instead of a copy by rsync, like repo=vyos
-    name=STRING              #   image name
-    type=OS|CDROM|DATABLOCK  #
-    ds=ID                    #   default: the default IMAGE datastore of the platform, see image_upload
-    prefix=vd|sd             #   default: vd
-    format=qcow2|raw         #   optional"
-# return 0 - published
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            file not found or name not defined
-#            image_upload failed
-function image_publish() {
-  local arg; for arg in "$@"; do local "${arg}"; done
-  local file="${file:-}"
-  local repo="${repo:-}"
-  local name="${name:-}"
-  local url=""
-  local site
-
-  data_runtime_refresh platform="${platform:-}" || return 1
-
-  if [[ ! -f "${file}" || -z "${name}" ]]
-  then
-    _log_error "file \"${file}\" must exist, name must be defined"
-    return 1
-  fi
-
-  # repository URL of the platform's site: the FE downloads the file from it
-  if [[ -n "${repo}" ]]
-  then
-    site="${platform#platforms.}"
-    site="${site%%.*}"
-    url=$(inv_value var=INV path=resources.${site}.repos.zakroma.url_base)
-    url="${url%/}/${repo}/${file##*/}"
-  fi
-
-  image_upload platform="${platform}" file="${file}" url="${url}" name="${name}" \
-    type="${type:-OS}" ds="${ds:-}" prefix="${prefix:-vd}" format="${format:-}" \
-    || return 1
-
-  return 0
-}  # image_publish
-
-
-
 help_data[image_upload]="\
   image_upload               # upload a local file as a new image, an existing image with the same name is deleted or archived
     platform=NAME            #   platforms.<site>.<platform>
+    cluster=ID|NAME(0)       #   cluster: the image goes to its IMAGES datastore
     file=PATH                #   local file, copied to the FE by rsync
-    url=URL                  #   instead of file: the FE downloads the image from this url
     name=STRING              #   image name
-    type=OS|CDROM|DATABLOCK  #
-    ds=ID                    #   default: the IMAGE datastore of the zone with the lowest id,
-                             #     the built-in \"default\" (id 1) only if it is the only one
-    prefix=vd|sd             #   default: vd, use sd for CDROM on q35
-    format=qcow2|raw         #   optional"
-# return 0 - uploaded and READY
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh
-#            not confirmed
-#            url or file, name, ds not defined
-#            existing image with the name can not be archived
-#            file can not be copied to the FE
-#            image can not be created
-#            image not READY - image_wait
+    type=OS|CDROM|DATABLOCK  #"
 function image_upload() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local fe vip
   local file="${file:-}"
-  local url="${url:-}"
   local name="${name:-}"
   local type="${type:-OS}"
-  local ds="${ds:-}"
-  local prefix="${prefix:-vd}"
-  local format="${format:-}"
-  local remote="" path out id opts result
+  local cluster="${cluster:-0}"
+  local remote out id opts result cluster_id ds_id
 
   data_runtime_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   fe=${vip}
 
-  if [[ -z "${ds}" ]]
+  if [[ ! -f "${file}" || -z "${name}" ]]
   then
-    ds=$(tr ' ' '\n' <<< "${RUNTIME[${platform},images_ds_list]:-}" | grep -vx 1 | sort -n | head -n1)
-    [[ -n "${ds}" ]] || ds=$(tr ' ' '\n' <<< "${RUNTIME[${platform},images_ds_list]:-}" | head -n1)
-    [[ -n "${ds}" ]] && _log_std images_ds="${ds}" default="yes"
-  fi
-
-  if [[ ( -z "${url}" && ! -f "${file}" ) || -z "${name}" || -z "${ds}" ]]
-  then
-    _log_error "url or existing file must be defined, name and ds too (file=\"${file}\" ds=\"${ds}\")"
+    _log_error "file must exist and name must be defined (file=\"${file}\" name=\"${name}\")"
     return 1
   fi
 
+  # the IMAGES datastore of the cluster
+  cluster_id=$(_one_object_id platform="${platform}" object=cluster name="${cluster}") || return 1
+  ds_id=$(_cluster_ds_id platform="${platform}" cluster_id="${cluster_id}" type=images) || return 1
+
   image_archive platform="${platform}" name="${name}" || return 1
 
-  if [[ -n "${url}" ]]
+  remote="/var/tmp/claugine_${file##*/}"
+  _log_std image="${name}" action="copy" source="${file}" target="${remote}"
+  if ! rsync --progress -e "$ssh" --rsync-path "sudo rsync" "${file}" "${fe}:${remote}"
   then
-    path="${url}"
-    _log_std image="${name}" action="download_by_fe" url="${url}"
-  else
-    remote="/var/tmp/claugine_${file##*/}"
-    path="${remote}"
-    _log_std image="${name}" action="copy" source="${file}" target="${remote}"
-    if ! rsync --progress -e "$ssh" --rsync-path "sudo rsync" "${file}" "${fe}:${remote}"
-    then
-      _log_error "can not copy ${file} to ${fe}:${remote}"
-      return 1
-    fi
-    $ssh ${fe} "sudo chown oneadmin: ${remote}"
+    _log_error "can not copy ${file} to ${fe}:${remote}"
+    return 1
   fi
+  $ssh ${fe} "sudo chown oneadmin: ${remote}"
 
-  opts="--type ${type} --datastore ${ds} --prefix ${prefix}"
-  [[ -n "${format}" ]] && opts+=" --format ${format}"
-  out=$($ssh ${fe} "sudo -u oneadmin oneimage create --name \"${name}\" --path \"${path}\" ${opts}" 2>&1)
+  # VMs are q35: CDROM - prefix sd; OS, DATABLOCK - prefix vd, qcow2
+  if [[ "${type}" == "CDROM" ]]
+  then
+    opts="--type ${type} --datastore ${ds_id} --prefix sd"
+  else
+    opts="--type ${type} --datastore ${ds_id} --prefix vd --format qcow2"
+  fi
+  out=$($ssh ${fe} "sudo -u oneadmin oneimage create --name \"${name}\" --path \"${remote}\" ${opts}" 2>&1)
   id="${out##* }"
   if [[ ! "${id}" =~ ^[0-9]+$ ]]
   then
     _log_error "can not create image \"${name}\" on ${fe}: ${out}"
-    [[ -n "${remote}" ]] && $ssh ${fe} "sudo rm -f ${remote}"
+    $ssh ${fe} "sudo rm -f ${remote}"
     return 1
   fi
-  _log_std image="${name}" image_id="${id}" type="${type}" ds="${ds}" action="create"
+  _log_std image="${name}" image_id="${id}" type="${type}" cluster_id="${cluster_id}" ds="${ds_id}" action="create"
 
   image_wait platform="${platform}" image="${id}"
   result=$?
-  [[ -n "${remote}" ]] && $ssh ${fe} "sudo rm -f ${remote}"
+  $ssh ${fe} "sudo rm -f ${remote}"
 
   (( result != 0 )) && return 1
   return 0
@@ -272,9 +193,6 @@ help_data[image_wait]="\
     platform=NAME            #   platforms.<site>.<platform>
     image=STRING             #   name or id
     limit=N                  #   seconds, default is <CONFIG.onefe.timeouts.image_wait>"
-# return 0 - the image is READY
-#        1 - no user data, wrong or unknown platform, FE not reachable - data_runtime_refresh, image in ERROR
-#            timeout
 function image_wait() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local fe

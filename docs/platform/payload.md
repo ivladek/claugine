@@ -32,11 +32,40 @@ site keeps working on its own when it is down.
 | object | OpenNebula | claugine |
 |---|---|---|
 | tenant | group `tenant-<name>` | `acl_tenant_*`, `quota_*` |
-| tenant admin | user `admin-<name>`, admin of the group | `acl_tenant_set` |
-| users | users of the group, local or LDAP | |
+| tenant admin | user `admin-<name>`, admin of the group | |
+| roles | groups `sa-<name>`, `power-<name>`, `user-<name>`, `ro-<name>` - see [Roles](#roles) | `acl_tenant_set` |
+| users | users of the group, local or LDAP: primary group `tenant-<name>`, one role group as secondary | |
 | quota | group quotas per zone: CPU, RAM, disks, datastores | [tenant quotas](../data/quota.md) |
 | access | ACLs: the tenant's zones and clusters, its own resources, the shared images and templates, the VNet template | `acl_tenant_set` |
 | shared resources | group named by `shared_owner` in `platform.yaml` of the platform - owner of images and templates offered to all tenants | found by claugine |
+
+### Roles
+
+Rights are given to the role groups of the tenant, not to its users or its
+admin. The four role groups are created together with the tenant group, by
+the tenant creation - not part of claugine yet; `acl_tenant_set` expects
+them to exist. `acl_tenant_set` sets them for every zone and cluster of the tenant;
+every member of `tenant-<name>` gets the zones, clusters, datastores and the
+shared images and templates.
+
+| role | group | rights |
+|---|---|---|
+| SA - super admin | `sa-<name>` | everything of Power, plus: manage the tenant group and its role groups, manage the users of the tenant (`USE+MANAGE+ADMIN`), create users |
+| Power - power user | `power-<name>` | `USE+MANAGE` of the tenant's VMs, networks, images, templates, documents, security groups, virtual routers, backup jobs; create them; the marketplace and the VNet template; `MANAGE` of the hosts of its clusters |
+| User | `user-<name>` | `USE` of the tenant's networks, images, templates, documents, security groups; create VMs, templates, documents - its own VMs only; `MANAGE` of the hosts of its clusters |
+| RO - read only | `ro-<name>` | `USE` of all objects of the tenant, the marketplace, the VNet template, the hosts of its clusters |
+
+**Rule for the tenant admins: the primary group of every user is
+`tenant-<name>`, the role group is a secondary group.**
+
+The rights of the roles are given on the objects of the tenant group
+(`.../@<tenant group>`). A new VM, image or network belongs to the primary
+group of the user who creates it. If a user's primary group is a role group,
+the objects they create are outside the tenant group: the role ACLs do not
+cover them, and the other users of the tenant - and the creator in any role
+right beyond the owner's - lose control of them. This is expected: claugine
+does not add ACLs on the role groups; the tenant admins follow the rule.
+To fix an object created that way: `chgrp` it to `tenant-<name>`.
 
 Isolation:
 

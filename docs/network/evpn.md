@@ -35,5 +35,5 @@ endpoints. It has to be set on:
 | the OpenNebula VXLAN driver on the FE nodes | `evpn_vtep_vnm_patch`, `evpn_vtep_vnm_unpatch` |
 | running VM NICs | `evpn_vtep_nic_get` - shows NICs still on `dev` |
 
-The route reflectors run the VyOS image built by `vyos_image_build` /
-`vyos_image_finalize`, see [VyOS image](vyos-image.md).
+The route reflectors run the VyOS image built by `vyos_image_vm_create` /
+`vyos_image_to_platforms`, see [VyOS image](vyos-image.md).

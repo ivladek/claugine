@@ -11,8 +11,8 @@ zones.
 - Ubuntu and VyOS images from the latest ISOs
 
 claugine is a set of shell functions. You `source` it once with a data set
-describing your platforms, then call the functions - every command names its
-target platform from the inventory:
+describing your platforms, then call the functions - every command that works
+on a platform names it from the inventory:
 
 ```bash
 source bin/claugine                          # internal data and modules
@@ -31,9 +31,10 @@ Requirements: bash 4.3+, `jq`, `yq`, ssh with sudo to the FE nodes - see
 bin/claugine      loader of internal data and modules - source it; run it for help
 lib/              modules: claugine_<area>.sh
 config/           data of the tool: data/ (YAML), templates/, files/
-data/             a data set during development: inventory/, secrets/, runtime/;
-                  data/SAMPLE published, the rest ignored by git
-tests/            scenario scripts; your test data in claugine_TEST.sh
+data/             data sets: data/<set>/ - inventory/, secrets/, runtime/,
+                  tests-data.sh, jobs-data.sh; data/SAMPLE published, the rest ignored by git
+tests/            scenario scripts; data set: CLAUGINE_DATA=data/<set>
+jobs/             production scripts for cron; job data: the argument DATA=data/<set>/jobs-data.sh
 docs/             documentation
 ```
 

@@ -13,11 +13,8 @@
 !.gitignore
 
 # ---- sensitive data ----
-# data set: data/{inventory,secrets,runtime} - never published; data/SAMPLE - published sample
+# data sets: data/<set>/{inventory,secrets,runtime,tests-data.sh,jobs-data.sh} - never published;
+# data/SAMPLE - published sample; tests/ and jobs/ hold scripts only, their data is in the data set
 /data/**
 !/data/**/
 !/data/SAMPLE/**
-
-# ---- tests ----
-# real test data, sample is published: tests/claugine_TEST_SAMPLE.sh
-/tests/claugine_TEST.sh

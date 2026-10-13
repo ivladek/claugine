@@ -63,8 +63,9 @@ Any violation stops the load: `INV`, `SECRETS`,
 `RUNTIME` and `PLATFORMS` are cleared, and commands refuse to run until the
 inventory or the platform is fixed and the data loaded again.
 
-The inventory is the **only source of platform data**: every command names
-its target as an inventory platform, `platform=platforms.<site>.<platform>`.
+The inventory is the **only source of platform data**: every command that
+works on a platform names it as an inventory platform,
+`platform=platforms.<site>.<platform>`.
 What OpenNebula knows about it is collected into [`RUNTIME`](#runtime);
 what OpenNebula does not know - site directories and URLs, time zone,
 tenant quotas, the shared group name - is read from the inventory. Secrets
@@ -135,7 +136,7 @@ and run it again.
 | Tree | Defined by | Content | Published |
 |---|---|---|---|
 | `config/` | claugine developers | internal data, config file templates, files copied to targets - see [config.md](config.md) | yes, part of the tool |
-| data set | the end customer (provider) | `inventory/`, `secrets/`, `runtime/` | never, except `data/SAMPLE` |
+| data set | the end customer (provider) | `inventory/`, `secrets/`, `runtime/`, `tests-data.sh`, `jobs-data.sh` | never, except `data/SAMPLE` |
 
 ```
 claugine/
@@ -147,10 +148,14 @@ claugine/
     ├── inventory/          the target platforms, fixed structure - inventory.md
     ├── secrets/            sensitive values, free structure
     ├── runtime/            data collected while the tool runs
+    ├── tests-data.sh       values of tests/*.sh - see usage/tests.md
+    ├── jobs-data.sh        values of jobs/*.sh - see usage/jobs.md
     └── SAMPLE/             published sample data set with fake values
         ├── inventory/
         ├── secrets/
-        └── runtime/
+        ├── runtime/
+        ├── tests-data.sh
+        └── jobs-data.sh
 ```
 
 The data set does not have to be inside the repository: `data/` is used
