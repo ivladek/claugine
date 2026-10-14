@@ -261,7 +261,7 @@ function acl_tenant_set() {
       jq -r '.GROUP.ID'
     )
 
-    user_name="power-${tenant}"
+    user_name="user-${tenant}"
     user_id=$(
       $ssh ${vip} "sudo -u oneadmin onegroup show ${user_name} -j 2>/dev/null" |
       jq -r '.GROUP.ID'

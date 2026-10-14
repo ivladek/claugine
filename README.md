@@ -34,7 +34,8 @@ config/           data of the tool: data/ (YAML), templates/, files/
 data/             data sets: data/<set>/ - inventory/, secrets/, runtime/,
                   tests-data.sh, jobs-data.sh; data/SAMPLE published, the rest ignored by git
 tests/            scenario scripts; data set: CLAUGINE_DATA=data/<set>
-jobs/             production scripts for cron; job data: the argument DATA=data/<set>/jobs-data.sh
+jobs/             production scripts, by hand or by cron; job data: the argument datafile=data/<set>/jobs-data.sh
+binaries/         prebuilt images on Google Drive - the VyOS ISO and the VyOS image, see binaries/README.md
 docs/             documentation
 ```
 

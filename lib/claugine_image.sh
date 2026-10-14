@@ -126,7 +126,9 @@ help_data[image_upload]="\
     cluster=ID|NAME(0)       #   cluster: the image goes to its IMAGES datastore
     file=PATH                #   local file, copied to the FE by rsync
     name=STRING              #   image name
-    type=OS|CDROM|DATABLOCK  #"
+    type=OS|CDROM|DATABLOCK  #
+                             #   the group of the image: the shared group of the platform (platform.shared_owner),
+                             #     if the platform has one"
 function image_upload() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local fe vip
@@ -181,8 +183,19 @@ function image_upload() {
   image_wait platform="${platform}" image="${id}"
   result=$?
   $ssh ${fe} "sudo rm -f ${remote}"
-
   (( result != 0 )) && return 1
+
+  # the shared group of the platform owns the image: shared with all tenants by their ACLs
+  if [[ -n "${RUNTIME[${platform},shared]:-}" ]]
+  then
+    _log_std image="${name}" image_id="${id}" group_id="${RUNTIME[${platform},shared]}" action="chgrp_shared"
+    if ! $ssh ${fe} "sudo -u oneadmin oneimage chgrp ${id} ${RUNTIME[${platform},shared]}"
+    then
+      _log_error "can not set the shared group [${RUNTIME[${platform},shared]}] to image \"${name}\" [${id}]"
+      return 1
+    fi
+  fi
+
   return 0
 }  # image_upload
 

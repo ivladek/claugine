@@ -7,6 +7,8 @@
 - `_data_consistancy_check`, every violation is reported: every platform of the inventory has runtime data - its FE is reachable; every cluster has exactly one IMAGES and one VMS datastore, every such datastore belongs to a cluster; every federation OpenNebula reports - every zone is a platform (endpoint = `fe.vip`), exactly one `fe.mode: primary` lists all others in `fe.secondaries`, each of them is `fe.mode: secondary` with `fe.primary` to it
 - `acl_tenant_get`, `acl_tenant_set`, `quota_tenant_get`: groups below id 100 (`oneadmin`, `users`) and the shared group are never handled as tenants - `tenants=ALL` no longer touches their ACLs and quotas
 - `vm_create`: `addrN=auto` - OpenNebula leases a free IP of the VNet, no aliases
+- `binaries/` - new: the prebuilt VyOS 2026.03 ISO with the claugine scripts and the VyOS image qcow2 on Google Drive, the link in `binaries/README.md`; the files are ignored by git
+- `image_upload` - the new image goes to the shared group of the platform (`platform.shared_owner`), if it has one
 - `acl_tenant_set` - tenant roles: the rights go to the role groups `sa-<name>` (super admin), `power-<name>`, `user-<name>`, `ro-<name>` (read only) instead of the tenant admin user; users must have `tenant-<name>` as the primary group and a role group as a secondary one, see `docs/platform/payload.md`
 - `vyos_image_create` - new: `vyos_image_vm_create`, the wait for the power off (`limit=600`), `vyos_image_to_platforms` in one run
 - `vm_delete platform= vm=ID|NAME limit= confirm=` - new: terminate a VM and wait until it is gone; used by `vyos_image_to_platforms`

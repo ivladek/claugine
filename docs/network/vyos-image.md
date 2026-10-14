@@ -6,6 +6,7 @@ This document describes how claugine builds a VyOS Stream router image
 for OpenNebula and how VMs created from that image configure themselves.
 
 - [Result](#result)
+- [Prebuilt files](#prebuilt-files)
 - [How it works](#how-it-works)
 - [Before you start](#before-you-start)
 - [Files](#files)
@@ -26,6 +27,28 @@ for OpenNebula and how VMs created from that image configure themselves.
 - A local copy of the image, `vyos-<version>.qcow2`, in the local repository.
 - A VM created from the image applies the OpenNebula context on its first boot:
   addresses, gateway, routes, MTU, host name, user, password, ssh key, time zone.
+
+## Prebuilt files
+
+The result of a build, ready to use without building, is on Google Drive -
+the link is in [`binaries/README.md`](../../binaries/README.md). Download the
+files into `binaries/`; git ignores them there.
+
+| file | what | sha256 |
+|---|---|---|
+| `vyos-2026.03-generic-amd64-claugine.iso` | VyOS Stream 2026.03 ISO with the claugine scripts in `/claugine/` - the ISO of `vyos_image_vm_create` | `88321e6d346fa2e12bbb5c921919128fde4a98d9e98abbf09e896b674104b106` |
+| `vyos-2026.03.qcow2` | the VyOS image `VyOS Router 2026.03` - the local copy of `vyos_image_to_platforms`, configured by `vyos-image-prepare` | `04f7c624940c59fef8366bbcfb522e5b98a6aa6c1c7433b3bd14ce8c1e3177b9` |
+
+Check a downloaded file: `sha256sum binaries/<file>`. Put the image on a platform:
+
+```bash
+image_upload platform=platforms.dc1.payload1 file=binaries/vyos-2026.03.qcow2 name="VyOS Router 2026.03" type=OS
+```
+
+The image has user `vyos` with the default password of `config/data/vms.yaml`;
+a VM created from it gets its user, password, key and network from the
+context on the first boot - see [VMs created from the image](#vms-created-from-the-image).
+A new VyOS release needs a new build: `jobs/create-vyos-image.sh`.
 
 ## How it works
 

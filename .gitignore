@@ -7,6 +7,10 @@
 # old code
 /_archive/
 
+# prebuilt images: on Google Drive, see binaries/README.md
+/binaries/*
+!/binaries/README.md
+
 # hidden files and directories anywhere: editor, OS and FUSE leftovers
 .*
 # ... except this file

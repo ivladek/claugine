@@ -61,7 +61,7 @@ command for each.
 
 | Command | Parameters | What it does |
 |---|---|---|
-| `image_upload` | `platform=NAME` `file=` `name=` `type=` `[cluster=]` | new image from a local file, copied to the FE by rsync into the IMAGES datastore of the cluster (default `0`); an existing image with the name is deleted if unused, renamed otherwise |
+| `image_upload` | `platform=NAME` `file=` `name=` `type=` `[cluster=]` | new image from a local file, copied to the FE by rsync into the IMAGES datastore of the cluster (default `0`); an existing image with the name is deleted if unused, renamed otherwise; the image goes to the shared group of the platform (`shared_owner`), if it has one |
 | `image_download` | `platform=NAME` `image=` `file=` | copy an image file from the datastore |
 | `image_archive` | `platform=NAME` `name=` | free an image name: delete or rename |
 | `image_wait` | `platform=NAME` `image=` | wait until an image is READY |
