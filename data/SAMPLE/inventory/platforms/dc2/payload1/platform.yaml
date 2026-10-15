@@ -1,3 +1,5 @@
+kind: shared
+state: deployed          # planned | deployed | updated | retired, see docs/data/inventory.md
 provider: providers.acme
 sa: secrets.acme.admins.sa
 shared_owner: shared      # group that owns the images and templates shared with tenants

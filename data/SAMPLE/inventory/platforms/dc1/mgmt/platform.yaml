@@ -1,2 +1,4 @@
+kind: mgmt
+state: deployed          # planned | deployed | updated | retired, see docs/data/inventory.md
 provider: providers.acme
 sa: secrets.acme.admins.sa

@@ -5,7 +5,7 @@
 
 # claugine: load if not loaded yet - the test can be run or sourced
 DIR_TESTS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if ! declare -F data_load_provider &>/dev/null
+if ! declare -F data_provider_load &>/dev/null
 then
   source "${DIR_TESTS}/../bin/claugine" || { return 1 2>/dev/null || exit 1; }
 fi
@@ -20,7 +20,7 @@ DIR_DATA="$(cd -- "${CLAUGINE_DATA}" && pwd)"
 source "${DIR_DATA}/tests-data.sh" || { return 1 2>/dev/null || exit 1; }
 
 # user data: load if not loaded yet - test_inv, test_secrets, test_runtime of the test data
-[[ "${INV:-}" != "{}" && -n "${INV:-}" ]] || data_load_provider inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}" || { return 1 2>/dev/null || exit 1; }
+[[ "${INV:-}" != "{}" && -n "${INV:-}" ]] || data_provider_load inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}" || { return 1 2>/dev/null || exit 1; }
 
 # run one check in a subshell - its output is shown - and count the result
 #   name=TEXT                # what is checked
@@ -48,14 +48,15 @@ function test_check() {
 test_check name="fe_cfg_ver_get" cmd="fe_cfg_ver_get platform=${test_platform}" expect=0
 test_check name="fe_configs_backups_list" cmd="fe_configs_backups_list platform=${test_platform}" expect=0
 test_check name="acl_role_rights_get" cmd="acl_role_rights_get platform=${test_platform}" expect=0
-test_check name="quota_vcpu_conf_show" cmd="quota_vcpu_conf_show platform=${test_platform}" expect=0
 # evpn: 1 - VXLAN_TEP=dev found, an answer, not an error
 test_check name="evpn_vtep_nic_get" cmd="evpn_vtep_nic_get platform=${test_platform}" expect=any
 test_check name="evpn_vtep_vnet_get" cmd="evpn_vtep_vnet_get platform=${test_platform}" expect=any
 
 if [[ -n "${test_tenant:-}" ]]
 then
-  test_check name="quota_tenant_get" cmd="quota_tenant_get platform=${test_platform} tenant=${test_tenant}" expect=0
+  test_check name="quota_tenant_show" cmd="quota_tenant_show platform=${test_platform} tenant=${test_tenant}" expect=0
+  test_check name="quota_tenants_report" cmd="quota_tenants_report platform=${test_platform} tenants=${test_tenant}" expect=0
+  test_check name="quota_tenant_set dry run" cmd="quota_tenant_set platform=${test_platform} tenants=${test_tenant}" expect=0
   test_check name="acl_tenant_get on the primary" cmd="acl_tenant_get platform=${test_platform} tenants=${test_tenant}" expect=0
   test_check name="acl_tenant_get from the secondary" cmd="acl_tenant_get platform=${test_secondary} tenants=${test_tenant}" expect=0
 else

@@ -6,7 +6,7 @@ Every command with its main parameters. `bin/claugine` lists all commands;
 `bin/claugine PATTERN` prints the full help, with all parameters and
 defaults, of every command with PATTERN in its name - see
 [help](README.md#help). `platform=` is the first parameter of every command
-that works on a platform (`data_load_provider`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform): `platform=NAME` - exactly one platform, the full name
+that works on a platform (`data_provider_load`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform): `platform=NAME` - exactly one platform, the full name
 `platforms.<site>.<platform>`. To work on several platforms, call the
 command for each.
 
@@ -14,8 +14,8 @@ command for each.
 
 | Command | Parameters | What it does |
 |---|---|---|
-| `data_load_provider` | `inv=PATH` `secrets=PATH` `runtime=PATH` | load user data: the inventory and secrets, collect the runtime data of every platform, check every federation - inconsistent data is not loaded; again - switch to another data set |
-| `data_runtime_refresh` | `[platform=NAME]` `[fe=yes]` | check that user data is loaded and the platform name; collect the runtime data of the platform if missing, `fe=yes` - read the FE nodes again; every command calls it first |
+| `data_provider_load` | `inv=PATH` `secrets=PATH` `runtime=PATH` `[quota=load\|SKIP]` | load user data: the inventory and secrets, collect the runtime data of every platform, check the data (inventory, every platform, every federation) - inconsistent data is not loaded; `quota=load` - then the tenant quotas of every platform of kind `shared`; again - switch to another data set |
+| `data_platform_refresh` | `[platform=NAME]` `[fe=yes]` `[quota=SKIP\|load\|refresh\|reload]` `[tenants=]` | check that user data is loaded and the platform name; collect the runtime data of the platform if missing, `fe=yes` - read the FE nodes again; `quota=load\|refresh` - the platform must be kind `shared`, the tenant quotas into `QUOTA` if missing: `limit` from the group template, `real` from the group quotas, `usage`; loaded - `refresh` reads the `usage` again, `reload` - limit, real and usage again; `tenants=` - only these tenants; every command calls it first, tenant commands with `quota=load` |
 | `inv_value` | `var=` `path=` | a value of a loaded document: `var=CONFIG\|TEMPLATES\|INV\|SECRETS` |
 | `inv_list` | `var=` `path=` | the items of a list, one per line |
 | `inv_keys` | `var=` `path=` | the keys of an object, one per line |
@@ -26,7 +26,6 @@ command for each.
 
 | Command | Parameters | What it does |
 |---|---|---|
-| `fe_data_refresh` | `platform=NAME` | collect the runtime data of the platform again: zone, FE nodes, datastores, VNet template, shared group; `data_load_provider` collects it for every platform |
 | `fe_cfg_ver_get` | `platform=NAME` | show config and DB versions on each FE node |
 | `fe_backup` | `platform=NAME` `[full=yes\|NO]` | back up the OpenNebula DB (and configs with `full=yes`) to `repos.backups.local_dir` of the site |
 | `fe_configs_backups_list` | `platform=NAME` | list config backups on the FE nodes |
@@ -88,8 +87,8 @@ command for each.
 |---|---|---|
 | `acl_role_rights_get` | `platform=NAME` | show VM ADMIN/MANAGE/USE operation sets in `oned.conf` |
 | `acl_role_rights_set` | `platform=NAME` `[confirm=yes]` | apply the operation sets of `configs.oned.vm_operations` in `config/data/onefe.yaml` |
-| `acl_tenant_get` | `platform=NAME` `[tenants=]` | show ACLs of tenants, read on the primary platform of the federation |
-| `acl_tenant_set` | `platform=NAME` `[tenants=]` `[dry=YES\|no]` `[confirm=yes]` | replace ACLs of tenants for every zone of the federation - the primary and its `fe.secondaries` - on the primary platform; the rights go to the role groups `sa-`, `power-`, `user-`, `ro-<name>` of each tenant, see [Roles](../platform/payload.md#roles); dry run by default |
+| `acl_tenant_get` | `platform=NAME` `[tenants=]` | show the quota records of every zone with their clusters (`QUOTA`, needs `data_provider_load quota=load`) and the ACLs of tenants - the tenant group, its role groups, the admin - read on the primary platform of the federation |
+| `acl_tenant_set` | `platform=NAME` `[tenants=]` `[dry=YES\|no]` `[confirm=yes]` | needs the quota data of every zone (`data_provider_load quota=load`); delete then create ACLs of tenants for every zone of the federation - the primary and its `fe.secondaries` - on the primary platform; the rights go to the role groups `sa-`, `power-`, `user-`, `ro-<name>` of each tenant, see [Roles](../platform/payload.md#roles); the clusters - only those of the tenant's `QUOTA_<SITE>_<QR>` attributes, see [tenant quotas](../data/quota.md); a tenant without them - a warning, its ACLs untouched; dry run by default |
 
 ## Quotas (`quota_*`)
 
@@ -97,9 +96,9 @@ Quota records and fields: [tenant quotas](../data/quota.md).
 
 | Command | Parameters | What it does |
 |---|---|---|
-| `quota_tenant_get` | `platform=NAME` `tenant=` | show a tenant's quotas and usage |
-| `quota_ds_set` | `platform=NAME` `[tenants=]` `[confirm=yes]` | apply datastore quotas from `patch.yaml` of the zone's inventory platform; needs a data set |
-| `quota_vcpu_conf_show` | `platform=NAME` | show vCPU-based quota configuration |
+| `quota_tenant_set` | `platform=NAME` `[tenants=]` `[dry=YES\|no]` `[confirm=yes]` | set the group quotas of the tenants in the zone of the platform, one template per tenant: a VM quota for every cluster of the platform - per qr of the platform (`CLUSTER_IDS` - its clusters): the tenant's qr - its limits (VMS, CPU = cpu x 2, RUNNING_VMS, RUNNING_CPU = cpu, no VCPU; MEMORY = ram x 2, RUNNING_MEMORY = ram; SYSTEM_DISK_SIZE = disk; PCI_DEV = gpu), other qrs - all `-1`; per cluster without `quota_code` - all `-1`; a datastore quota per datastore of the tenant (SIZE; IMAGES = -1); access to the clusters - the ACLs; dry run by default |
+| `quota_tenant_show` | `platform=NAME` `tenant=` | a tenant's quotas per record and datastore: limit/real/usage, usage read again |
+| `quota_tenants_report` | `platform=NAME` `[tenants=]` | a table of the tenants' quotas, a row per record and per datastore, limit/real/usage and a check: `ok`, `differ` (real is not the quota of the limit), `exceeded` (usage over real), `no_clusters` |
 | `quota_cpu_to_vcpu_set` | `platform=NAME` `[confirm=yes]` | set each VM's CPU equal to its vCPU |
 
 ## Other

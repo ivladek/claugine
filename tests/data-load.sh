@@ -5,7 +5,7 @@
 
 # claugine: load if not loaded yet - the test can be run or sourced
 DIR_TESTS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if ! declare -F data_load_provider &>/dev/null
+if ! declare -F data_provider_load &>/dev/null
 then
   source "${DIR_TESTS}/../bin/claugine" || { return 1 2>/dev/null || exit 1; }
 fi
@@ -43,19 +43,19 @@ function test_check() {
 }  # test_check
 
 # always load: loading is what is tested; the federation check runs inside
-data_load_provider inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}"
-test_check name="data_load_provider" cmd="[[ -n \"\${INV:-}\" && \"\${INV}\" != '{}' ]]" expect=0
+data_provider_load inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}"
+test_check name="data_provider_load" cmd="[[ -n \"\${INV:-}\" && \"\${INV}\" != '{}' ]]" expect=0
 
-# runtime data of test_platform, collected by data_load_provider
+# runtime data of test_platform, collected by data_provider_load
 for key in id name state leader,ip
 do
   test_check name="RUNTIME[${test_platform},${key}]" cmd="[[ -n \"\${RUNTIME[${test_platform},${key}]:-}\" ]]" expect=0
 done  # key
 
 # federation: test_secondary is listed in fe.secondaries of test_platform, and names it as primary
-test_check name="fe.secondaries of ${test_platform}" cmd="inv_list var=INV path=${test_platform}.fe.secondaries | grep -qx ${test_secondary}.fe" expect=0
-test_check name="fe.primary of ${test_secondary}" cmd="[[ \"\$(inv_value var=INV path=${test_secondary}.fe.primary)\" == ${test_platform}.fe ]]" expect=0
-test_check name="consistency check again" cmd="_data_consistancy_check" expect=0
+test_check name="fe.secondaries of ${test_platform}" cmd="inv_list var=INV path=${test_platform}.fe.secondaries | grep -qx ${test_secondary}" expect=0
+test_check name="fe.primary of ${test_secondary}" cmd="[[ \"\$(inv_value var=INV path=${test_secondary}.fe.primary)\" == ${test_platform} ]]" expect=0
+test_check name="consistency check again" cmd="_data_check" expect=0
 
 # getters, one per shape of the data
 test_check name="inv_value: fe.vip" cmd="[[ -n \"\$(inv_value var=INV path=${test_platform}.fe.vip)\" ]]" expect=0

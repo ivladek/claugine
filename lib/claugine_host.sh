@@ -22,7 +22,7 @@ function host_maintenance_off() {
   local start now
   local host json id name state vms cluster_id cluster_name vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   if [[ -z "${hosts:-}" ]]
@@ -102,7 +102,7 @@ function host_maintenance_on() {
   local host json id name state vms cluster_id cluster_name vip
   local ids=""
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   if [[ -z "${hosts:-}" ]]

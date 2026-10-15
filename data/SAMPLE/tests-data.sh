@@ -5,7 +5,7 @@ set -u
 #   copy to data/<set>/tests-data.sh and set your values
 #   not loaded by bin/claugine, each test sources it from CLAUGINE_DATA, its directory is DIR_DATA
 
-# user data loaded by the tests with data_load_provider, if nothing is loaded yet
+# user data loaded by the tests with data_provider_load, if nothing is loaded yet
 test_inv="${DIR_DATA}/inventory"
 test_secrets="${DIR_DATA}/secrets"
 test_runtime="${DIR_DATA}/runtime"

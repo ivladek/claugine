@@ -1,5 +1,6 @@
 shared-std01_dc1:
-  type: shared
+  quota_code: STD01
+  kind: shared
   hosts:
     - resources.dc1.hosts.hdc1std1kvm011
     - resources.dc1.hosts.hdc1std1kvm012
@@ -11,7 +12,8 @@ shared-std01_dc1:
     - resources.dc1.networks.payload1-vxlan
 
 shared-gpu01_dc1:
-  type: shared
+  quota_code: GPU01
+  kind: shared
   hosts:
     - resources.dc1.hosts.hdc1gpu1kvm020
   network:

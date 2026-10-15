@@ -24,7 +24,7 @@ function evpn_vtep_nic_get() {
   local vm_id json name nic vtep vip
   local result=0
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="evpn_vtep_nic_get"
   for vm_id in $(
@@ -79,7 +79,7 @@ function evpn_vtep_vnet_get() {
   local vnet_id json name type vtep vip
   local result=0
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="evpn_vtep_vnet_get"
 
@@ -128,7 +128,7 @@ function evpn_vtep_vnet_set() {
   local node
   local vnet_id json name type vtep vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="evpn_vtep_vnet_set"
   _stop_without_confirmation confirm=${confirm:-no} && return 1
@@ -182,7 +182,7 @@ function evpn_vtep_vnm_patch() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node file vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="vnm_evpn_vtep_vnm_patch"
   _stop_without_confirmation confirm=${confirm:-no} && return 1
@@ -255,7 +255,7 @@ function evpn_vtep_vnm_unpatch() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node file vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="evpn_vtep_vnm_unpatch"
   _stop_without_confirmation confirm=${confirm:-no} && return 1

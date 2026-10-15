@@ -10,9 +10,9 @@ summary line `tests=N passed=N failed=N` and returns `1` if any check failed.
 
 | Script | Checks | Test data |
 |---|---|---|
-| `data-load.sh` | `data_load_provider`; `RUNTIME` of `test_platform` (zone id, name, state, leader IP); `fe.secondaries` of the primary and `fe.primary` of the secondary; `_data_consistancy_check`; the `inv_*` getters, a missing path gives an empty value | `test_inv`, `test_secrets`, `test_runtime`, `test_platform`, `test_secondary` |
-| `platform-name.sh` | `data_runtime_refresh`: no `platform=` - `0`; a full name - `0`; empty, list, short or unknown name - `1`; a command without `platform=` - `1` | `test_platform` |
-| `read-only.sh` | `fe_cfg_ver_get`, `fe_configs_backups_list`, `acl_role_rights_get`, `quota_vcpu_conf_show`, `evpn_vtep_*_get`; with `test_tenant`: `quota_tenant_get`, `acl_tenant_get` on the primary and from the secondary | `test_platform`, `test_secondary`, `test_tenant` |
+| `data-load.sh` | `data_provider_load`; `RUNTIME` of `test_platform` (zone id, name, state, leader IP); `fe.secondaries` of the primary and `fe.primary` of the secondary; `_data_check`; the `inv_*` getters, a missing path gives an empty value | `test_inv`, `test_secrets`, `test_runtime`, `test_platform`, `test_secondary` |
+| `platform-name.sh` | `data_platform_refresh`: no `platform=` - `0`; a full name - `0`; empty, list, short or unknown name - `1`; a command without `platform=` - `1` | `test_platform` |
+| `read-only.sh` | `fe_cfg_ver_get`, `fe_configs_backups_list`, `acl_role_rights_get`, `evpn_vtep_*_get`; with `test_tenant`: `quota_tenant_show`, `quota_tenants_report`, `quota_tenant_set` dry run, `acl_tenant_get` on the primary and from the secondary | `test_platform`, `test_secondary`, `test_tenant` |
 | `fe-backup-job.sh` | `jobs/fe-backup.sh` offline, claugine, `ip` and `curl` replaced by stand-ins in a temporary directory: no `DATA=`, an unknown site, claugine not found, data not loaded - reported, no backups; all backups ok - `0` and one report per platform of the site; one backup fails - `1`, the others still run; claugine output in the log; new logs on every run | `test_jobs_data` - its `SITES` |
 | `acl-tenant-dry.sh` | `acl_tenant_set dry=yes`: from the secondary it switches to the primary and builds one ZONE ACL per federation zone at most; on `test_platform_local` - one zone at most. Skipped if `test_tenant` is empty | `test_secondary`, `test_platform_local`, `test_tenant` |
 
@@ -46,7 +46,7 @@ Common values:
 
 | Variable | Meaning |
 |---|---|
-| `test_inv`, `test_secrets`, `test_runtime` | the data set loaded with `data_load_provider` |
+| `test_inv`, `test_secrets`, `test_runtime` | the data set loaded with `data_provider_load` |
 | `test_platform` | platform of the test objects; for the federation checks - the primary of a federation |
 | `test_secondary` | a secondary of the federation of `test_platform` (listed in its `fe.secondaries`) |
 | `test_platform_local` | a platform without a federation |
@@ -59,7 +59,7 @@ The sample values match `data/SAMPLE`: `platforms.dc1.payload1` is the primary,
 ## Running
 
 A script loads claugine if it is not loaded yet, so it can be run or
-sourced. If no user data is loaded, it calls `data_load_provider` with `test_inv`,
+sourced. If no user data is loaded, it calls `data_provider_load` with `test_inv`,
 `test_secrets` and `test_runtime` of the test data:
 
 ```bash

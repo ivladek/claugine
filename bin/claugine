@@ -27,6 +27,9 @@ function _script_INIT() {
 
   declare -gr INV_VARS="CONFIG TEMPLATES INV SECRETS"
   declare -gA RUNTIME=()       # collected runtime data
+  declare -gA QUOTA=()         # tenant quotas: limit, real, usage
+  declare -g QUOTA_LOADED=""   # yes - the quota data of all shared platforms loaded
+  declare -g DEPLOYMENT=""     # required - a planned, updated or retired platform, an undeployed cluster: only deployment operations
   declare -g DIR_RUNTIME=""    # directory to export runtime data
   export ssh                   # ssh command including all required keys
   declare -gA help_data=()     # help: command name -> help text
@@ -142,9 +145,11 @@ function _script_MAIN() {
     then
       _log "data: loaded"
       _log "platforms: [${PLATFORMS}]"
+      [[ -n "${PLATFORMS_PLANNED:-}" ]] && _log "planned: [${PLATFORMS_PLANNED}]"
+      [[ "${DEPLOYMENT:-}" == "required" ]] && _log "deployment: required - only deployment operations are enabled"
     else
       _log "data: not loaded"
-      _log "to load data use: data_load_provider inv=PATH secrets=PATH runtime=PATH"
+      _log "to load data use: data_provider_load inv=PATH secrets=PATH runtime=PATH [quota=load|SKIP]"
     fi
   else
     echo "script: not loaded"

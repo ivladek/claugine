@@ -55,7 +55,7 @@ then
   echo "create-vyos-image: claugine not loaded, no image created"
   exit 1
 fi
-if ! data_load_provider \
+if ! data_provider_load \
   inv="${PROVIDER}/inventory" \
   secrets="${PROVIDER}/secrets" \
   runtime="${PROVIDER}/runtime"

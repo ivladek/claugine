@@ -34,7 +34,7 @@ git clone https://github.com/ivladek/claugine.git ~/code/claugine
 ## Data set
 
 User data - the inventory and the secrets - is loaded after claugine with
-`data_load_provider`; the inventory is the only source of platform data - see
+`data_provider_load`; the inventory is the only source of platform data - see
 [data](../data/README.md). Every command finds its FE by the
 `vip` in `fe.yaml` of the platform, and reads from the inventory what
 OpenNebula does not know:
@@ -45,7 +45,7 @@ OpenNebula does not know:
 | backups directory | `repos.backups.local_dir` of the platform's site | `fe_backup` |
 | local repository of images and ISOs | `repos.zakroma.local_dir` of the site: `<local_dir>/ubuntu`, `<local_dir>/vyos`, ... | `iso_get_*`, `vyos_image_*` |
 | time zone of VMs | `timezone` of the platform's site | `vm_create` without `tz=` |
-| tenant datastore quotas | `patch.yaml` of the platform | `quota_ds_set` |
+| tenant quotas | `QUOTA_<SITE>_<QR>` and `QUOTA_<SITE>` of the tenant group, `config/data/quota.yaml` defaults | `quota_tenant_set` |
 | shared group | `shared_owner` in `platform.yaml` | tenant commands |
 
 Start your data set from the sample:
@@ -61,11 +61,11 @@ your data (run directly, `bin/claugine` only prints [help](#help)):
 
 ```bash
 source ~/code/claugine/bin/claugine                 # internal data and modules
-data_load_provider inv=~/claugine-data/inventory \
+data_provider_load inv=~/claugine-data/inventory \
   secrets=~/claugine-data/secrets runtime=~/claugine-data/runtime
 ```
 
-`data_load_provider` collects the runtime data of every platform from its FE
+`data_provider_load` collects the runtime data of every platform from its FE
 and checks the data: every cluster has exactly one IMAGES and one VMS
 datastore, and every such datastore belongs to a cluster; every zone of a
 federation is a platform of the inventory, the primary (`fe.mode: primary`)
@@ -82,11 +82,11 @@ Start-up options of `source bin/claugine`, all optional:
 | `ssh_port=N` | `22` |
 | `ssh_keyf=FILE` | `~/.ssh/${USER}.key` - the init stops with an error if the key can not be read, its public key is `SSH_PUB` |
 
-All three parameters of `data_load_provider` are required; the runtime directory is
+All three parameters of `data_provider_load` are required; the runtime directory is
 created if missing.
 
 The loader prints what it loaded into `CONFIG` and `TEMPLATES`, the modules,
-the tool check; `data_load_provider` - statistics of `INV` and
+the tool check; `data_provider_load` - statistics of `INV` and
 `SECRETS` (see [loading a tree](../data/README.md#loading-a-tree)), the
 runtime directory and the platforms of the inventory:
 `platforms.dc1.mgmt platforms.dc1.payload1 ...` - full names, as commands take them.
@@ -108,14 +108,14 @@ patterns is printed twice.
 
 A direct run is a separate process: it reads the help texts of the modules
 itself; the data status comes from the exported `PLATFORMS` - the platforms
-loaded by `data_load_provider` in your shell. In a shell where claugine was
+loaded by `data_provider_load` in your shell. In a shell where claugine was
 never loaded, a direct run prints `script: not loaded` and how to load it.
 
 ## Platforms
 
 Parameters are always `name=value`. Every command that works on a platform
 names it as an inventory platform - the first parameter, `platform=`;
-`data_load_provider`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform:
+`data_provider_load`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform:
 
 ```bash
 fe_cfg_ver_get platform=platforms.dc1.payload1      # exactly one platform, the full name
@@ -129,23 +129,20 @@ for p in platforms.dc1.payload1 platforms.dc2.payload1; do fe_services_restart p
   platform: give any platform of the federation, the command goes to the
   primary and says so.
 
-There is no context to load and no platform to switch to. `data_load_provider`
+There is no context to load and no platform to switch to. `data_provider_load`
 collects what OpenNebula knows about every platform - zone, FE nodes,
 datastores, VNet template, shared group - and keeps it for the shell
 session; FE node states are read again at the start of every FE operation.
-`data_runtime_refresh` does it for a command - and can be called directly:
+`data_platform_refresh` does it for a command - and can be called directly:
 
 ```bash
-data_runtime_refresh platform=platforms.dc1.payload1 fe=yes
+data_platform_refresh platform=platforms.dc1.payload1 fe=yes
 ```
 
-To collect everything of one platform again:
+To collect everything again - all platforms, checked again:
+`data_provider_load` with the same parameters.
 
-```bash
-fe_data_refresh platform=platforms.dc1.payload1
-```
-
-The platforms of the inventory are printed by `data_load_provider`; an unknown
+The platforms of the inventory are printed by `data_provider_load`; an unknown
 platform is rejected when a command touches it.
 
 ## Confirmation
@@ -161,7 +158,8 @@ Read-only:
 
 ```bash
 fe_cfg_ver_get platform=platforms.dc1.payload1          # config and DB versions on every FE node
-quota_tenant_get platform=platforms.dc1.payload1 tenant=romashka # a tenant's quotas and usage
+quota_tenant_show platform=platforms.dc1.payload1 tenant=romashka # a tenant's quotas: limit/real/usage
+quota_tenants_report platform=platforms.dc1.payload1               # all tenants, with a check column
 evpn_vtep_vnet_get platform=platforms.dc1.payload1               # VTEP settings of VXLAN networks
 acl_tenant_get platform=platforms.dc2.payload1 tenants=romashka  # read on the primary, dc1.payload1
 ```
@@ -186,7 +184,8 @@ Tenants:
 ```bash
 acl_tenant_set platform=platforms.dc1.payload1 tenants=romashka          # dry run: shows the ACLs it would set
 acl_tenant_set platform=platforms.dc1.payload1 tenants=romashka dry=no
-quota_ds_set platform=platforms.dc1.payload1 tenants=romashka            # datastore quotas from patch.yaml
+quota_tenant_set platform=platforms.dc1.payload1 tenants=romashka        # dry run: shows the quota templates
+quota_tenant_set platform=platforms.dc1.payload1 tenants=romashka dry=no
 ```
 
 Images:

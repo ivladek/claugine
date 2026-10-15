@@ -44,7 +44,9 @@ site keeps working on its own when it is down.
 Rights are given to the role groups of the tenant, not to its users or its
 admin. The four role groups are created together with the tenant group, by
 the tenant creation - not part of claugine yet; `acl_tenant_set` expects
-them to exist. `acl_tenant_set` sets them for every zone and cluster of the tenant;
+them to exist. `acl_tenant_set` sets them for every cluster of the tenant's
+`QUOTA_<SITE>_<QR>` group attributes ([tenant quotas](../data/quota.md)) - a cluster
+not in them gets no ACLs; the attributes are shown at the platform data load; `acl_tenant_get` shows them with the ACLs;
 every member of `tenant-<name>` gets the zones, clusters, datastores and the
 shared images and templates.
 

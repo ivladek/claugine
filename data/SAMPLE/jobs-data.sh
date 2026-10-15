@@ -9,7 +9,7 @@ set -u
 USER="${USER:-claugine}"
 HOME="${HOME:-/home/${USER}}"
 
-# claugine loader, the data set to load with data_load_provider (inventory, secrets, runtime), logs of the jobs (see the cron lines)
+# claugine loader, the data set to load with data_provider_load (inventory, secrets, runtime), logs of the jobs (see the cron lines)
 CLAUGINE="${HOME}/claugine/bin/claugine"
 PROVIDER="${HOME}/claugine/data/SAMPLE"
 LOGS="${HOME}/backups"
@@ -33,6 +33,9 @@ FIREEDGE_VIEWS_PLATFORMS="platforms.dc1.payload1 platforms.dc2.payload1"
 
 # acl-reset.sh: the platforms of the ACLs, separated by spaces - a secondary is replaced by its primary
 ACL_PLATFORMS="platforms.dc1.payload1"
+
+# quota-set.sh, quota-list.sh, quota-show.sh: the platforms of kind shared, separated by spaces - the quotas are per zone
+QUOTA_PLATFORMS="platforms.dc1.payload1 platforms.dc2.payload1"
 
 # fe-backup.sh: Telegram report of each backup - bot sendMessage url with its token, and the chat id
 REPORT_URL="https://api.telegram.org/bot<BOT_TOKEN>/sendMessage"

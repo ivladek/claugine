@@ -65,7 +65,7 @@ then
   echo "acl-reset: claugine not loaded, no ACLs changed"
   exit 1
 fi
-if ! data_load_provider \
+if ! data_provider_load \
   inv="${PROVIDER}/inventory" \
   secrets="${PROVIDER}/secrets" \
   runtime="${PROVIDER}/runtime"
@@ -86,7 +86,6 @@ do
     continue
   fi
   primary=$(inv_value var=INV path=${platform}.fe.primary)
-  primary="${primary%.fe}"
   primary="${primary:-${platform}}"
   [[ " ${primaries} " == *" ${primary} "* ]] || primaries+="${primaries:+ }${primary}"
 done  # platform

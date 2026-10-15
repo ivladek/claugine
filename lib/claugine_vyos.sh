@@ -69,7 +69,7 @@ function vyos_image_to_platforms() {
   local fe json vm_id vm_name ver disk_id out tmp_name tmp_id file iso_id
   local vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   fe=${vip}
   site="${platform#platforms.}"
@@ -128,7 +128,11 @@ function vyos_image_to_platforms() {
   image_upload platform="${platform}" file="${file}" name="${name}" type=OS cluster="${cluster:-0}" || return 1
 
   # 4. publish to the target platforms: all or empty - every platform; the platform of the image VM is done
-  [[ -z "${target}" || "${target,,}" == "all" ]] && target="${PLATFORMS}"
+  if [[ -z "${target}" || "${target,,}" == "all" ]]
+  then
+    # every available platform
+    target=$(for member in ${PLATFORMS}; do [[ "${RUNTIME[${member},available]:-}" == "yes" ]] && echo "${member}"; done | xargs)
+  fi
   for member in ${target}
   do
     [[ "${member}" == "${platform}" ]] && continue
@@ -187,7 +191,7 @@ function vyos_image_vm_create() {
     return 1
   fi
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   fe=${vip}
 
@@ -215,8 +219,7 @@ function vyos_image_vm_create() {
   iso_name="${vm_name} ISO"
 
   # the default password of the image: config/data/vms.yaml, the only place of it
-  pswd=$(inv_value var=CONFIG path=vms.password)
-  if [[ -z "${pswd}" ]]
+  if ! pswd=$(inv_value var=CONFIG path=vms.password)
   then
     _log_error "password not defined in config/data/vms.yaml"
     return 1

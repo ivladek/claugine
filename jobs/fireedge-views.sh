@@ -53,7 +53,7 @@ then
   echo "fireedge-views: claugine not loaded, no views updated"
   exit 1
 fi
-if ! data_load_provider \
+if ! data_provider_load \
   inv="${PROVIDER}/inventory" \
   secrets="${PROVIDER}/secrets" \
   runtime="${PROVIDER}/runtime"

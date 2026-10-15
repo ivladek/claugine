@@ -1,0 +1,9 @@
+# default datastore quotas of a tenant, GB: used when QUOTA_<SITE> of the tenant group has no value
+#   files_gb   - the FILE datastore of the platform
+#   images_gb  - per quota record: added to the IMAGE datastore of the clusters of the record,
+#                two records on clusters with one IMAGE datastore - 2 x images_gb on it
+#   backups_gb - the BACKUP datastore of the platform
+defaults:
+  files_gb: 1
+  images_gb: 10
+  backups_gb: 0

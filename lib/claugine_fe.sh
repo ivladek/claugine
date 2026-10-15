@@ -9,7 +9,6 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 #   fe_cfg_ver_get              show current and required version for configuration and db
 #   fe_configs_backups_cleanup  cleanup all configs backups created during upgrade
 #   fe_configs_backups_list     show directories with configs backups created during upgrade
-#   fe_data_refresh             collect the runtime data of a platform again: zone, FE nodes, datastores
 #   fe_disk_cleanup             clean data from /var/tmp after unsuccessful image loading
 #   fe_fireedge_restart         restart fireedge service on FE
 #   fe_fireedge_views_update    distribute updated Fireedge views to FE
@@ -32,7 +31,7 @@ function fe_backup() {
   local dir_backups vip site
   local errors=0
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   # backup directory of the site of the platform
@@ -140,7 +139,7 @@ function fe_cfg_ver_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node cfg cur new vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="cfg_ver_get"
 
@@ -174,7 +173,7 @@ function fe_configs_backups_cleanup() {
   local src="${src:-${DIR_FILES}/$(inv_value var=CONFIG path=onefe.fireedge_views.dir)}"
   local node vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="cleanup_configs_backups"
@@ -264,7 +263,7 @@ function fe_configs_backups_list() {
   local src="${src:-${DIR_FILES}/$(inv_value var=CONFIG path=onefe.fireedge_views.dir)}"
   local node vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="list_configs_backups"
@@ -284,23 +283,6 @@ function fe_configs_backups_list() {
 
 
 
-help_data[fe_data_refresh]="\
-  fe_data_refresh            # collect the runtime data of a platform again: zone, FE nodes, datastores,
-                             # VNet template, shared group; every command collects it the first time
-                             # it touches a platform, this command only refreshes it
-    platform=NAME            #   platforms.<site>.<platform>"
-function fe_data_refresh() {
-  local arg; for arg in "$@"; do local "${arg}"; done
-
-  # forget what was collected: data_runtime_refresh collects it again
-  unset "RUNTIME[${platform:-},zone_id]"
-  data_runtime_refresh platform="${platform:-}" || return 1
-
-  return 0
-}  # fe_data_refresh
-
-
-
 help_data[fe_disk_cleanup]="\
   fe_disk_cleanup            # clean data from /var/tmp after unsuccessful image loading
     platform=NAME            #   platforms.<site>.<platform>
@@ -309,7 +291,7 @@ function fe_disk_cleanup() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="disk_cleanup"
   _stop_without_confirmation confirm=${confirm:-no} && return 1
@@ -342,7 +324,7 @@ function fe_fireedge_restart() {
   local node vip
   local service="opennebula-fireedge"
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="fireedge_restart"
   _stop_without_confirmation confirm=${confirm:-no} && return 1
@@ -373,7 +355,7 @@ function fe_fireedge_views_update() {
   local src="${src:-${DIR_FILES}/$(inv_value var=CONFIG path=onefe.fireedge_views.dir)}"
   local node view vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="fireedge_views_update"
@@ -405,7 +387,7 @@ function fe_os_update() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node service type hosts vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="os_update"
   hosts=" $($ssh ${vip} "sudo -u oneadmin onehost list --no-header -l NAME 2>/dev/null" | tr -d '[:blank:]' | xargs) "  # KVM hosts of the zone
@@ -453,7 +435,7 @@ function fe_os_update() {
   $ssh ${vip} "sudo -u oneadmin onezone list 2>/dev/null"
   $ssh ${vip} "sudo -u oneadmin onezone show ${RUNTIME[${platform},id]} 2>/dev/null"
 
-  data_runtime_refresh platform="${platform:-}" fe=yes
+  data_platform_refresh platform="${platform:-}" fe=yes
   fe_cfg_ver_get platform="${platform}"
 
   return 0
@@ -469,7 +451,7 @@ function fe_services_restart() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node service vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="services_restart"
   _stop_without_confirmation confirm=${confirm:-no} && return 1
@@ -497,7 +479,7 @@ function fe_services_restart() {
   $ssh ${vip} "sudo -u oneadmin onezone list 2>/dev/null"
   $ssh ${vip} "sudo -u oneadmin onezone show ${RUNTIME[${platform},id]} 2>/dev/null"
 
-  data_runtime_refresh platform="${platform:-}" fe=yes
+  data_platform_refresh platform="${platform:-}" fe=yes
 
   return 0
 }  # fe_services_restart

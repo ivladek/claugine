@@ -6,6 +6,7 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 
 # INDEX
 #   _caller         print the name of the command that called a helper: the first function without "_" prefix
+#   _get_tenants    print the tenants of the federation of the platform: QUOTA of every zone
 #   _log            print a log line: the arguments separated by spaces
 #   _log_error      print an error block
 #   _log_fe         print a log line of an FE node
@@ -84,8 +85,60 @@ function _log_std() {
 
 
 
+# print one tenant name per line
+#   platform=NAME            # the primary platform
+#   tenants=LIST             # names - <name>, tenant-<name> or id; ALL or empty - all
+# return 0 - printed
+#        1 - the group list can not be read, the error printed to stderr
+function _get_tenants() {
+  local arg; for arg in "$@"; do local "${arg}"; done
+  local platform="${platform:-}"
+  local tenants="${tenants:-ALL}"
+  local json tenant_name tenant_id tenant
+  local vip=$(inv_value var=INV path=${platform}.fe.vip)
+
+  if ! json="$($ssh ${vip} "sudo -u oneadmin onegroup list -j 2>/dev/null")" || [[ -z "${json}" ]]
+  then
+    _log_error "platform ${platform}: onegroup list failed"
+    return 1
+  fi
+
+  for tenant_name in $(jq -r '
+    .GROUP_POOL.GROUP[]
+    | .NAME
+    | select(startswith("tenant-"))
+    | ltrimstr("tenant-")
+  ' <<< "${json}")
+  do
+    if [[ "${tenants}" == "ALL" ]]
+    then
+      echo "${tenant_name}"
+      continue
+    fi
+
+    tenant_id="$(jq -r --arg name "tenant-${tenant_name}" '
+      .GROUP_POOL.GROUP[]
+      | select(.NAME == $name)
+      | .ID
+    ' <<< "$json")"
+
+    for tenant in ${tenants}
+    do
+      if [[ "${tenant}" == "${tenant_name}" || "${tenant}" == "tenant-${tenant_name}" || "${tenant}" == "${tenant_id}" ]]
+      then
+        echo "${tenant_name}"
+        break
+      fi
+    done  # tenant
+  done | sort -u  # tenant_name
+
+  return 0
+}  # _get_tenants
+
+
+
 # print the id of an OpenNebula object found by id or name on a platform
-#   platform=NAME           # collected by data_runtime_refresh
+#   platform=NAME           # collected by data_platform_refresh
 #   object=TYPE             # one of onefe.objects of CONFIG, the CLI command is one<TYPE>: cluster, image, vnet, ...
 #   name=STRING             # name or id
 #   usage: id=$(_one_object_id platform=P object=image name="Ubuntu 26.04") || return 1
@@ -142,7 +195,7 @@ function _one_object_id() {
 
 
 # print the id of the IMAGES or VMS datastore of a cluster on a platform
-#   platform=NAME           # collected by data_runtime_refresh
+#   platform=NAME           # collected by data_platform_refresh
 #   cluster_id=ID           # cluster id, see _one_object_id
 #   type=images|vms         # IMAGES or VMS datastore
 # return 0 - the id printed
@@ -160,7 +213,7 @@ function _cluster_ds_id() {
     return 1
   fi
 
-  # exactly one per cluster, checked by data_load_provider
+  # exactly one per cluster, checked by data_provider_load
   for ds_id in ${RUNTIME[${platform},${type}_ds_list]:-}
   do
     if [[ " ${RUNTIME[${platform},${type}_ds,${ds_id},clusters]:-} " == *" ${cluster_id} "* ]]

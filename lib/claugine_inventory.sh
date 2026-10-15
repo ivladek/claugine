@@ -15,6 +15,8 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 #   var=NAME                 # the document: CONFIG, TEMPLATES, INV, SECRETS
 #   path=A.B                 # keys separated by "."
 #   missing - nothing; an object or a list printed as a value - one-line JSON
+# return 0 - something printed
+#        1 - nothing: a missing path or an empty value - usage: if x=$(inv_value ...); then ...
 
 
 
@@ -22,17 +24,22 @@ help_data[inv_keys]="\
   inv_keys                   # the keys of an object, one per line
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by ".""
-# return 0 - always; missing path - nothing printed
+# return 0 - printed; 1 - nothing: missing path, no items
 function inv_keys() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local -n inv_data=${var}
+  local result
 
-  jq -rc \
+  result="$(jq -rc \
     --arg path "${path}" '
       getpath($path / ".") // empty
       | objects
       | keys_unsorted[]
-    ' <<< "${inv_data:-}"
+    ' <<< "${inv_data:-}")"
+
+  [[ -n "${result}" ]] || return 1
+  printf '%s\n' "${result}"
+  return 0
 }  # inv_keys
 
 
@@ -41,15 +48,20 @@ help_data[inv_list]="\
   inv_list                   # the items of a list, one per line
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by ".""
-# return 0 - always; missing path - nothing printed
+# return 0 - printed; 1 - nothing: missing path, no items
 function inv_list() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local -n inv_data=${var}
+  local result
 
-  jq -rc \
+  result="$(jq -rc \
     --arg path "${path}" '
       getpath($path / ".")[]?
-    ' <<< "${inv_data:-}"
+    ' <<< "${inv_data:-}")"
+
+  [[ -n "${result}" ]] || return 1
+  printf '%s\n' "${result}"
+  return 0
 }  # inv_list
 
 
@@ -59,16 +71,21 @@ help_data[inv_list_field]="\
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by "."
     field=NAME               #   field of the objects; inv_list_find - default: name"
-# return 0 - always; missing path - nothing printed
+# return 0 - printed; 1 - nothing: missing path, no items
 function inv_list_field() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local -n inv_data=${var}
+  local result
 
-  jq -rc \
+  result="$(jq -rc \
     --arg path "${path}" \
     --arg field "${field}" '
       getpath($path / ".")[]? | .[$field] // empty
-    ' <<< "${inv_data:-}"
+    ' <<< "${inv_data:-}")"
+
+  [[ -n "${result}" ]] || return 1
+  printf '%s\n' "${result}"
+  return 0
 }  # inv_list_field
 
 
@@ -79,18 +96,23 @@ help_data[inv_list_find]="\
     path=A.B                 #   keys separated by "."
     field=NAME               #   field of the objects; inv_list_find - default: name
     value=STRING             #   value of the field"
-# return 0 - always; missing path - nothing printed
+# return 0 - printed; 1 - nothing: missing path, no items
 function inv_list_find() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local -n inv_data=${var}
+  local result
   local field="${field:-name}"
 
-  jq -rc \
+  result="$(jq -rc \
     --arg path "${path}" \
     --arg field "${field}" \
     --arg value "${value}" '
       getpath($path / ".")[]? | select((.[$field] | tostring) == $value)
-    ' <<< "${inv_data:-}"
+    ' <<< "${inv_data:-}")"
+
+  [[ -n "${result}" ]] || return 1
+  printf '%s\n' "${result}"
+  return 0
 }  # inv_list_find
 
 
@@ -99,13 +121,18 @@ help_data[inv_value]="\
   inv_value                  # a value of a loaded document; an object or a list - one-line JSON
     var=NAME                 #   CONFIG, TEMPLATES, INV, SECRETS
     path=A.B                 #   keys separated by ".""
-# return 0 - always; missing path - an empty value
+# return 0 - printed; 1 - nothing: missing path or an empty value
 function inv_value() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local -n inv_data=${var}
+  local result
 
-  jq -rc \
+  result="$(jq -rc \
     --arg path "${path}" '
       getpath($path / ".") // ""
-    ' <<< "${inv_data:-}"
+    ' <<< "${inv_data:-}")"
+
+  printf '%s' "${result}"
+  [[ -z "${result}" ]] && return 1
+  return 0
 }  # inv_value

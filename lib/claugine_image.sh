@@ -27,7 +27,7 @@ function image_archive() {
   local start=$(date '+%s')
   local json id regtime vms new_name vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   fe=${vip}
 
@@ -95,7 +95,7 @@ function image_download() {
   local file="${file:-}"
   local json source vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   fe=${vip}
 
@@ -138,7 +138,7 @@ function image_upload() {
   local cluster="${cluster:-0}"
   local remote out id opts result cluster_id ds_id
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   fe=${vip}
 
@@ -214,7 +214,7 @@ function image_wait() {
   local start=$(date '+%s')
   local state vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   fe=${vip}
 

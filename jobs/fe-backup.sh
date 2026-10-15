@@ -86,7 +86,7 @@ then
   report "fe-backup: claugine not loaded, no backups made"
   exit 1
 fi
-if ! data_load_provider \
+if ! data_provider_load \
   inv="${PROVIDER}/inventory" \
   secrets="${PROVIDER}/secrets" \
   runtime="${PROVIDER}/runtime" 1>> "${log}" 2>>"${err}"
@@ -99,6 +99,12 @@ result=0
 for platform in ${PLATFORMS}
 do
   [[ "${platform}" == platforms.${site}.* ]] || continue
+  if [[ "${RUNTIME[${platform},available]:-}" != "yes" ]]
+  then
+    report "fe-backup: ${platform} unavailable - skipped"
+    result=1
+    continue
+  fi
   if fe_backup platform="${platform}" full=yes 1>> "${log}" 2>>"${err}"
   then
     report "fe-backup: ${platform} completed successfully"

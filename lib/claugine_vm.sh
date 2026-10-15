@@ -48,7 +48,7 @@ function vm_create() {
   local addrs addr addr_type nic_type nic_name_type
   local template_file template_data vip site
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   # time zone: tz= or the site's timezone (a reference to config/data/timezones.yaml)
@@ -255,7 +255,7 @@ function vm_delete() {
   local limit="${limit:-$(inv_value var=CONFIG path=onefe.timeouts.vm_wait)}"
   local start json vm_id vm_name vm_state vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   json=$($ssh ${vip} "sudo -u oneadmin onevm show \"${vm}\" -j 2>/dev/null")
@@ -316,7 +316,7 @@ function vm_wait() {
   local start=$(date '+%s')
   local json vm_state lcm_state current vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   state="${state^^}"

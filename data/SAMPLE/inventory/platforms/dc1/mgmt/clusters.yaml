@@ -1,5 +1,5 @@
 mgmt_dc1:
-  type: shared
+  kind: mgmt
   hosts:
     - resources.dc1.hosts.hdc1std1kvm201
     - resources.dc1.hosts.hdc1std1kvm202

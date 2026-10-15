@@ -4,7 +4,7 @@
 
 # claugine: load if not loaded yet - the test can be run or sourced
 DIR_TESTS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if ! declare -F data_load_provider &>/dev/null
+if ! declare -F data_provider_load &>/dev/null
 then
   source "${DIR_TESTS}/../bin/claugine" || { return 1 2>/dev/null || exit 1; }
 fi
@@ -19,7 +19,7 @@ DIR_DATA="$(cd -- "${CLAUGINE_DATA}" && pwd)"
 source "${DIR_DATA}/tests-data.sh" || { return 1 2>/dev/null || exit 1; }
 
 # user data: load if not loaded yet - test_inv, test_secrets, test_runtime of the test data
-[[ "${INV:-}" != "{}" && -n "${INV:-}" ]] || data_load_provider inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}" || { return 1 2>/dev/null || exit 1; }
+[[ "${INV:-}" != "{}" && -n "${INV:-}" ]] || data_provider_load inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}" || { return 1 2>/dev/null || exit 1; }
 
 vm_create \
   platform="${test_platform}" \

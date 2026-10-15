@@ -26,7 +26,7 @@ function iso_customize() {
   local dst="${dst:-}"
   local os="${os:-}"
   local dir="${dir:-}"
-  local file path mode target
+  local file path mode target iso_dir
   local -a maps=() files=()
 
   if [[ ! -f "${src}" || -z "${dst}" || "${dst}" == "${src}" || -z "${os}" ]]
@@ -35,7 +35,10 @@ function iso_customize() {
     return 1
   fi
 
-  [[ -z "${dir}" && -n "$(inv_value var=CONFIG path=${os}.iso.dir)" ]] && dir="${DIR_FILES}/$(inv_value var=CONFIG path=${os}.iso.dir)"
+  if [[ -z "${dir}" ]] && iso_dir=$(inv_value var=CONFIG path=${os}.iso.dir)
+  then
+    dir="${DIR_FILES}/${iso_dir}"
+  fi
   mapfile -t files < <(inv_list_field var=CONFIG path=${os}.iso.files field=name)
   if [[ ! -d "${dir}" ]] || (( ${#files[@]} == 0 ))
   then
@@ -164,7 +167,7 @@ function iso_get_ubuntu() {
   # the variable of the caller by name reference
   local -n _result="${result}"
 
-  data_runtime_refresh || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   if [[ -z "${directory:-}" ]]
   then
     site="${platform#platforms.}"
@@ -242,7 +245,7 @@ function iso_get_vyos() {
   # the variable of the caller by name reference
   local -n _result="${result}"
 
-  data_runtime_refresh || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   if [[ -z "${directory:-}" ]]
   then
     site="${platform#platforms.}"

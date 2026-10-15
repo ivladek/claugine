@@ -1,7 +1,7 @@
 name: payload1_dc2
 
 mode: secondary
-primary: platforms.dc1.payload1.fe
+primary: platforms.dc1.payload1
 # single - 1 node, no federation
 # local - 3 nodes, no federation
 # primary - 3 nodes, federation, primary site

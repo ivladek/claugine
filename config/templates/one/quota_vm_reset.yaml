@@ -1,0 +1,12 @@
+content: |
+  VMS = "-1",
+  RUNNING_VMS = "-1",
+  CPU = "-1",
+  RUNNING_CPU = "-1",
+  MEMORY = "-1",
+  RUNNING_MEMORY = "-1",
+  SYSTEM_DISK_SIZE = "-1",
+  PCI_DEV = "-1",
+  RUNNING_PCI_DEV = "-1",
+  PCI_NIC = "-1",
+  RUNNING_PCI_NIC = "-1"

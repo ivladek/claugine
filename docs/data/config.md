@@ -148,6 +148,7 @@ content: |                                  # the text, with ${variables}
 | `ssh/` | `config_default`, `config_service` |
 | `onehost/` - KVM hosts | `apparmor`, `ufw`, `frr` |
 | `onefe/` - FE: database and OpenNebula | `mysql_binlog`, `mysql_onedb_create`, `oned_mysql`, `oned_raft`, `api_endpoints`, `opennebula-service`, `nodejs` |
+| `one/` - OpenNebula attributes used inside other templates | `quota_vm_reset` - the limits of a VM quota reset to `-1`, used by `quota_tenant_set` |
 | `one_objects/` - OpenNebula objects | `datastore_{vms,images,files,backups}`, `network_{vlan,bridge,template}`, `vm_context`, `vm_context_disk`, `vm_context_nic`, `vm_context_nic_alias` - the last four assembled into one VM template |
 
 ## files

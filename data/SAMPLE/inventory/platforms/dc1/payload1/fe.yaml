@@ -6,7 +6,7 @@ mode: primary
 # primary - 3 nodes, federation, primary site
 # secondary - 3 nodes, federation, secondary site
 secondaries:                 # primary only: the FEs of the secondary platforms of the federation
-  - platforms.dc2.payload1.fe
+  - platforms.dc2.payload1
 
 type: vm
 # vm - installed in dedicated VM

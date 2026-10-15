@@ -32,33 +32,43 @@ Three steps:
    modules for their `help_data`, nothing else; A module only defines
    functions and help texts and reads nothing while loading: a default from
    internal data is shown in the help as its key, `limit=N  # seconds, default is <CONFIG.onefe.timeouts.image_wait>`, the value: `inv_value var=CONFIG path=onefe.timeouts.image_wait`;
-2. `data_load_provider inv=PATH secrets=PATH runtime=PATH` - **user data**: `INV`
+2. `data_provider_load inv=PATH secrets=PATH runtime=PATH` - **user data**: `INV`
    and `SECRETS`, `DIR_RUNTIME` - where collected runtime data may be saved.
    It collects the runtime data of every platform into `RUNTIME` and runs
-   `_data_consistancy_check`; inconsistent data is not loaded - `INV`,
+   `_data_check`; inconsistent data is not loaded - `INV`,
    `SECRETS` and `RUNTIME` are cleared. To switch to another data set, call
    it again;
-3. commands - each starts with `data_runtime_refresh`: `INV` is loaded, the
+3. commands - each starts with `data_platform_refresh`: `INV` is loaded, the
    platform name is right, then works with the platform named by `platform=`.
 
 The four documents are shell globals, **not exported**, see
 [data](../data/README.md#source-data). The runtime data of every platform
-is collected from its FE into `RUNTIME` by `data_load_provider`; commands
+is collected from its FE into `RUNTIME` by `data_provider_load`; commands
 reuse it. Only the FE node states are read again, at the start of every
 command that walks the FE nodes (`fe=yes`). How a YAML tree becomes a document:
 [loading a tree](../data/README.md#loading-a-tree).
 
 ```
  config/data, config/templates ─► source bin/claugine ─► CONFIG, TEMPLATES ───────┐
- inventory, secrets             ─► data_load_provider     ─► INV, SECRETS            ├─► commands
-                                   ├─ every platform     ─► RUNTIME (from its FE)    │
-                                   └─ _data_consistancy_check: federations           │
- platform=platforms.<site>.<platform> ─► data_runtime_refresh [fe=yes] ─────────────┘
+ inventory, secrets             ─► data_provider_load     ─► INV, SECRETS            ├─► commands
+                                   ├─ every platform: data_platform_refresh fe=yes   │
+                                   │                     ─► RUNTIME (from its FE)    │
+                                   ├─ _data_check: inventory, platforms, │
+                                   │                       federations               │
+                                   └─ quota=load, kind shared:                       │
+                                        data_platform_refresh quota=load ─► QUOTA    │
+ platform=platforms.<site>.<platform> ─► data_platform_refresh [fe=yes] [quota=] ────┘
+                                   ├─ no RUNTIME      ─► _data_runtime_platform_init
+                                   ├─ fe=yes          ─► _data_runtime_fe_nodes_refresh
+                                   └─ quota=load|refresh, kind shared:
+                                        no QUOTA      ─► _data_quota_load: limit, real
+                                                           └─ _data_usage_refresh: usage
+                                        quota=refresh ─► _data_usage_refresh
 ```
 
 | Module | Area |
 |---|---|
-| `claugine_data.sh` | user data and runtime data: `data_load_provider`, `data_runtime_refresh`, `_data_load_var`, `_data_consistancy_check`, `_data_runtime_platform_init`, `_data_runtime_fe_nodes_refresh` |
+| `claugine_data.sh` | user data, runtime data and tenant quotas: `data_provider_load`, `data_platform_refresh`, `_data_quota_load`, `_data_usage_refresh`, `_data_load_var`, `_data_check` (`_data_check_inventory`, `_data_check_platform`, `_data_check_federations`), `_data_runtime_platform_init`, `_data_runtime_fe_nodes_refresh` |
 | `claugine_inventory.sh` | getters of the loaded documents: `inv_value`, `inv_list`, `inv_list_field`, `inv_keys`, `inv_list_find` |
 | `claugine_common.sh` | help, input checks (`_is_ipv4`, `_is_mac`), confirmation |
 | `claugine_helpers.sh` | `_caller`, the log helpers `_log*`, `_one_object_id` |
@@ -92,7 +102,7 @@ command that walks the FE nodes (`fe=yes`). How a YAML tree becomes a document:
 [platform](../platform/README.md#platforms). A federation is several
 platforms: the primary and its secondaries. A secondary names its primary
 (`fe.primary`), the primary lists its secondaries (`fe.secondaries`);
-`data_load_provider` checks that every zone of a federation is one of
+`data_provider_load` checks that every zone of a federation is one of
 them.
 
 Why: commands used to work inside a *context* - a platform loaded by
@@ -101,7 +111,7 @@ refreshed on a timer. Now the inventory names every target: no context,
 no zone ids in parameters, no periodic refresh.
 
 - Every command that works on a platform takes it as its first parameter
-  (`data_load_provider`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform):
+  (`data_provider_load`, the `inv_*` getters, `iso_download` and `iso_customize` work on files and loaded data, not on a platform):
 
   | Parameter | Use |
   |---|---|
@@ -116,16 +126,16 @@ no zone ids in parameters, no periodic refresh.
   federation from the primary and its `fe.secondaries`. Per-zone objects (images, vnets, VMs,
   hosts, clusters, group quotas) are handled on the platform given.
 - **RUNTIME** - the associative array of runtime data, see
-  [data](../data/README.md#runtime). `data_load_provider` collects it for
+  [data](../data/README.md#runtime). `data_provider_load` collects it for
   every platform: zone id, name and state, FE nodes, IMAGE/SYSTEM/FILE/BACKUP
   datastores, VNet template, shared group - only what the inventory does not
   define; the VIP, site, mode and primary are read from `INV`. It is not
-  refreshed on a timer; `fe_data_refresh platform=NAME` collects it again
-  for one platform, `data_load_provider` for all.
-- **`data_runtime_refresh`** - the first call of every command:
+  refreshed on a timer; `data_provider_load` collects it again for all
+  platforms and checks it again.
+- **`data_platform_refresh`** - the first call of every command:
 
   ```bash
-  data_runtime_refresh [platform="${platform:-}"] [fe=yes] || return 1
+  data_platform_refresh [platform="${platform:-}"] [fe=yes] || return 1
   ```
 
   - it checks that `INV` is not empty - the only data check; without
@@ -134,20 +144,28 @@ no zone ids in parameters, no periodic refresh.
     (the command got no `platform=`), a list or a short name is an error.
     The command does not declare `platform` itself, it passes
     `platform="${platform:-}"`. The runtime data of the platform is
-    collected if it is missing - after `fe_data_refresh`, or for a platform
-    whose FE was not reachable at load; a name not in the inventory is
+    collected if it is missing - for a platform whose FE was not reachable
+    at load; a name not in the inventory is
     reported then;
   - `fe=yes` - reads the FE node roles and states again: commands that
     walk the FE nodes;
-  - `quota=yes`, `usage=yes` - reserved: the functions behind them are not
-    written yet.
+  - `quota=load` - tenants, quotas, ACLs: the platform must be kind `shared`;
+    the tenant quotas are loaded into `QUOTA` if missing - limit, real, usage;
+    `quota=refresh` - the same, and a loaded usage is read again;
 
   A command that needs fresh node states later - after a restart - calls it
   again with `fe=yes`.
-- **The data is trusted.** `source` gives correct internal data, `data_load_provider`
+- **The data is trusted.** `source` gives correct internal data, `data_provider_load`
   correct user data; a command checks only that `INV` is not empty, through
-  `data_runtime_refresh`. No command checks inventory, config or runtime fields
+  `data_platform_refresh`. No command checks inventory, config or runtime fields
   before it runs.
+- **Every action on a shared platform** - tenants, quotas, ACLs - starts with
+  `data_platform_refresh platform=NAME quota=load` (or `quota=refresh` when it
+  needs fresh usage): `kind: shared` in `platform.yaml` is the only sign of it.
+- **Data consistency is checked in one place only** - `_data_check`,
+  called by `data_provider_load`; the data collection functions
+  (`_data_runtime_platform_init`, `_data_quota_load`, ...) only collect, they
+  never stop on inconsistent data.
 - Helpers in `lib/claugine_helpers.sh` and `lib/claugine_inventory.sh`;
   on error they print the message and the command returns `1`:
 
@@ -158,7 +176,7 @@ no zone ids in parameters, no periodic refresh.
   | `_log`, `_log_std`, `_log_fe`, `_log_error` | log lines and error blocks, see [output and errors](#output-and-errors) |
 
   `_data_runtime_platform_init` and `_data_runtime_fe_nodes_refresh`
-  collect the runtime data for `data_runtime_refresh`; commands never call
+  collect the runtime data for `data_platform_refresh`; commands never call
   them directly. After it, read
   `${RUNTIME[${platform},id|vntemplate,id|...]}` directly, and the
   inventory for the rest: `vip=$(inv_value var=INV path=${platform}.fe.vip)`.
@@ -179,7 +197,7 @@ function area_do_something() {
   local name="${name:-}"
   local node vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1   # fe=yes - only if the command walks the FE nodes
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1   # fe=yes - only if the command walks the FE nodes
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" name="${name}" action="do_something"
   _stop_without_confirmation confirm=${confirm:-no} && return 1
@@ -194,9 +212,9 @@ function area_do_something() {
 
 Log lines are printed by the log helpers, see [output and errors](#output-and-errors).
 
-`platform` is not declared in the command: `data_runtime_refresh` stops the
+`platform` is not declared in the command: `data_platform_refresh` stops the
 command when it is missing, so after it `${platform}` is always set. A
-command without a platform starts with `data_runtime_refresh || return 1`.
+command without a platform starts with `data_platform_refresh || return 1`.
 
 ## OpenNebula objects
 
@@ -341,7 +359,7 @@ platform=platforms.dc1.payload1 zone_id=0 zone_vip=10.71.101.30 node_role=leader
 | secrets | data set `secrets/`, `SECRETS` | read with `inv_value var=SECRETS path=<...>`, only through a reference read from the inventory |
 | internal data, templates | `config/data`, `config/templates`; `CONFIG`, `TEMPLATES` | `inv_* var=CONFIG path=<...>`, `inv_value var=TEMPLATES path=<group>.<name>.content` |
 | secrets | data set `secrets/` | never read by the CLI |
-| runtime data | `RUNTIME`, filled on the first touch of a platform, cleared by `data_load_provider` | after `data_runtime_refresh`: `${RUNTIME[${platform},...]}` |
+| runtime data | `RUNTIME`, filled on the first touch of a platform, cleared by `data_provider_load` | after `data_platform_refresh`: `${RUNTIME[${platform},...]}` |
 | test data | `tests-data.sh` of the data set, sample `data/SAMPLE/tests-data.sh` | plain `name=value`, `test_` prefix |
 | job data | `jobs-data.sh` of the data set, sample `data/SAMPLE/jobs-data.sh` | plain `NAME=value` |
 | function locals | | `local`; namerefs start with `_`: `local -n _list=${name}` |
@@ -362,6 +380,6 @@ platform=platforms.dc1.payload1 zone_id=0 zone_vip=10.71.101.30 node_role=leader
 
 - One script per scenario in `tests/`, data only from `tests-data.sh` of
   the data set `CLAUGINE_DATA` (its directory - `DIR_DATA`); user data -
-  `data_load_provider` with `test_inv`, `test_secrets`, `test_runtime` of
+  `data_provider_load` with `test_inv`, `test_secrets`, `test_runtime` of
   the test data, if nothing is loaded yet.
 - Each script loads the CLI if it is not loaded and works both run and sourced.

@@ -1,5 +1,5 @@
 shared-std02_dc1:
-  type: shared
+  kind: portal
   hosts:
     - resources.dc1.hosts.hdc1std1kvm031
     - resources.dc1.hosts.hdc1std1kvm032

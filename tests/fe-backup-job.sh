@@ -5,7 +5,7 @@
 
 # claugine: load if not loaded yet - the test can be run or sourced
 DIR_TESTS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if ! declare -F data_load_provider &>/dev/null
+if ! declare -F data_provider_load &>/dev/null
 then
   source "${DIR_TESTS}/../bin/claugine" || { return 1 2>/dev/null || exit 1; }
 fi
@@ -47,7 +47,7 @@ DATA
 # claugine: LOADFAIL=1 - data not loaded; BACKUPFAIL=NAME - fe_backup of platforms.<site>.NAME fails
 cat > "${test_job_dir}/claugine/bin/claugine" <<'FAKE'
 echo "fake claugine loaded"
-function data_load_provider() {
+function data_provider_load() {
   [[ "${LOADFAIL:-}" == "1" ]] && { echo "fake: data not loaded" >&2; return 1; }
   PLATFORMS="platforms.${TEST_SITE}.p1 platforms.${TEST_SITE}.p2 platforms.${TEST_SITE}.p3 platforms.other.p1"
 }

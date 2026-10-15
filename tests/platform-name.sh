@@ -5,7 +5,7 @@
 
 # claugine: load if not loaded yet - the test can be run or sourced
 DIR_TESTS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if ! declare -F data_load_provider &>/dev/null
+if ! declare -F data_provider_load &>/dev/null
 then
   source "${DIR_TESTS}/../bin/claugine" || { return 1 2>/dev/null || exit 1; }
 fi
@@ -20,7 +20,7 @@ DIR_DATA="$(cd -- "${CLAUGINE_DATA}" && pwd)"
 source "${DIR_DATA}/tests-data.sh" || { return 1 2>/dev/null || exit 1; }
 
 # user data: load if not loaded yet - test_inv, test_secrets, test_runtime of the test data
-[[ "${INV:-}" != "{}" && -n "${INV:-}" ]] || data_load_provider inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}" || { return 1 2>/dev/null || exit 1; }
+[[ "${INV:-}" != "{}" && -n "${INV:-}" ]] || data_provider_load inv="${test_inv}" secrets="${test_secrets}" runtime="${test_runtime}" || { return 1 2>/dev/null || exit 1; }
 
 # run one check in a subshell - its output is shown - and count the result
 #   name=TEXT                # what is checked
@@ -45,12 +45,12 @@ function test_check() {
   fi
 }  # test_check
 
-test_check name="no platform= - only the data check" cmd="data_runtime_refresh" expect=0
-test_check name="the platform of the test" cmd="data_runtime_refresh platform=${test_platform}" expect=0
-test_check name="platform= empty" cmd="data_runtime_refresh platform=" expect=1
-test_check name="a list" cmd="data_runtime_refresh platform=\"${test_platform} ${test_platform}\"" expect=1
-test_check name="a short name" cmd="data_runtime_refresh platform=${test_platform#platforms.}" expect=1
-test_check name="not in the inventory" cmd="data_runtime_refresh platform=platforms.nosite.noplatform" expect=1
+test_check name="no platform= - only the data check" cmd="data_platform_refresh" expect=0
+test_check name="the platform of the test" cmd="data_platform_refresh platform=${test_platform}" expect=0
+test_check name="platform= empty" cmd="data_platform_refresh platform=" expect=1
+test_check name="a list" cmd="data_platform_refresh platform=\"${test_platform} ${test_platform}\"" expect=1
+test_check name="a short name" cmd="data_platform_refresh platform=${test_platform#platforms.}" expect=1
+test_check name="not in the inventory" cmd="data_platform_refresh platform=platforms.nosite.noplatform" expect=1
 test_check name="a command without platform=" cmd="fe_cfg_ver_get" expect=1
 
 echo

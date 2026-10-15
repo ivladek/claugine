@@ -22,7 +22,6 @@ come from the sample data set `data/SAMPLE`.
   - [datastores.yaml](#datastoresyaml)
   - [networks.yaml](#networksyaml)
   - [services](#services)
-  - [patch.yaml](#patchyaml)
 - [Checks](#checks)
 
 ## Layout
@@ -49,8 +48,7 @@ inventory/
             ├── clusters.yaml        clusters: hosts and networks
             ├── datastores.yaml      datastores on volumes
             ├── networks.yaml        virtual networks on L2 segments
-            ├── services/            services running on the platform
-            └── patch.yaml           temporary data, until the database
+            └── services/            services running on the platform
 ```
 
 | Part | Scope | Content |
@@ -234,6 +232,8 @@ platform federated across sites this is the zone of that site.
 ### platform.yaml
 
 ```yaml
+kind: shared
+state: deployed
 provider: providers.acme
 sa: secrets.acme.admins.sa
 shared_owner: shared
@@ -241,9 +241,11 @@ shared_owner: shared
 
 | Key | Meaning |
 |---|---|
+| `kind` | required, checked by the data load: `mgmt` - the management FE of the site: one per site, exactly one cluster, of kind `mgmt`; `shared` - an FE for tenant workloads, several per site: tenants, quotas and ACLs - the only sign for the tenant commands (`acl_tenant_*`, `quota_*`, `data_platform_refresh quota=load`), shared group and one VNet template required, clusters of kind `shared`, `dedicated` or `service`, at least one `shared`; `portal` - an FE run by an external automation portal, several per site, every cluster of kind `portal`; all platforms of a federation - the same kind |
 | `provider` | reference to the provider that owns the platform |
 | `sa` | reference to the super admins in secrets: `<name>: {uid, description, password, key}`; added to every system of the platform to manage it |
-| `shared_owner` | optional, platforms with tenants: name of the group that owns the images and templates shared with every tenant; `fe_data_refresh` finds its id |
+| `state` | optional: `planned` - to be fully deployed: not in `PLATFORMS`, not collected, not checked, can not be in `fe.secondaries` or `fe.primary` of another platform until deployed; `updated` - has clusters to be deployed or deleted; `retired` - to be destroyed; not set or `deployed` - in service. Any value but `deployed` sets `DEPLOYMENT=required` - only deployment operations |
+| `shared_owner` | optional, platforms with tenants: name of the group that owns the images and templates shared with every tenant; its id is found at load |
 
 ### fe.yaml
 
@@ -252,7 +254,7 @@ The OpenNebula front-end.
 ```yaml
 name: payload1_dc2
 mode: secondary
-primary: platforms.dc1.payload1.fe
+primary: platforms.dc1.payload1
 type: vm
 nodes:
   - sdc2p1one1
@@ -269,8 +271,8 @@ empty_bridges: cleanup
 |---|---|---|
 | `name` | | zone name in OpenNebula |
 | `mode` | `single` - 1 node, no federation; `local` - 3 nodes, no federation; `primary` - 3 nodes, federation, primary site; `secondary` - 3 nodes, federation, secondary site | |
-| `primary` | reference | `secondary` only: the FE of the primary site |
-| `secondaries` | list of references | `primary` only: the FEs of the secondary sites; `acl_tenant_set` sets ACLs for the zones of all of them. `data_load_provider` checks every federation OpenNebula reports: every zone is a platform (its endpoint is the `fe.vip`), the primary lists exactly all the others here, each of them is `secondary` with `primary` pointing to it - otherwise the data is not loaded |
+| `primary` | platform | `secondary` only: the primary platform of the federation, `platforms.<site>.<platform>` |
+| `secondaries` | list of platforms | `primary` only: the secondary platforms of the federation, `platforms.<site>.<platform>`; `acl_tenant_set` sets ACLs for the zones of all of them. `data_provider_load` checks every federation OpenNebula reports: every zone is a platform (its endpoint is the `fe.vip`), the primary lists exactly all the others here, each of them is `secondary` with `primary` pointing to it - otherwise the data is not loaded |
 | `type` | `vm` - FE in dedicated VMs; `host` - FE on the host OS | |
 | `nodes` | | FE node names; for `type: host` - host names of `resources/<site>/hosts` |
 | `nic` | | interface the VIP is configured on for the Raft cluster |
@@ -283,7 +285,8 @@ empty_bridges: cleanup
 
 ```yaml
 shared-std01_dc1:
-  type: shared
+  kind: shared
+  quota_code: STD01
   hosts:
     - resources.dc1.hosts.hdc1std1kvm011
   network:
@@ -295,7 +298,8 @@ shared-std01_dc1:
 | Key | Meaning |
 |---|---|
 | `<name>` | cluster name in OpenNebula, with the site suffix |
-| `type` | `shared` |
+| `kind` | required, checked by the data load: `mgmt` - the core services to run the platform itself and all other platforms of the site; `shared` - several tenants run their VMs on the same hosts; `dedicated` - the cluster of one tenant; `service` - no tenant VMs, services of the platform (EGW, L2 endpoints); `portal` - a cluster of a platform managed by an external portal. Allowed by the platform kind: `mgmt` - `mgmt`; `shared` - `shared`, `dedicated`, `service`; `portal` - `portal` |
+| `quota_code` | required for `kind: shared` and `dedicated`, not allowed for the other kinds, letters and digits only, checked by the data load: binds the cluster to the tenant quota records `QUOTA_<SITE>_<QR>`, see [tenant quotas](quota.md) |
 | `hosts` | references to the hosts of the cluster |
 | `network` | references to the L2 segments the hosts of the cluster are connected to |
 
@@ -346,22 +350,6 @@ payload1-ix_dc1:
 platform: backup servers, DNS, jump hosts, VMs for other services. Payload
 platforms do not run services. The structure of a service file is not fixed
 yet; datastores already refer to backup servers here.
-
-### patch.yaml
-
-Temporary data that lets the CLI work before the tenant database exists;
-dropped once it does. Payload platforms only; in the sample - `payload1` on dc1.
-
-```yaml
-ds_quotas:              # datastore quotas, GiB: quota_ds_set
-  default:
-    images: 20
-    files: 1
-    backups: 0
-  tenants:              # tenant name: only the values that differ from default
-    romashka:
-      images: 1000
-```
 
 ## Checks
 

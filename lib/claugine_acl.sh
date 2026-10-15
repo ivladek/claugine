@@ -7,8 +7,8 @@ echo "module=${BASH_SOURCE[0]} <<--loaded-- from=${BASH_SOURCE[1]}"
 # INDEX
 #   acl_role_rights_get  show rights set in oned.conf for each VM right - USE MANAGE ADMIN
 #   acl_role_rights_set  set rights set in oned.conf for each VM right - USE MANAGE ADMIN
-#   acl_tenant_get       show ACL for tenant group and group admin
-#   acl_tenant_set       delete than set new ACLs for all tenants
+#   acl_tenant_get       show the quota records and the ACLs of the tenants
+#   acl_tenant_set       delete than set new ACLs for all tenants by their quota records
 
 
 
@@ -19,7 +19,7 @@ function acl_role_rights_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node op_set vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   _log_std \
@@ -49,7 +49,7 @@ function acl_role_rights_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
   local node op_set vip
 
-  data_runtime_refresh platform="${platform:-}" fe=yes || return 1
+  data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   _log_std \
@@ -76,90 +76,70 @@ function acl_role_rights_set() {
 
 
 help_data[acl_tenant_get]="\
-  acl_tenant_get             # show ACL for tenant group and group admin
+  acl_tenant_get             # show the quota records and the ACLs of the tenants
     platform=NAME            #   platforms.<site>.<platform>: any platform of the federation,
                              #     the ACLs are read on its primary platform
-    tenants=LIST             #   tenants ids or names"
+    tenants=LIST             #   tenants names or group ids
+                             #   the quota records of every zone with their clusters - QUOTA, see data_platform_refresh quota=;
+                             #   the ACLs of the tenant group, its role groups sa-, power-, user-, ro-<name>, its admin"
 function acl_tenant_get() {
   local arg; for arg in "$@"; do local "${arg}"; done
-  local primary
-  local tenants="${tenants:-ALL}"
-  local -a tenants_list=()
-  local json tenant group_id group_name admin_id admin_name vip
+  local primary vip json group_id tenant role subject admin_id member qr
+  local -a subjects=()
 
   # switch to the primary FE if the corresponding platform is a secondary
-  primary=$(inv_value var=INV path=${platform:-}.fe.primary)
-  if [[ -n "${primary}" ]]
+  if primary=$(inv_value var=INV path=${platform:-}.fe.primary)
   then
-    _log platform="${platform}" primary="${primary%.fe}" action="switch_to_primary"
-    platform="${primary%.fe}"
+    _log platform="${platform}" primary="${primary}" action="switch_to_primary"
+    platform="${primary}"
   fi
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" quota=load || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
-
-  if [[ "${tenants}" == ALL ]]
-  then
-    mapfile -t tenants_list < <(
-      $ssh ${vip} "sudo -u oneadmin onegroup list --no-header -l ID 2>/dev/null" |
-      tr -d '[:blank:]' |
-      sort -n
-    )
-  else
-    for tenant in ${tenants}
-    do
-      if [[ "${tenant}" =~ ^[0-9]+$ ]]
-      then
-        mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${vip} "sudo -u oneadmin onegroup list -f ID=\"${tenant}\" --no-header -l ID 2>/dev/null"
-        )
-      elif [[ "${tenant}" == tenant-* ]]
-      then
-        mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${vip} "sudo -u oneadmin onegroup list -f NAME=\"${tenant}\" --no-header -l ID 2>/dev/null"
-        )
-      else
-        mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${vip} "sudo -u oneadmin onegroup list -f NAME~\"${tenant}\" --no-header -l ID 2>/dev/null"
-        )
-      fi
-    done  # tenant
-  fi
 
   _log_std \
     zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" \
     action="acl_tenant_get"
 
-  for group_id in ${tenants_list[@]}
+  for tenant in $(_get_tenants platform="${platform}" tenants="${tenants:-ALL}")
   do
-    (( group_id < 100 )) || [[ "${group_id}" == "${RUNTIME[${platform},shared]:-}" ]] && continue
+    _log
+    group_id=""
+    for member in ${platform} $(inv_list var=INV path=${platform}.fe.secondaries)
+    do
+      if [[ "${RUNTIME[${member},available]:-}" != "yes" ]]
+      then
+        _log_std tenant="${tenant}" platform="${member}" warning="unavailable - not shown"
+        continue
+      fi
+      [[ -n "${QUOTA[${tenant},group_id]:-}" ]] || continue
+      group_id="${QUOTA[${tenant},group_id]}"
+      for qr in ${QUOTA[${tenant},${member},qrs]}
+      do
+        _log_std \
+          tenant="${tenant}" \
+          zone_id="${RUNTIME[${member},id]}" \
+          qr="${qr}" \
+          clusters="[${QUOTA[${tenant},${member},${qr},clusters]}]"
+      done  # qr
+    done  # member
+
     json=$($ssh ${vip} "sudo -u oneadmin onegroup show ${group_id} -j 2>/dev/null")
-    group_name=$(jq -r '.GROUP.NAME' <<< "${json}")
-    tenant="${group_name#*-}"
-    admin_id=$(jq -r '
-      .GROUP.ADMINS.ID
-      | if type == "array"
-        then .[0]
-        else .
-        end
-    ' <<< "${json}")
-    admin_name=$(
-      $ssh ${vip} "sudo -u oneadmin oneuser show ${admin_id} -j 2>/dev/null" |
-      jq -r '.USER.NAME'
-    )
+    admin_id=$(jq -r '.GROUP.ADMINS.ID | if type == "array" then .[0] else . end // ""' <<< "${json}")
+    subjects=( "@${group_id}" )
+    for role in sa power user ro
+    do
+      subjects+=( "@$($ssh ${vip} "sudo -u oneadmin onegroup show ${role}-${tenant} -j 2>/dev/null" | jq -r '.GROUP.ID // ""')" )
+    done  # role
+    [[ -n "${admin_id}" ]] && subjects+=( "#${admin_id}" )
 
-    _log_std \
-      tenant="${tenant}" \
-      group_name="${group_name}" \
-      group_id="${group_id}" \
-      admin_name="${admin_name}" \
-      admin_id="${admin_id}"
-
-    $ssh ${vip} "sudo -u oneadmin oneacl list -f USER='-1' 2>/dev/null"
-    {
-      $ssh ${vip} "sudo -u oneadmin oneacl list -f USER='@${group_id}' --no-header 2>/dev/null"
-      $ssh ${vip} "sudo -u oneadmin oneacl list -f USER='#${admin_id}' --no-header 2>/dev/null"
-    } | sort -nr
-  done  # group_id
+    _log_std tenant="${tenant}" group_id="${group_id}" admin_id="${admin_id}" acl_users="[${subjects[*]}]"
+    $ssh ${vip} "sudo -u oneadmin oneacl list 2>/dev/null" | head -1   # the header
+    for subject in "${subjects[@]}"
+    do
+      [[ "${subject}" == "@" ]] && continue   # a role group not found
+      $ssh ${vip} "sudo -u oneadmin oneacl list -f USER='${subject}' --no-header 2>/dev/null"
+    done | sort -nr  # subject
+  done  # tenant
 
   return 0
 }  # acl_tenant_get
@@ -170,216 +150,151 @@ help_data[acl_tenant_set]="\
   acl_tenant_set             # delete than set new ACLs for all tenants
     platform=NAME            #   platforms.<site>.<platform>: any platform of the federation,
                              #     the ACLs are set on its primary platform for every zone of the federation
-    tenants=LIST             #   tenants ids or names
+    tenants=LIST             #   tenants names or group ids
     dry=YES|no               #   dry run without deleteing and creating ACLs
-    confirm=yes|NO           #   to suppress interactive confirmation"
+    confirm=yes|NO           #   to suppress interactive confirmation
+                             #   the ACLs: of the tenant group and its role groups sa-, power-, user-, ro-<name>,
+                             #     for the clusters of its quota records in every zone - QUOTA, see data_platform_refresh quota=;
+                             #     deleted: the ACLs of the tenant group, its role groups and its admin;
+                             #     a tenant without quota records - a warning, its ACLs untouched"
 function acl_tenant_set() {
   local arg; for arg in "$@"; do local "${arg}"; done
-  local primary member
+  local primary vip json member zone_id qr cluster_id found
   local dry="${dry:-yes}"
-  local tenants="${tenants:-ALL}"
-  local -a tenants_list=()
-  local zones zone_id cluster_id acl acl_id acl_subj acl_obj acl_ops acl_zone
-  local -a acls
-  local json tenant group_id group_name admin_id admin_name vip
-  local sa_id sa_name power_id power_name user_id user_name ro_id ro_name
-  local -A clusters
+  local group_id tenant admin_id sa_id power_id user_id ro_id shared role subject
+  local acl acl_id acl_subj acl_obj acl_ops acl_zone
+  local -a acls=()
 
   # switch to the primary FE if the corresponding platform is a secondary
-  primary=$(inv_value var=INV path=${platform:-}.fe.primary)
-  if [[ -n "${primary}" ]]
+  if primary=$(inv_value var=INV path=${platform:-}.fe.primary)
   then
-    _log platform="${platform}" primary="${primary%.fe}" action="switch_to_primary"
-    platform="${primary%.fe}"
+    _log platform="${platform}" primary="${primary}" action="switch_to_primary"
+    platform="${primary}"
   fi
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" quota=load || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
+  shared="${RUNTIME[${platform},shared]:-}"
 
-  if [[ "${tenants}" == ALL ]]
-  then
-    mapfile -t tenants_list < <(
-      $ssh ${vip} "sudo -u oneadmin onegroup list --no-header -l ID 2>/dev/null" |
-      tr -d '[:blank:]' |
-      sort -n
-    )
-  else
-    for tenant in ${tenants}
-    do
-      if [[ "${tenant}" =~ ^[0-9]+$ ]]
-      then
-        mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${vip} "sudo -u oneadmin onegroup list -f ID=\"${tenant}\" --no-header -l ID 2>/dev/null"
-        )
-      elif [[ "${tenant}" == tenant-* ]]
-      then
-        mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${vip} "sudo -u oneadmin onegroup list -f NAME=\"${tenant}\" --no-header -l ID 2>/dev/null"
-        )
-      else
-        mapfile -t -O "${#tenants_list[@]}" tenants_list < <(
-          $ssh ${vip} "sudo -u oneadmin onegroup list -f NAME~\"${tenant}\" --no-header -l ID 2>/dev/null"
-        )
-      fi
-    done  # tenant
-  fi
+  _log_std action=acl_tenant_set
 
-  _log_std \
-    zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" \
-    secondaries="[$(inv_list var=INV path=${platform}.fe.secondaries | xargs)]" \
-    action="acl_tenant_set"
-
-  for group_id in ${tenants_list[@]}
+  for tenant in $(_get_tenants platform="${platform}" tenants="${tenants:-ALL}")
   do
-    (( group_id < 100 )) || [[ "${group_id}" == "${RUNTIME[${platform},shared]:-}" ]] && continue
-    [[ "${dry}" == "no" ]] && _stop_without_confirmation confirm=${confirm:-no} && return 1
-
-    json=$($ssh ${vip} "sudo -u oneadmin onegroup show ${group_id} -j 2>/dev/null")
-    group_name=$(jq -r '.GROUP.NAME' <<< "${json}")
-    tenant="${group_name#*-}"
-    admin_id=$(jq -r '
-      .GROUP.ADMINS.ID
-      | if type == "array"
-        then .[0]
-        else .
-        end
-    ' <<< "${json}")
-
-    admin_name=$(
-      $ssh ${vip} "sudo -u oneadmin oneuser show ${admin_id} -j 2>/dev/null" |
-      jq -r '.USER.NAME'
-    )
-
-    sa_name="sa-${tenant}"
-    sa_id=$(
-      $ssh ${vip} "sudo -u oneadmin onegroup show ${sa_name} -j 2>/dev/null" |
-      jq -r '.GROUP.ID'
-    )
-
-    power_name="power-${tenant}"
-    power_id=$(
-      $ssh ${vip} "sudo -u oneadmin onegroup show ${power_name} -j 2>/dev/null" |
-      jq -r '.GROUP.ID'
-    )
-
-    user_name="user-${tenant}"
-    user_id=$(
-      $ssh ${vip} "sudo -u oneadmin onegroup show ${user_name} -j 2>/dev/null" |
-      jq -r '.GROUP.ID'
-    )
-
-    ro_name="ro-${tenant}"
-    ro_id=$(
-      $ssh ${vip} "sudo -u oneadmin onegroup show ${ro_name} -j 2>/dev/null" |
-      jq -r '.GROUP.ID'
-    )
-
-    zones=""
-    clusters=()
-    while read -r cluster_id zone_id
-    do
-      [[ " ${zones} " != *" ${zone_id} "* ]] && zones+="${zones:+ }${zone_id}"
-      clusters[${zone_id}]+="${clusters[${zone_id}]:+ }${cluster_id}"
-    done < <(
-      $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=@${group_id} --no-header 2>/dev/null" |
-      awk '$3 ~ /^-H/ {
-        sub(/^%/, "", $4)
-        sub(/^#/, "", $6)
-        print $4, $6
-      }'
-    )
-
-    _log_std tenant="${tenant}" group_id="${group_id}" acl="current"
-    $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=@${group_id} 2>/dev/null"
-    $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header 2>/dev/null"
-
-    if [[ "${dry}" == "no" ]]
-    then
-      _log_std -n tenant="${tenant}" group_id="${group_id}" acl_delete="["
-      for acl_id in $(
-        $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=@${group_id} --no-header -l ID 2>/dev/null"
-        $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header -l ID 2>/dev/null"
-      )
-      do
-        _log -n " ${acl_id}"
-        $ssh ${vip} "sudo -u oneadmin oneacl delete ${acl_id} &>/dev/null"
-      done  # acl_id
-      _log " ]"
-    else
-      _log_std tenant="${tenant}" group_id="${group_id}" acl_delete="[ dry run: no ACLs will be deleted ]"
-    fi
-
-    # grant rights to tenant admin for users management
-    acls=(
-      # SA: manage tenant and role groups
-      "@${sa_id} GROUP/#${group_id} USE+MANAGE       *"
-      "@${sa_id} GROUP/#${sa_id}    USE+MANAGE       *"
-      "@${sa_id} GROUP/#${power_id} USE+MANAGE       *"
-      "@${sa_id} GROUP/#${user_id}  USE+MANAGE       *"
-      "@${sa_id} GROUP/#${ro_id}    USE+MANAGE       *"
-
-      # SA: manage tenant users and create new users
-      "@${sa_id} USER/@${group_id}  USE+MANAGE+ADMIN *"
-      "@${sa_id} USER/*             CREATE           *"
-    )
-    # every zone of the tenant: the primary and its fe.secondaries - all of them platforms, checked by data_load_provider
+    group_id=""
+    found=""
     for member in ${platform} $(inv_list var=INV path=${platform}.fe.secondaries)
     do
-      member="${member%.fe}"
+      if [[ "${RUNTIME[${member},available]:-}" != "yes" ]]
+      then
+        # the ACLs of every zone are set at once: without this zone the tenant would lose its ACLs there
+        _log_error "platform ${member}: unavailable - ACLs of tenant ${tenant} not changed"
+        return 1
+      fi
+      [[ -n "${QUOTA[${tenant},group_id]:-}" ]] || continue
+      group_id="${QUOTA[${tenant},group_id]}"
+      [[ -n "${QUOTA[${tenant},${member},qrs]}" ]] && found=yes
+      _log_std tenant="${tenant}" group_id="${group_id}" quotas="[${QUOTA[${tenant},${member},qrs]}]"
+    done  # member
+    if [[ -z "${found}" ]]
+    then
+      _log_std tenant="${tenant}" group_id="${group_id}" warning="no quota records - ACLs not changed"
+      continue
+    fi
+
+    # the admin of the tenant group, the role groups
+    json=$($ssh ${vip} "sudo -u oneadmin onegroup show ${group_id} -j 2>/dev/null")
+    admin_id=$(jq -r '.GROUP.ADMINS.ID | if type == "array" then .[0] else . end // ""' <<< "${json}")
+    for role in sa power user ro
+    do
+      printf -v "${role}_id" '%s' "$(
+        $ssh ${vip} "sudo -u oneadmin onegroup show ${role}-${tenant} -j 2>/dev/null" | jq -r '.GROUP.ID // ""'
+      )"
+    done  # role
+    _log_std tenant="${tenant}" group_id="${group_id}" admin_id="${admin_id}" \
+      sa_id="${sa_id}" power_id="${power_id}" user_id="${user_id}" ro_id="${ro_id}"
+    if [[ -z "${sa_id}" || -z "${power_id}" || -z "${user_id}" || -z "${ro_id}" ]]
+    then
+      _log_std tenant="${tenant}" group_id="${group_id}" warning="role groups not all found - ACLs not changed"
+      continue
+    fi
+
+    # the ACLs of the tenant
+    acls=(
+      # SA: manage the tenant group and its role groups, the users of the tenant, create users
+      "@${sa_id} GROUP/#${group_id} USE+MANAGE *"
+      "@${sa_id} GROUP/#${sa_id} USE+MANAGE *"
+      "@${sa_id} GROUP/#${power_id} USE+MANAGE *"
+      "@${sa_id} GROUP/#${user_id} USE+MANAGE *"
+      "@${sa_id} GROUP/#${ro_id} USE+MANAGE *"
+      "@${sa_id} USER/@${group_id} USE+MANAGE+ADMIN *"
+      "@${sa_id} USER/* CREATE *"
+    )
+    # every zone of the federation: the clusters of the quota records of the tenant in the zone - QUOTA;
+    #   a record without clusters, a zone without clusters - no ACLs
+    for member in ${platform} $(inv_list var=INV path=${platform}.fe.secondaries)
+    do
+      [[ "${RUNTIME[${member},available]:-}" == "yes" ]] || continue   # unavailable - checked above
       zone_id="${RUNTIME[${member},id]}"
-      [[ " ${zones} " == *" ${zone_id} "* ]] || continue   # the tenant has no cluster in this zone
-      # grant rights to tenant for cluster and cluster resources
-      acls+=( "@${group_id} ZONE/#${zone_id}     USE    #${zone_id}" )
-      for cluster_id in ${clusters[${zone_id}]}
+      found=""
+      for qr in ${QUOTA[${tenant},${member},qrs]:-}
       do
-        acls+=(
-          # All roles
-          "@${group_id} CLUSTER/#${cluster_id}   USE    #${zone_id}"
-          "@${group_id} DATASTORE/%${cluster_id} USE    #${zone_id}"
+        for cluster_id in ${QUOTA[${tenant},${member},${qr},clusters]}
+        do
+          [[ -z "${found}" ]] && acls+=( "@${group_id} ZONE/#${zone_id} USE #${zone_id}" )
+          found=yes
+          acls+=(
+            # all roles
+            "@${group_id} CLUSTER/#${cluster_id} USE #${zone_id}"
+            "@${group_id} DATASTORE/%${cluster_id} USE #${zone_id}"
+            # hosts: SA, Power, User - manage; RO - use
+            "@${sa_id} HOST/%${cluster_id} MANAGE #${zone_id}"
+            "@${power_id} HOST/%${cluster_id} MANAGE #${zone_id}"
+            "@${user_id} HOST/%${cluster_id} MANAGE #${zone_id}"
+            "@${ro_id} HOST/%${cluster_id} USE #${zone_id}"
+          )
+        done  # cluster_id
+      done  # qr
+      [[ -n "${found}" ]] || continue   # the tenant has no cluster in this zone
 
-          # Super Admins
-          "@${sa_id}    HOST/%${cluster_id}      MANAGE #${zone_id}"
-
-          # Power Users
-          "@${power_id} HOST/%${cluster_id}      MANAGE #${zone_id}"
-
-          # Users
-          "@${user_id}  HOST/%${cluster_id}      MANAGE #${zone_id}"
-
-          # Read Only
-          "@${ro_id}    HOST/%${cluster_id}      USE    #${zone_id}"
-        )
-      done  # cluster_id
-
-      # grant rights to tenant for using shared and tenant resources
-      [[ -n "${RUNTIME[${platform},shared]:-}" ]] && acls+=( "@${group_id} IMAGE+TEMPLATE/@${RUNTIME[${platform},shared]} USE    #${zone_id}" )
+      [[ -n "${shared}" ]] && acls+=( "@${group_id} IMAGE+TEMPLATE/@${shared} USE #${zone_id}" )
       acls+=(
         # Super Admins
-        "@${sa_id}    MARKETPLACEAPP/*                                                       USE        #${zone_id}"
-        "@${sa_id}    VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]}                        USE        #${zone_id}"
-        "@${sa_id}    VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE+MANAGE #${zone_id}"
-        "@${sa_id}    VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/*            CREATE     #${zone_id}"
-
+        "@${sa_id} MARKETPLACEAPP/* USE #${zone_id}"
+        "@${sa_id} VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]} USE #${zone_id}"
+        "@${sa_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE+MANAGE #${zone_id}"
+        "@${sa_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/* CREATE #${zone_id}"
         # Power Users
-        "@${power_id} MARKETPLACEAPP/*                                                       USE        #${zone_id}"
-        "@${power_id} VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]}                        USE        #${zone_id}"
+        "@${power_id} MARKETPLACEAPP/* USE #${zone_id}"
+        "@${power_id} VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]} USE #${zone_id}"
         "@${power_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE+MANAGE #${zone_id}"
-        "@${power_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/*            CREATE     #${zone_id}"
-
+        "@${power_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/* CREATE #${zone_id}"
         # Users
-        "@${user_id}  NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP/@${group_id}                      USE        #${zone_id}"
-        "@${user_id}  VM+TEMPLATE+DOCUMENT/*                                                 CREATE     #${zone_id}"
-
+        "@${user_id} NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP/@${group_id} USE #${zone_id}"
+        "@${user_id} VM+TEMPLATE+DOCUMENT/* CREATE #${zone_id}"
         # Read Only
-        "@${ro_id}    MARKETPLACEAPP/*                                                       USE        #${zone_id}"
-        "@${ro_id}    VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]}                        USE        #${zone_id}"
-        "@${ro_id}    VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE        #${zone_id}"
+        "@${ro_id} MARKETPLACEAPP/* USE #${zone_id}"
+        "@${ro_id} VNTEMPLATE/#${RUNTIME[${member},vntemplate,id]} USE #${zone_id}"
+        "@${ro_id} VM+NET+IMAGE+TEMPLATE+DOCUMENT+SECGROUP+VROUTER+BACKUPJOB/@${group_id} USE #${zone_id}"
       )
     done  # member
 
+    [[ "${dry}" == "no" ]] && _stop_without_confirmation confirm=${confirm:-no} && return 1
+
+    # delete: the ACLs of the tenant group, its role groups and its admin
     if [[ "${dry}" == "no" ]]
     then
+      _log_std -n tenant="${tenant}" group_id="${group_id}" acl_delete="["
+      for subject in "@${group_id}" "@${sa_id}" "@${power_id}" "@${user_id}" "@${ro_id}" ${admin_id:+"#${admin_id}"}
+      do
+        for acl_id in $($ssh ${vip} "sudo -u oneadmin oneacl list -f USER='${subject}' --no-header -l ID 2>/dev/null")
+        do
+          _log -n " ${acl_id}"
+          $ssh ${vip} "sudo -u oneadmin oneacl delete ${acl_id} &>/dev/null"
+        done  # acl_id
+      done  # subject
+      _log " ]"
       _log_std -n tenant="${tenant}" group_id="${group_id}" acl_create="["
     else
+      _log_std tenant="${tenant}" group_id="${group_id}" acl_delete="[ dry run: no ACLs will be deleted ]"
       _log_std tenant="${tenant}" group_id="${group_id}" acl_create="[ dry run: no ACLs will be created ]"
     fi
 
@@ -389,10 +304,10 @@ function acl_tenant_set() {
       then
         acl_id=$($ssh ${vip} "sudo -u oneadmin oneacl create \"${acl}\" 2>/dev/null")
         acl_id="${acl_id##* }"
-        _log -n " ${acl_id}"
+        _log -n " ${acl_id:-failed}"
       else
         read -r acl_subj acl_obj acl_ops acl_zone <<< "${acl}"
-        _log "$(printf '%-6s %-64s %-17s %s\n' "${acl_subj}" "${acl_obj}" "${acl_ops}" "${acl_zone}")"
+        _log "$(printf '%-6s %-64s %-17s %s' "${acl_subj}" "${acl_obj}" "${acl_ops}" "${acl_zone}")"
       fi
     done  # acl
 
@@ -400,8 +315,12 @@ function acl_tenant_set() {
     then
       _log " ]"
       _log_std tenant="${tenant}" group_id="${group_id}" acl="new"
-      $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=@${group_id}             2>/dev/null"
-      $ssh ${vip} "sudo -u oneadmin oneacl list -f USER=#${admin_id} --no-header 2>/dev/null"
+      for subject in "@${group_id}" "@${sa_id}" "@${power_id}" "@${user_id}" "@${ro_id}"
+      do
+        $ssh ${vip} "sudo -u oneadmin oneacl list -f USER='${subject}' --no-header 2>/dev/null"
+      done | sort -nr  # subject
     fi
   done  # group_id
+
+  return 0
 }  # acl_tenant_set

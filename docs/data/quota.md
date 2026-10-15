@@ -5,9 +5,19 @@
 This document defines how tenant quotas are described and how they are stored
 as attributes of the tenant's OpenNebula group.
 
-The datastore sizes applied by `quota_ds_set` come from the temporary
-`patch.yaml` of the payload platform (`ds_quotas`), see
-[inventory](inventory.md#patchyaml).
+`quota_tenant_set` sets the OpenNebula quotas of the group from these
+attributes: a VM quota per record on its clusters, the datastore sizes from
+the `QUOTA_<SITE>` attribute: `IMAGES_GB`, `FILES_GB`, `BACKUPS_GB`; the VM
+quotas of clusters not in the records are deleted, and so are the quotas of
+the datastores the tenant has no records for (`SIZE` -1). `quota_tenant_show` and
+`quota_tenants_report` compare them: limit, real, usage.
+
+Datastore quotas are platform wide. A value missing in `QUOTA_<SITE>` is taken
+from `config/data/quota.yaml` (`defaults`): `files_gb` 1, `images_gb` 10,
+`backups_gb` 0. The images default is per quota record, added to the IMAGE
+datastore of the record's clusters: two records whose clusters share one IMAGE
+datastore - 20 GB on it; on two different IMAGE datastores - 10 GB on each.
+The FILE and BACKUP datastores are one per platform.
 
 ## Conventions
 
@@ -49,7 +59,7 @@ whole table.
 
 **Level** shows where the value is stored in the group:
 
-- **cluster** - stored per record, in `QUOTA_<SITE>_<CLUSTER>`;
+- **cluster** - stored per record, in `QUOTA_<SITE>_<QR>`;
 - **site (sum)** - set per record; the values of all records on the same site are
   added up and stored once, in `QUOTA_<SITE>`;
 - **site (one record)** - connectivity. Only **one record per site** may contain
@@ -143,9 +153,13 @@ Each record is split into two vector attributes in the group template:
 - **`QUOTA_<SITE>`** - one per site: the summed datastore space (`IMAGES_GB`,
   `FILES_GB`, `BACKUPS_GB`) of all the tenant's records on that site, plus the
   site's connectivity.
-- **`QUOTA_<SITE>_<CLUSTER>`** - one per record: `CPU`, `RAM_GB`, `GPU`,
+- **`QUOTA_<SITE>_<QR>`** - one per record: `CPU`, `RAM_GB`, `GPU`,
   `DISK_GB`, `STATUS`, `DATE_CREATED` and `DATE_REVIEW` (required when `STATUS`
   is `paused` or `suspended`).
+  `<QR>` - the quota record (qr): the `quota_code` of the clusters in
+  [`clusters.yaml`](inventory.md#clustersyaml), upper case - every cluster of
+  kind `shared` or `dedicated` with that code, the site code stripped;
+  `GPU` not set - 0.
 
 Rules:
 
@@ -167,7 +181,9 @@ QUOTA_DC1 = [
   IGW_TYPE = "vyos",
   INET_MBPS = "10",
   INET_MAIN_PREFIX = "31",
+  INET_MAIN_SUBNET = "1.2.3.28",
   INET_PUBLIC_PREFIXES = "29 28",
+  INET_PUBLIC_SUBNETS = "1.2.3.64 1.2.3.128",
   L2_VLANS = "205",
   L2_VNETS = "55"
 ]
@@ -194,6 +210,7 @@ QUOTA_DC2 = [
   IGW_TYPE = "custom",
   INET_MBPS = "100",
   INET_MAIN_PREFIX = "29"
+  INET_MAIN_SUBNET = "5.6.7.24"
 ]
 QUOTA_DC2_GI1 = [
   CPU = "50",
@@ -214,6 +231,8 @@ QUOTA_DC1 = [
   FILES_GB = "1",
   BACKUPS_GB = "500",
   CONNECTION_TYPE = "corpnet"
+  CORPNET_PREFIXES = "26",
+  CORPNET_SUBNETS = "10.100.200.64"
 ]
 QUOTA_DC1_CI1 = [
   CPU = "10",

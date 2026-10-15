@@ -24,7 +24,7 @@ function vnet_ar_ip_create() {
   local ip="${ip:-}"
   local result vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   vnet_ar_ip_exists platform="${platform}" vnet="${vnet:-}" ip="${ip:-}" && return 0
@@ -51,7 +51,7 @@ function vnet_ar_ip_exists() {
   local ip="${ip:-}"
   local json vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   if ! _is_ipv4 ip="${ip}"
@@ -101,7 +101,7 @@ function vnet_ar_mac_create() {
   local vnet="${vnet:-}"
   local result vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   vnet_ar_mac_get platform="${platform}" vnet="${vnet:-}"
@@ -130,7 +130,7 @@ function vnet_ar_mac_get() {
   local vnet="${vnet:-}"
   local json mac vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   json=$($ssh ${vip} "sudo -u oneadmin onevnet show ${vnet} -j 2>/dev/null")
@@ -193,7 +193,7 @@ function vnet_ip_leased() {
   local ip="${ip:-}"
   local json vip
 
-  data_runtime_refresh platform="${platform:-}" || return 1
+  data_platform_refresh platform="${platform:-}" || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
 
   if ! _is_ipv4 ip="${ip}"

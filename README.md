@@ -16,9 +16,9 @@ on a platform names it from the inventory:
 
 ```bash
 source bin/claugine                          # internal data and modules
-data_load_provider inv=data/SAMPLE/inventory secrets=data/SAMPLE/secrets runtime=data/SAMPLE/runtime   # user data; again - switch
+data_provider_load inv=data/SAMPLE/inventory secrets=data/SAMPLE/secrets runtime=data/SAMPLE/runtime   # user data; again - switch
 fe_cfg_ver_get platform=platforms.dc1.payload1         # read-only
-quota_tenant_get platform=platforms.dc1.payload1 tenant=romashka
+quota_tenant_show platform=platforms.dc1.payload1 tenant=romashka
 fe_services_restart platform=platforms.dc1.payload2    # asks for confirmation
 ```
 
