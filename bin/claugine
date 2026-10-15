@@ -3,7 +3,7 @@ set -u
 
 export SCRIPT_NAME="CLoud AUtomation enGINE"
 export SCRIPT_AUTHOR="Vladislav Kirilin, [@]ivladek@me.com"
-export SCRIPT_VER="02.10.00"
+export SCRIPT_VER="02.10.25"
 export SCRIPT_DATE="2026-10-15"
 export SCRIPT_SOURCE="https://github.com/ivladek/claugine/tree/main"
 

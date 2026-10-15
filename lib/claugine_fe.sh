@@ -390,7 +390,7 @@ function fe_os_update() {
   data_platform_refresh platform="${platform:-}" fe=yes || return 1
   vip=$(inv_value var=INV path=${platform}.fe.vip)
   _log_std zone_state="$(inv_value var=CONFIG path=onefe.states.zone.${RUNTIME[${platform},state]})" action="os_update"
-  hosts=" $($ssh ${vip} "sudo -u oneadmin onehost list --no-header -l NAME 2>/dev/null" | tr -d '[:blank:]' | xargs) "  # KVM hosts of the zone
+  hosts=" $($ssh ${vip} "sudo -u oneadmin onehost list --no-header -l NAME -s NAME=30 2>/dev/null" | tr -d '[:blank:]' | xargs) "  # KVM hosts of the zone
   _stop_without_confirmation confirm=${confirm:-no} && return 1
   $ssh ${vip} "sudo -u oneadmin onezone list 2>/dev/null"
   $ssh ${vip} "sudo -u oneadmin onezone show ${RUNTIME[${platform},id]} 2>/dev/null"

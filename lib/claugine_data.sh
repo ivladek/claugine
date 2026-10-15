@@ -282,7 +282,7 @@ function _data_check_platform() {
   # every cluster of the platform is in the inventory; undeployed clusters of the inventory - not an error
   failed=0
   inv_clusters=$(inv_keys var=INV path=${platform}.clusters | sort)
-  one_clusters=$($ssh ${vip} "sudo -u oneadmin onecluster list --no-header -l NAME 2>/dev/null" | tr -d '[:blank:]' | grep -v '^$' | sort)
+  one_clusters=$($ssh ${vip} "sudo -u oneadmin onecluster list --no-header -l NAME -s NAME=30 2>/dev/null" | tr -d '[:blank:]' | grep -v '^$' | sort)
   for name in $(comm -13 <(echo "${inv_clusters}") <(echo "${one_clusters}"))
   do
     _log_error "platform ${platform}: cluster ${name} of the platform missing in clusters.yaml"
@@ -776,7 +776,7 @@ function _data_runtime_platform_init() {
   while read -r id name
   do
     [[ -n "${id}" ]] && one_cluster_ids[${name}]="${id}"
-  done < <($ssh ${vip} "sudo -u oneadmin onecluster list --no-header -l ID,NAME 2>/dev/null")
+  done < <($ssh ${vip} "sudo -u oneadmin onecluster list --no-header -l ID,NAME -s NAME=30 2>/dev/null")
   RUNTIME[${platform},undeployed_clusters_list]=""
   for name in $(inv_keys var=INV path=${platform}.clusters | sort)
   do
