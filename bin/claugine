@@ -118,7 +118,11 @@ function _script_MAIN() {
     mapfile -t cmds < <(printf '%s\n' "${!help_data[@]}" | sort)
     _log "commands: ${#cmds[@]}"
 
-    if [[ -z "$*" || "$*" == "--help" ]]
+    # loaded by source: the count only - the arguments are the ones of _script_INIT, not the help patterns
+    if [[ "${BASH_SOURCE[0]}" != "$0" ]]
+    then
+      :
+    elif [[ -z "$*" || "$*" == "--help" ]]
     then
       for cmd in "${cmds[@]}"
       do

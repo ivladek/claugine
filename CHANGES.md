@@ -3,6 +3,7 @@
 ## [02.10.00] - 2026-10-15
 
 ### Changed
+- `source bin/claugine` - the number of commands only, no list; the list and the help - `bin/claugine [--help] [PATTERN ...]`
 - jobs: new `quota-set.sh` (`quota_tenant_set`, dry run by default), `quota-list.sh` (`quota_tenants_report`), `quota-show.sh` (`quota_tenant_show`) - every platform of `QUOTA_PLATFORMS` of the job data or `platforms=`; SAMPLE: `state: deployed` in every `platform.yaml`, `QUOTA_PLATFORMS` in `jobs-data.sh`
 - cluster kinds: `mgmt`, `shared`, `dedicated`, `service`, `portal` - checked by `_data_check_inventory` against the platform kind: `mgmt` - exactly one `mgmt` cluster; `shared` - `shared`, `dedicated`, `service`, at least one `shared`; `portal` - `portal` only; `quota_code` - required for `shared` and `dedicated`, not allowed for the others; SAMPLE: mgmt and portal clusters of their kinds, quota codes for dc2/payload1
 - `clusters.yaml`: `type` renamed `kind` - the same word as `platform.kind` (SAMPLE, frcloud); a platform of `kind: shared` must have at least one cluster of `kind: shared`

@@ -94,9 +94,9 @@ runtime directory and the platforms of the inventory:
 ## Help
 
 ```bash
-source bin/claugine              # load, then: the command names, the help calls, the data status
+source bin/claugine              # load, then: the number of commands, the help calls, the data status
 source bin/claugine              # loaded already: "script: was loaded before", nothing is reloaded,
-                                 #   the same list and the loaded platforms
+                                 #   the same status and the loaded platforms
 bin/claugine [--help]            # in a shell where claugine is loaded: the command names
 bin/claugine [--help] acl        # full help of every command with "acl" in its name
 bin/claugine tenant vyos         # several patterns: commands matching any of them

@@ -22,9 +22,8 @@ set -u
 #                                                 the next subnets - INET_PUBLIC_PREFIXES, INET_PUBLIC_SUBNETS
 #                              otherwise        - CONNECTION_TYPE none
 #                              L2 VLAN          - L2_VLANS
-#     Subnet: addresses like 1.2.3.0/29, separated by spaces; other text (none, ...) is ignored
-#       CSV patch: a subnet /29 or larger holds its gateway (network + 1) - the address is reduced by 1;
-#       a warning if the result is not the network address of the prefix
+#     Subnet: addresses like 1.2.3.0/29, separated by spaces, written as in the CSV; other text (none, ...) is ignored;
+#       SUBNETS_FIX below replaces the Subnet of a tenant on a site
 #     empty values are omitted, End and Статус are not written
 #
 # usage:
@@ -56,6 +55,11 @@ then
   echo "once-tenants-quota: onegroup not found"
   exit 1
 fi
+
+# corrections of the CSV: the Subnet of a tenant on a site - [<Тенант>|<Site>]="subnets separated by spaces"
+declare -A SUBNETS_FIX=(
+  ["corp-suyndik|at1"]="10.61.104.128/28"
+)
 
 
 # split one CSV line into the array fields: "a, b",c,,"d" -> [a, b] [c] [] [d]
@@ -184,21 +188,13 @@ do
       break
     fi
     IFS='|' read -r mbps inet_pfx corp_pfx vlans subnet <<< "${con[${key}]:-||||}"
+    subnet="${SUBNETS_FIX[${key}]:-${subnet}}"   # a correction of the CSV
 
     nets=()
     for net in ${subnet}
     do
       [[ "${net}" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}/[0-9]{1,2}$ ]] || continue
-      # CSV patch: /29 or larger - the gateway address in the CSV, the network address is one less
-      pfx="${net#*/}"
-      if (( pfx <= 29 ))
-      then
-        IFS=. read -r o1 o2 o3 o4 <<< "${net%/*}"
-        ip=$(( ((o1 << 24) | (o2 << 16) | (o3 << 8) | o4) - 1 ))
-        (( ip % (1 << (32 - pfx)) == 0 )) || echo "warning: tenant ${tenant} site ${site}: ${net} - not the gateway of a /${pfx}" >&2
-        net="$(( (ip >> 24) & 255 )).$(( (ip >> 16) & 255 )).$(( (ip >> 8) & 255 )).$(( ip & 255 ))/${pfx}"
-      fi
-      nets+=( "${net}" )
+      nets+=( "${net}" )   # as in the CSV
     done  # net
 
     lines="$(
