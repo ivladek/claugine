@@ -1,0 +1,9 @@
+{% load i18n %}{% if person.is_staff_member %}
+  {% for f, label in staff_roles %}{% if f == 'is_super_admin' and person.pk == user.pk and person.is_super_admin %}<label class="check"><input type="checkbox" checked disabled> {{ label }} <small class="muted">— {% trans "you cannot take it from yourself" %}</small></label><input type="hidden" name="roles" value="{{ f }}">{% else %}<label class="check"><input type="checkbox" name="roles" value="{{ f }}" {% if person|get_item_attr:f %}checked{% endif %}> {{ label }}</label>{% endif %}{% endfor %}
+  <div class="help">{% trans "Every role always keeps at least one active user. A super admin has every right whatever roles are ticked; the roles ticked decide which approvals and notices come to them. Taking the super admin role from another super admin needs the confirmation of the other super admins within 48 hours." %}</div>
+{% else %}
+  <label class="check"><input type="checkbox" name="org_admin" {% if person.is_org_admin %}checked{% endif %}> {% trans "Org admin" %} <small class="muted">— {% trans "everything in the organization" %}</small></label>
+  <label class="check"><input type="checkbox" name="read_only" {% if person.is_org_readonly %}checked{% endif %}> {% trans "Read only" %} <small class="muted">— {% trans "sees every project, changes nothing" %}</small></label>
+  <div class="field"><label>{% trans "Project admin of" %}</label>
+    {% with ts=org_tenants|get_item:person.organization_id|default:tenants %}{% for t in ts %}<label class="check"><input type="checkbox" name="tenants" value="{{ t.pk }}" {% if t.pk in person|admin_tenant_ids %}checked{% endif %}> <span class="code">{{ t.name }}</span></label>{% empty %}<small class="muted">{% trans "no projects" %}</small>{% endfor %}{% endwith %}</div>
+{% endif %}

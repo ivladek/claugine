@@ -1,0 +1,8 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with name=user.full_name %}Hello, {{ name }}!{% endblocktrans %}
+
+{% trans "Please confirm your email to finish registration on the Example Cloud portal:" %}
+
+{{ link }}
+
+{% blocktrans %}The link is valid for {{ hours }} hours. If you did not register, ignore this message.{% endblocktrans %}
+{% endautoescape %}

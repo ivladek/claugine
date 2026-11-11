@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Organizations" %}{% endblock %}
+{% block content %}
+<div class="olist-bar" style="margin-bottom:12px">
+  <h1 style="margin:0">{{ orgs|length }} {% trans "Organizations" %}</h1>
+  <form id="ofilter" method="get" class="filters" data-auto data-focus="no" style="margin:0">
+    {% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
+    <input type="search" name="q" value="{{ q }}" placeholder="{% trans 'Filter' %}">
+    {% if can_create %}<a class="btn small" href="{% url 'org_new' %}">+ {% trans "new" %}</a>{% endif %}
+    <a class="btn {% if not show_archived %}ghost {% endif %}small" href="?{% if not show_archived %}archived=1{% endif %}">{% trans "archived" %}</a>
+  </form>
+</div>
+<section class="card">{% include "tenants/_orgs.html" with list_filters=1 filter_form="ofilter" %}</section>
+{% endblock %}

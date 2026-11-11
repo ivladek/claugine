@@ -1,0 +1,12 @@
+{% load i18n %}{% autoescape off %}{% include "emails/_report_head.txt" %}
+
+{% trans "Last backups" %}:
+  {% trans "Portal" %}: {{ backups.portal_at|date:"d.m.Y H:i"|default:"—" }} — {{ backups.portal_result|default:"—" }}
+  {% trans "Platforms" %}: {{ backups.fe_at|date:"d.m.Y H:i"|default:"—" }} — {{ backups.fe_result|default:"—" }}
+
+{% trans "Schedule and destinations" %}:
+  {% trans "Portal" %}: {% trans "local" %} {% if bconf.portal.local_on %}{{ bconf.portal.local|default:"—" }}{% else %}—{% endif %}; {% trans "S3" %} {% if bconf.portal.s3 %}{{ bconf.portal.bucket|default:"—" }}{% else %}—{% endif %}; {% trans "daily at" %} {{ bconf.portal.start|time:"H:i" }}; {% trans "keep" %} {{ bconf.portal.keep }} {% trans "days" %}
+  {% trans "Platforms" %}: {% trans "local" %} {% if bconf.platform.local_on %}{{ bconf.platform.local|default:"—" }}{% else %}—{% endif %}; {% trans "S3" %} {% if bconf.platform.s3 %}{{ bconf.platform.bucket|default:"—" }}{% else %}—{% endif %}; {% trans "daily at" %} {{ bconf.platform.start|time:"H:i" }}; {% trans "keep" %} {{ bconf.platform.keep }} {% trans "days" %}
+{% if bconf.platform.platforms %}  {% trans "Platforms included" %}: {{ bconf.platform.platforms|join:", " }}{% endif %}
+{{ link }}
+{% endautoescape %}
