@@ -1,0 +1,6 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with t=tenant.name|default:tenant.title w=req.get_kind_display %}A network is requested for project {{ t }}: {{ w }}.{% endblocktrans %}
+{{ req.what }}{% if req.note %}
+{{ req.note }}{% endif %}
+
+{% trans "Approve or reject it on the project page:" %} {{ link }}
+{% endautoescape %}
