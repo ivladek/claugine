@@ -1,0 +1,5 @@
+{% load i18n %}{% if org_stats %}<p style="margin:16px 0 4px"><strong>{% trans "Organizations" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;max-width:320px">
+<tr style="color:#6b736e"><td style="padding:3px 6px;text-align:right">{% trans "Total" %}</td><td style="padding:3px 6px;text-align:right">{% trans "New" %}</td><td style="padding:3px 6px;text-align:right">{% trans "Deleted" %}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px;text-align:right"><strong>{{ org_stats.total }}</strong></td><td style="padding:4px 6px;text-align:right;color:#0f6b55">+{{ org_stats.new }}</td><td style="padding:4px 6px;text-align:right;color:#a61b0e">−{{ org_stats.deleted }}</td></tr>
+</table>{% endif %}

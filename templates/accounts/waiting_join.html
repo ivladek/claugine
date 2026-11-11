@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto">
+  <h1>{% trans "Waiting for the organization admin" %}</h1>
+  {% if join %}
+    {% if join.state == 'pending' %}<p>{% blocktrans with t=join.organization.name tax=join.organization.tax_id %}{{ t }} (IIN/BIN {{ tax }}) is already registered. We asked its admin to let you join. You will get an email when they decide.{% endblocktrans %}</p>
+    {% elif join.state == 'rejected' %}<p>{% trans "The organization admin declined your request." %}</p>{% endif %}
+  {% else %}<p>{% trans "Your account is not linked to an organization yet." %}</p>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% load i18n ui %}{% if gateways %}<div id="gateways"><div class="olist-bar" style="margin-top:18px"><h3 style="margin:0">{% trans "Gateways" %}</h3></div>
+{% if staff %}<div class="table-wrap"><table class="gw-table">
+  <thead><tr><th>{% trans "Gateway" %}</th><th>{% trans "VM name" %}</th><th>{% trans "Management IP" %}</th><th>{% trans "Status" %}</th><th></th></tr></thead>
+  {% for g in gateways %}<tr><td>{% if g.kind == 'igw' %}{% tp g.igw_type "igw" %}{% else %}{% tp g.role g.label %}{% endif %}</td>
+    <td><span class="code">{{ g.name }}</span>{% if g.id %} <small class="muted">#{{ g.id }}</small>{% endif %}</td>
+    <td><span class="code">{{ g.mgmt_ip|default:"—" }}</span></td>
+    <td>{% if g.kind == 'igw' %}<small class="muted">{% if g.igw_type == 'vyos' %}{% trans "advanced (VyOS)" %}{% elif g.igw_type == 'onevr' %}{% trans "native" %}{% elif g.igw_type == 'custom' %}{% trans "the customer's own VM" %}{% else %}{% trans "router" %}{% endif %}</small>{% if g.found %}<br>{% st g.status %}{% endif %}
+      {% else %}{% if not g.found %}<span class="muted">{% trans "not on the platforms" %}</span>{% else %}{% st g.status %}{% endif %}
+      {% if g.busy %}<br>{% st "running" _("task running") %}{% endif %}
+      {% if g.old %}<br>{% st "warn" _("old VM kept") %}{% endif %}
+      {% if g.vm.init_script %}<br>{% st "warn" _("init script in the context") %}{% endif %}
+      {% if g.found %}<br>{% if g.is_standard %}{% st "ok" _("compliant") %}{% else %}{% st "warn" _("non-compliant") %}{% endif %}{% endif %}
+      <br>{% if g.check.at %}{% if g.check.ok %}{% st "ok" _("checks ok") %}{% else %}{% st "bad" _("check failed") %}{% endif %} <small class="muted">{{ g.check.when|date:"d.m.Y H:i" }}</small>{% else %}<small class="muted">{% trans "not checked" %}</small>{% endif %}{% endif %}</td>
+    <td class="row-actions"><span class="stack-right"><button class="btn ghost small" type="button" data-open="dlg-gw-{{ g.key }}">{% trans "Details" %}</button>
+      {% if g.kind == 'igw' %}{% if can_edit_igw and igw_vyos %}<button class="btn ghost small" type="button" data-open="dlg-igw-configs">{% trans "Edit" %}</button>{% endif %}
+      {% else %}{% if can_redeploy_gw %}<form class="inline" method="post" action="{% url 'tenant_gw_check' tenant.pk %}">{% csrf_token %}<input type="hidden" name="key" value="{{ g.key }}"><button class="btn ghost small">{% trans "Check" %}</button></form>{% endif %}
+      {% if can_redeploy_gw and g.kind == 'router' and not g.busy %}<form class="inline" method="post" action="{% url 'tenant_gw_redeploy' tenant.pk g.role %}" onsubmit="return confirm('{% trans "Make this gateway again now? The old one is powered off and gives up its tenant-side address: the project's traffic stops until the new one is up (a few minutes). The new one gets new management and exchange addresses; the old one is removed once the new one passes its check, otherwise it comes back." %}')">{% csrf_token %}<button class="btn ghost small">{% trans "Redeploy…" %}</button></form>{% endif %}{% endif %}</span></td></tr>
+  {% endfor %}
+</table></div>
+{# owner 2026-10-29 19:51: no configuration buttons (egw, igw, …) under the gateways #}
+{% for g in gateways %}<dialog id="dlg-gw-{{ g.key }}" class="card gw-dlg" style="max-width:680px;width:94%"{% if g.kind == 'igw' and igw_open == 'gw' %} data-autoopen{% endif %}>{# owner 2026-10-29 20:47: compact #}
+  <h2><span class="code">{{ g.name }}</span> <small class="muted">{{ g.label }}</small>{% if g.found %} {% st g.status %}{% if g.busy %} {% st "running" _("task running") %}{% endif %}{% endif %}</h2>
+  <dl class="facts compact">
+    {% if g.kind != 'igw' %}<dt>{% trans "Compliance" %}</dt><dd>{% if g.is_standard %}{% st "ok" _("compliant") %}{% else %}{% st "warn" _("non-compliant") %} <small class="muted">{% trans "its name will be" %} <span class="code">{{ g.standard }}</span></small>{% endif %}</dd>{% endif %}
+    {% if g.found %}<dt>{% trans "VM" %}</dt><dd><small>{{ g.check.hostname|default:g.hostname }} · {{ g.platform }} #{{ g.id }} · {{ g.vm.cluster|default:"—" }} · {{ g.host|default:"—" }}</small></dd>
+    <dt>{% trans "Size" %}</dt><dd><small>{{ g.vm.vcpu|default:"?" }} vCPU · {{ g.vm.ram_gb|gb|default:"?" }} GB · {% trans "disk" %} {{ g.vm.disks_gb|join:" + "|default:"—" }} GB{% if g.vm.images %} · {{ g.vm.images|join:", " }}{% endif %}</small></dd>
+    <dt>{% trans "NICs" %}</dt><dd><small>{% for net, ip in g.vm.nics %}<div>{{ forloop.counter }}. {{ net|default:"?" }} <span class="code">{{ ip|default:"—" }}</span></div>{% empty %}—{% endfor %}</small></dd>
+    {% if g.vm.init_script %}<dt>{% trans "Init script" %}</dt><dd><small style="color:var(--warn)">{% trans "still in the VM's context on the platform (the first configuration, secrets included)" %}</small></dd>{% endif %}
+    {% else %}<dt>{% trans "Status" %}</dt><dd class="muted"><small>{% if g.kind == 'igw' %}{% trans "the project's VM: not in the platform's list of the provider's VMs" %}{% else %}{% trans "not on the platforms (last read)" %}{% endif %}</small></dd>{% endif %}
+    {% if g.old %}<dt>{% trans "Old VM" %}</dt><dd><small><span class="code">{{ g.old.name }}</span> #{{ g.old.id }} · {% st g.old.status %} · {{ g.old.host|default:"—" }}</small></dd>{% endif %}
+    {% if g.kind == 'igw' %}{# owner 2026-10-29 20:14: the igw's address, ssh and password here #}
+    {% with ip=tenant.igw_address|default:g.mgmt_ip %}<dt>{% trans "Access" %}</dt><dd><span class="code">{{ ip|default:"—" }}</span> : <span class="code">{{ tenant.igw_ssh_port|default:"22" }}</span>{% if tenant.igw_username %} · <span class="code">{{ tenant.igw_username }}</span>{% endif %}{% if tenant.igw_ssh_from %} <small class="muted">{% trans "from" %} {{ tenant.igw_ssh_from }}</small>{% endif %}{% if tenant.igw_username and ip %}<div style="margin-top:2px"><span class="code">ssh -p {{ tenant.igw_ssh_port|default:"22" }} -l {{ tenant.igw_username }} {{ ip }}</span>{% if tenant.igw_ssh_line %} {% include "ui/copy.html" with text=tenant.igw_ssh_line %}{% endif %}</div>{% endif %}</dd>
+    {% if tenant.igw_username and can_see_access %}<dt>{% trans "Password" %}</dt><dd>{% if tenant.igw_password_encrypted %}{% if revealed %}<span class="code secret">{{ igw_password }}</span>{% else %}<span class="muted">••••••••</span> {% include "ui/copy_secret.html" with which="igw" %}{% endif %}{% else %}<span class="muted">{% trans "not kept" %}</span>{% endif %}
+        {% if tenant.igw_password_encrypted and not revealed %}<form class="inline" method="post" action="{% url 'tenant_reveal_password' tenant.pk %}">{% csrf_token %}<button class="btn ghost small" title="{% trans 'Seeing it is logged' %}">{% trans "Show" %}</button></form>{% endif %}
+        <form class="inline" method="post" action="{% url 'tenant_igw' tenant.pk %}">{% csrf_token %}<input type="hidden" name="action" value="history"><input type="hidden" name="dialog" value="gw"><button class="btn ghost small">{% trans "History" %}</button></form>
+        <button class="btn ghost small" type="button" data-click-edit="gwpw-{{ g.key }}">{% trans "Change" %}</button>
+          <form method="post" action="{% url 'tenant_igw' tenant.pk %}" class="stack click-edit" id="gwpw-{{ g.key }}" hidden style="margin-top:6px">{% csrf_token %}<input type="hidden" name="action" value="password"><input type="hidden" name="dialog" value="gw">
+            <input type="password" name="password" autocomplete="new-password" required class="mono">
+            {% if igw_vyos and g.id %}<label class="check"><input type="checkbox" name="on_igw" checked> {% trans "set it on the igw too (over ssh)" %}</label>{% endif %}
+            <div><button class="btn small">{% trans "Save the password" %}</button> <button class="btn ghost small" type="button" data-click-edit="gwpw-{{ g.key }}">{% trans "Cancel" %}</button></div></form>
+        {% if igw_history %}<div class="table-wrap" style="margin-top:6px"><table class="mini"><tr><th>{% trans "Until" %}</th><th>{% trans "By" %}</th><th>{% trans "Password" %}</th></tr>
+          {% for at, by, pw in igw_history %}<tr><td><small>{{ at|date:"d.m.Y H:i" }}</small></td><td><small>{{ by|default:"—" }}</small></td><td><span class="code secret">{{ pw }}</span></td></tr>{% empty %}<tr><td colspan="3" class="muted">{% trans "No former passwords." %}</td></tr>{% endfor %}</table></div>{% endif %}</dd>{% endif %}{% endwith %}{% endif %}
+    {% if g.kind != 'igw' %}<dt>{% trans "Login" %}</dt><dd><span class="code">{{ g.mgmt_ip|default:"—" }}:{{ g.port }}</span> · <span class="code">{{ g.login|secret|default:"—" }}</span></dd>
+    <dt>{% trans "Checks" %}</dt><dd>{% if g.check.at %}<small class="muted">{{ g.check.when|date:"d.m.Y H:i" }}{% if g.check.os %} · {{ g.check.os }}{% endif %}</small>
+      {% if g.check.checks %}<div class="gw-checks">{% for c in g.check.checks %}<span class="{% if c.ok %}ok{% else %}bad{% endif %}" title="{{ c.detail }}">{% if c.ok %}✓{% else %}✗{% endif %} {{ c.check }}</span>{% endfor %}</div>
+        {% for c in g.check.checks %}{% if not c.ok and c.detail %}<div><small class="code">{{ c.check }}: {{ c.detail }}</small></div>{% endif %}{% endfor %}{% else %} <small>{{ g.check.detail }}</small>{% endif %}
+      {% else %}<small class="muted">{% trans "not checked" %}</small>{% endif %}</dd>{% endif %}
+  </dl>
+  <div class="actions"><button class="btn ghost" type="button" data-close>{% trans "Close" %}</button></div></dialog>{% endfor %}
+{% else %}<div class="table-wrap"><table>
+  <thead><tr><th>{% trans "Gateway" %}</th><th>{% trans "Status" %}</th><th></th></tr></thead>
+  {% for g in gateways %}<tr><td>{% if g.kind == 'igw' %}igw{% else %}{{ g.label }}{% endif %}</td>
+    <td>{% if g.kind == 'igw' %}{% tp g.igw_type g.igw_type %}{% elif g.healthy %}{% st "ok" _("ok") %}{% else %}{% st "bad" _("not ok") %}{% endif %}</td>
+    <td class="row-actions">{% if g.kind == 'igw' and can_edit_igw and igw_vyos %}<button class="btn ghost small" type="button" data-open="dlg-igw-configs">{% trans "Edit" %}</button>{% endif %}</td></tr>
+  {% endfor %}
+</table></div>{% endif %}
+</div>{% endif %}
+<script>/* the igw dialog opens again after one of its actions (?igw=gw) */
+document.querySelectorAll("dialog[id^='dlg-gw-'][data-autoopen]").forEach(function (d) { if (d.showModal && !d.open) d.showModal(); });</script>

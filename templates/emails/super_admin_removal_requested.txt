@@ -1,0 +1,7 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with who=req.requested_by.full_name|default:req.requested_by.email target=req.target.full_name|default:req.target.email email=req.target.email %}{{ who }} asks to {% endblocktrans %}{% if req.op == 'add' %}{% trans "grant the super admin role to" %}{% else %}{% trans "take the super admin role from" %}{% endif %} {{ req.target.full_name|default:req.target.email }} ({{ req.target.email }}).
+
+{% blocktrans with n=req.required %}It happens only when {{ n }} super admins agree (the one asking counts as one) within {{ hours }} hours; one refusal or the deadline ends it.{% endblocktrans %}
+
+{% trans "Confirm or decline in Administration → Users → Platform:" %}
+{{ link }}
+{% endautoescape %}
