@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{{ tenant.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'tenant_detail' tenant.pk %}#takeover">← {{ tenant.name }}</a></p>
+<h1>{% trans "Switch the gateways to the portal" %} <small class="muted">{{ tenant.name }}</small></h1>
+<section class="card">
+  <p class="muted"><small>{% trans "For each gateway: the old VM and the configuration the portal gives the new one — secrets hidden. The old gateways' configuration is not read: they are built new. The new egw / cgw gets new management and exchange addresses and keeps the tenant-side ones; the old one is removed once the new one answers in VRF MGMT with its BGP peers up. Nothing has been changed yet." %}</small></p>
+  {% if error %}<p style="color:var(--bad)">{{ error }}</p>{% endif %}
+  {% for r in rows %}<h3 style="margin:16px 0 4px">{{ r.role }} <span class="code">{{ r.name }}</span></h3>
+    {% if r.old %}<p><small>#{{ r.old.id }} · {{ r.old.cpu }} vCPU · {{ r.old.memory }} MB · {% for n in r.old.nics %}{{ n.iface }} {{ n.network }} <span class="code">{{ n.ip|default:"—" }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</small></p>{% endif %}
+    {% if not r.old %}<p class="muted"><small>{% trans "No old VM of this name." %}</small></p>{% endif %}
+    {% if r.new_name %}<p><small>{% trans "New VM" %} <span class="code">{{ r.new_name }}</span></small></p>{% endif %}
+    <div><h4 style="margin:4px 0">{% trans "New (made by the portal)" %}</h4>{% if r.new_error %}<p class="muted"><small>{{ r.new_error }}</small></p>{% else %}<pre class="config" style="max-height:360px">{{ r.new }}</pre>{% endif %}</div>
+  {% empty %}{% if not error %}<p class="muted">{% trans "This project has no egw, cgw or L2 gateways to switch." %}</p>{% endif %}{% endfor %}
+  {% if rows %}<form method="post" action="{% url 'takeover_gateways' tenant.pk %}" style="margin-top:16px" onsubmit="return confirm('{% trans "Make the egw / cgw / L2 gateways of this project again now? Its traffic stops for a few minutes." %}')">{% csrf_token %}<button class="btn danger">{% trans "Switch: redeploy egw / cgw / L2 gateways" %}</button></form>{% endif %}
+</section>
+{% endblock %}

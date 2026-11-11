@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{{ site.code }} · IPMI{% endblock %}
+{% block content %}
+<p><a href="{% url 'infra_site' site.code %}?tab=hosts">← {{ site.code }} · {% trans "Hosts" %}</a></p>
+<h1>{% trans "IPMI settings" %} <small class="muted">{{ site.code }}</small></h1>
+<p class="muted">{% trans "The same IPMI user, NTP servers, DNS servers and time zone on the iLO of every host of the site (HPE iLO 6 and 7, through Redfish). NTP and DNS come from the site settings." %}
+  {% for t, n in types %}{% tp t %} ×{{ n }} {% endfor %}</p>
+
+<section class="card"><h2>{% trans "Desired settings" %}</h2>
+  <dl class="facts">
+    <dt>{% trans "IPMI user" %}</dt><dd>{% if can_edit %}<form method="post" class="actions">{% csrf_token %}<input type="hidden" name="action" value="save">
+      <select name="user" style="width:auto">{% for ref, c in refs %}<option value="{{ ref }}" {% if ref == desired.user %}selected{% endif %}>{{ c.name }} · {{ c.username }}</option>{% empty %}<option value="{{ desired.user }}">{{ desired.user|default:"—" }}</option>{% endfor %}</select>
+      <button class="btn ghost small" onclick="return confirm('{% trans "Use this IPMI user for every host of the site?" %}')">{% trans "Use for all hosts" %}</button></form>{% else %}<span class="code">{{ desired.user|default:"—" }}</span>{% endif %}</dd>
+    <dt>NTP</dt><dd>{{ desired.ntp|join:", "|default:"—" }}</dd>
+    <dt>DNS</dt><dd>{{ desired.dns|join:", "|default:"—" }}</dd>
+    <dt>{% trans "Time zone" %}</dt><dd>{{ desired.timezone }}</dd>
+  </dl>
+  {% if not desired.ntp or not desired.dns %}<p class="muted"><small>{% trans "Set the NTP and DNS servers of the site to unify them on the iLOs." %}</small></p>{% endif %}
+</section>
+
+<form method="post" id="ipmi">{% csrf_token %}
+<section class="card olist" data-key="site-ipmi" data-size="50">
+  <div class="olist-bar"><h2>{% trans "Hosts" %}</h2><div class="olist-tools"><input type="search" class="olist-search" placeholder="{% trans 'Filter' %}">
+    <button class="btn ghost small" name="action" value="check">{% trans "Check" %}</button>
+    {% if can_edit and action %}<button class="btn small" name="action" value="apply" onclick="return confirm('{% trans "Write NTP, DNS and time zone to the checked iLOs?" %}')">{% trans "Apply to checked" %}</button>{% endif %}</div></div>
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th></th><th>{% trans "Host" %}</th><th>IPMI</th><th>{% trans "Type" %}</th><th>{% trans "User" %}</th><th>NTP</th><th>DNS</th><th>{% trans "Time zone" %}</th><th>{% trans "State" %}</th></tr></thead><tbody>
+  {% for row in rows %}{% with h=row.host r=row.r %}<tr class="orow" data-id="{{ h.name }}">
+    <td>{% if can_edit and r and not r.error and not row.ok %}<input type="checkbox" name="hosts" value="{{ h.name }}" checked>{% endif %}</td>
+    <td><span class="code">{{ h.name }}</span></td>
+    <td>{% if h.ipmi_host %}<a class="ext" href="{{ h.ipmi_url }}" target="_blank" rel="noopener noreferrer">{{ h.ipmi_host }}</a>{% else %}—{% endif %}</td>
+    <td>{% if r.type %}{% tp r.type %}{% elif h.ipmi_type %}{% tp h.ipmi_type %}{% else %}—{% endif %}</td>
+    <td>{% if row.user_ok %}{% st "ok" _("same") %}{% else %}{% st "differs" _("differs") %}{% endif %}</td>
+    {% if r and not r.error %}<td>{% if row.ntp_ok %}{% st "ok" "ok" %}{% else %}{% st "differs" _("differs") %}{% endif %}</td><td>{% if row.dns_ok %}{% st "ok" "ok" %}{% else %}{% st "differs" _("differs") %}{% endif %}</td><td>{% if row.tz_ok %}{% st "ok" "ok" %}{% else %}{% st "differs" _("differs") %}{% endif %}</td>
+    <td>{% if row.ok %}{% st "ok" _("unified") %}{% else %}{% st "changed" _("to apply") %}{% endif %}</td>
+    {% elif r.error %}<td colspan="3"><small style="color:var(--bad)">{{ r.error|truncatechars:80 }}</small></td><td>{% st "error" _("not read") %}</td>
+    {% else %}<td colspan="4" class="muted"><small>{% trans "not checked" %}</small></td>{% endif %}</tr>{% endwith %}{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for row in rows %}{% with h=row.host r=row.r %}<div class="odetail card" data-for="{{ h.name }}" hidden><h3>{{ h.name }}</h3>
+    <dl class="facts"><dt>IPMI</dt><dd>{{ h.ipmi_host|default:"—" }} · <span class="code">{{ h.ipmi_user|secret }}</span></dd>
+    {% if r and not r.error %}<dt>{% trans "Model" %}</dt><dd>{{ r.model }} · {% trans "firmware" %} {{ r.firmware }}</dd><dt>{% trans "Host name" %}</dt><dd>{{ r.hostname|default:"—" }}</dd>
+      <dt>NTP</dt><dd>{{ r.ntp|join:", "|default:"—" }}{% if r.dhcp_ntp %} <small class="muted">({% trans "from DHCP" %})</small>{% endif %}</dd>
+      <dt>DNS</dt><dd>{{ r.dns|join:", "|default:"—" }}{% if r.dhcp_dns %} <small class="muted">({% trans "from DHCP" %})</small>{% endif %}</dd>
+      <dt>{% trans "Time zone" %}</dt><dd>{{ r.timezone|default:"—" }} {% if r.tz_offset %}(UTC{{ r.tz_offset }}){% endif %}</dd>
+      {% if r.applied is not None %}<dt>{% trans "Applied" %}</dt><dd>{{ r.applied|join:", "|default:"ok" }}</dd>{% endif %}{% endif %}
+    {% if r.error %}<dt>{% trans "Error" %}</dt><dd>{{ r.error }}</dd>{% endif %}</dl></div>{% endwith %}{% endfor %}</div>
+</section>
+</form>
+<p class="muted"><small>{% trans "Some iLO network changes take effect after an iLO reset; the messages of the iLO are shown per host." %}</small></p>
+{% endblock %}

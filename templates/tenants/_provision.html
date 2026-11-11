@@ -1,0 +1,38 @@
+{% load i18n %}{% if can_provision and provision_form %}{% with f=provision_form %}
+<dialog id="dlg-t-provision" class="card" style="max-width:640px;width:94%"{% if provision_open %} data-autoopen{% endif %}><h2>{% trans "Provision" %} <small class="muted">{{ tenant.one_group_name }}</small></h2>
+  <p class="muted"><small>{% trans "The project is made on its platform now: its group, admin, quota and networks, and with the internet its egw and igw." %}</small></p>
+  <form method="post" action="{% url 'tenant_provision' tenant.pk %}" class="stack" id="provision-form">{% csrf_token %}
+    <div class="grid two">
+      <div class="field" data-field="admin_user"><label for="{{ f.admin_user.id_for_label }}">{{ f.admin_user.label }}</label>
+        {% if f.fixed_admin %}{{ f.admin_user }}{% else %}<div class="prefixed"><span class="code">{{ f.org_short }}-</span>{{ f.admin_user }}</div>{% endif %}
+        <div class="help">{{ f.admin_user.help_text }}</div>{{ f.admin_user.errors }}</div>
+      {% include "includes/field.html" with f=f.admin_password %}
+    </div>
+    {% if f.inet %}
+    {% include "includes/field.html" with f=f.igw_type %}
+    <div data-igw="vyos"><div class="grid two">{% include "includes/field.html" with f=f.igw_username %}{% include "includes/field.html" with f=f.igw_password %}</div>
+      <div class="grid two">{% include "includes/field.html" with f=f.igw_cpu %}{% include "includes/field.html" with f=f.igw_ram_gb %}</div></div>
+    <div data-igw="vyos onevr">{% include "includes/field.html" with f=f.igw_key %}
+      {% if not f.keys %}<p class="muted"><small>{% trans "The organization has no keys yet (organization portal → Keys)." %}</small></p>{% endif %}</div>
+    {% endif %}
+    {% if f.people %}{% include "includes/field.html" with f=f.tenant_admin %}
+    <p class="muted"><small>{% trans "When the project is ready the project admin gets everything by e-mail (resources, addresses, user names and passwords); the platform users of the project get a notification without credentials." %}</small></p>
+    {% else %}<p class="msg warning">{% trans "The organization has no users: add its project admin on the organization's page first." %}</p>{% endif %}
+    <div class="actions"><button class="btn">{% trans "Provision" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div>
+  </form>
+</dialog>
+<script>
+(function () {
+  var form = document.getElementById('provision-form');
+  if (!form) return;
+  function syncIgw() {
+    var t = (form.querySelector('input[name="pv-igw_type"]:checked') || {}).value || 'vyos';
+    form.querySelectorAll('[data-igw]').forEach(function (el) { el.style.display = el.getAttribute('data-igw').split(' ').indexOf(t) >= 0 ? '' : 'none'; });
+  }
+  form.querySelectorAll('input[name="pv-igw_type"]').forEach(function (i) { i.addEventListener('change', syncIgw); });
+  syncIgw();
+  var d = document.getElementById('dlg-t-provision');
+  if (d && d.hasAttribute('data-autoopen') && d.showModal) d.showModal();
+})();
+</script>
+{% endwith %}{% endif %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Dashboard" %}{% endblock %}
+{% block content %}
+<div class="dash-head">
+  <h1>{{ org.name }}</h1>
+  <p class="muted"><span class="pill {% if org.kind == 'corp' %}info{% else %}muted{% endif %}">{{ org.get_kind_display }}</span> {{ org.tax_id }}{% if org.sales_rep %} · {% trans "Your sales rep" %}: {{ org.sales_rep }} ({{ org.sales_rep.email }}){% endif %}{% if org.kam %} · {% trans "Key account manager" %}: {{ org.kam }} ({{ org.kam.email }}){% endif %}</p>
+</div>
+
+<div class="tiles">
+  <a class="tile" href="{% url 'my_org' %}">
+    <div class="tile-label">{% trans "Projects" %}</div>
+    <div class="tile-value">{{ approved }}</div>
+    <div class="tile-sub">{% blocktrans with d=deployed p=pending %}deployed {{ d }} · waiting for approval {{ p }}{% endblocktrans %}</div>
+  </a>
+  <div class="tile">
+    <div class="tile-label">{% trans "vCPU" %} · {% trans "RAM" %}</div>
+    <div class="tile-value">{{ res.cpu }} <small>· {{ res.ram_gb|gb }} {% trans "GB" %}</small></div>
+    <div class="tile-sub">{% trans "quotas in force" %}{% if res.gpu %} · GPU {{ res.gpu }}{% endif %}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">{% trans "Storage" %}</div>
+    <div class="tile-value">{{ res.disk_gb }} <small>{% trans "GB" %}</small></div>
+    <div class="tile-sub">{% trans "VM disks and images" %}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">{% trans "Virtual machines" %}</div>
+    <div class="tile-value">{{ vms.running }} <small>/ {{ vms.total }}</small></div>
+    <div class="tile-sub">{% trans "running / total" %}</div>
+  </div>
+  {% if is_admin %}
+  <a class="tile" href="{% url 'org_users' %}">
+    <div class="tile-label">{% trans "Users" %}</div>
+    <div class="tile-value">{{ people }}</div>
+    <div class="tile-sub">{% blocktrans with j=join_requests i=invitations %}join requests {{ j }} · open invitations {{ i }}{% endblocktrans %}</div>
+  </a>
+  {% endif %}
+</div>
+
+<section class="card"><h2>{% trans "Projects" %}</h2>
+  <div class="table-wrap"><table><tr><th style="width:28px"></th><th>{% trans "Project" %}</th><th>{% trans "Approval" %}</th><th>{% trans "Deployment" %}</th><th>vCPU</th><th>{% trans "RAM, GB" %}</th><th>GPU</th><th>{% trans "Disk, GB" %}</th><th>{% trans "VMs" %}</th></tr>
+  {% for t in tenants %}<tr><td>{% if t.fireedge_public_url and t.approval == 'approved' %}{% include "ui/fireedge_link.html" with url=t.fireedge_public_url %}{% endif %}</td><td><a href="{% url 'tenant_detail' t.pk %}">{{ t.name|default:t.title }}</a><br><small class="code">{{ t.one_group_name }}</small></td>
+    <td><span class="pill {{ t.approval }}">{{ t.get_approval_display }}</span></td>
+    <td>{% if t.dep %}<span class="pill {% if t.dep.state == 'done' %}ok{% elif t.dep.state == 'failed' %}bad{% else %}info{% endif %}">{{ t.dep.get_state_display }}</span>{% elif t.approval == 'approved' and not t.one_group_id %}<a class="btn small" href="{% url 'tenant_detail' t.pk %}?provision=1">{% trans "Provision" %}</a>{% else %}—{% endif %}</td>
+    <td>{{ t.res.cpu }}</td><td>{{ t.res.ram_gb|gb }}</td><td>{{ t.res.gpu }}</td><td>{{ t.res.disk_gb }}</td><td>{{ t.vms.running }} / {{ t.vms.total }}</td></tr>
+  {% empty %}<tr><td colspan="9" class="muted">{% trans "No projects yet." %}{% if is_admin %} <a href="{% url 'new_tenant' %}">{% trans "Order a project" %}</a>{% endif %}</td></tr>{% endfor %}</table></div>
+</section>
+
+{% if is_admin %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,12 @@
+{% load i18n %}<section class="card" style="max-width:960px">
+  <h2>{% trans "Public names" %}</h2>
+  <p class="muted">{% trans "The address users open the portal at, and the links in e-mails. The names HAProxy serves, the nodes and the test address of a new version are under Settings → Portal." %}</p>
+  <form method="post" class="stack">{% csrf_token %}<input type="hidden" name="tab" value="provider"><input type="hidden" name="section" value="publishing">
+    <div class="grid">
+      <div class="field"><label for="pub-url">{% trans "Public URL" %}</label><input id="pub-url" name="public_url" value="{{ obj.public_url }}" placeholder="https://portal.example.com">
+        <div class="help">{% blocktrans with u=default_url %}Links in emails. Empty: the installer's ({{ u }}).{% endblocktrans %}</div></div>
+    </div>
+    <div><button class="btn small">{% trans "Save" %}</button></div>
+  </form>
+</section>
+

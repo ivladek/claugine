@@ -1,0 +1,9 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with who=inviter.full_name|default:inviter.email %}{{ who }} invites you to register your organization on the Example Cloud portal.{% endblocktrans %}
+{% if corp %}{% trans "Your organization will be registered as a corporate (internal) client." %}
+{% endif %}
+{% trans "Register here:" %}
+
+{{ link }}
+
+{% blocktrans %}The link works once and is valid for {{ hours }} hours.{% endblocktrans %}
+{% endautoescape %}

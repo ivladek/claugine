@@ -1,0 +1,6 @@
+{% load i18n %}{% for o in orgs %}
+{{ o.tax_id|default:"—" }} · {{ o.name }} · {{ o.kind }}
+{% if o.projects %}  {% trans "ID" %} | {% trans "Type" %} | {% trans "Stage" %} | {% trans "Status" %} | {% trans "Created" %} | {% trans "Review" %}
+{% for t in o.projects %}  {{ t.id }} | {{ t.kind }} | {{ t.stage }} | {{ t.status }} | {{ t.created|date:"d.m.Y"|default:"—" }} | {{ t.review|date:"d.m.Y"|default:"—" }}{% if t.alert == 'due' %} !! {% trans "the review date has come" %}{% elif t.alert == 'soon' %} ! {% trans "the review date is close" %}{% endif %}
+{% endfor %}{% else %}  {% trans "No projects." %}
+{% endif %}{% endfor %}
