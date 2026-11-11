@@ -1,0 +1,8 @@
+{% load i18n %}<div class="field"><label for="{{ form.log_host.id_for_label }}">{% trans "Log collector" %}</label>
+{{ form.log_host.as_widget }}{% if form.log_host.errors %}{{ form.log_host.errors }}{% endif %}
+<div class="help">{{ form.log_host.help_text }}</div>
+<table class="mini log-collectors" style="margin-top:6px"><thead><tr><th>{% trans "Purpose" %}</th><th>{% trans "Protocol" %}</th><th>{% trans "Port" %}</th></tr></thead><tbody>
+{% for label, proto, port in form.log_rows %}<tr><td>{{ label }}</td>
+  <td>{{ proto.as_widget }}</td>
+  <td>{{ port.as_widget }}{% if port.errors %}{{ port.errors }}{% endif %}</td></tr>{% endfor %}
+</tbody></table><div class="help">{% trans "Empty port: none for that purpose." %}</div></div>

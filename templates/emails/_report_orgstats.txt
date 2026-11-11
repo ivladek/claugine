@@ -1,0 +1,3 @@
+{% load i18n %}{% if org_stats %}
+{% trans "Organizations" %}: {% trans "total" %} {{ org_stats.total }}, {% trans "new" %} +{{ org_stats.new }}, {% trans "deleted" %} −{{ org_stats.deleted }}
+{% endif %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<h1>{% trans "My profile" %}</h1>
+<div class="grid two">
+  <section class="card">
+    <dl class="facts">
+      <dt>{% trans "Email" %}</dt><dd>{{ user.email }}</dd>
+      <dt>{% trans "Role" %}</dt><dd>{{ user.role_display }}</dd>
+      {% if user.organization %}<dt>{% trans "Organization" %}</dt><dd>{{ user.organization.name }}</dd>{% endif %}
+      <dt>{% trans "Two-factor" %}</dt><dd>{% if user.totp_enabled %}<span class="pill ok">{% trans "on" %}</span>{% if not user.requires_2fa %} <a href="{% url 'totp_disable' %}">{% trans "turn off" %}</a>{% endif %}{% else %}<span class="pill muted">{% trans "off" %}</span> <a href="{% url 'totp_setup' %}">{% trans "turn on" %}</a>{% endif %}</dd>
+    </dl>
+    {% if user.photo %}<p style="margin-top:16px"><img class="avatar" style="width:96px;height:96px" src="{% url 'user_photo' user.pk %}" alt=""></p>{% endif %}
+    <p><a href="{% url 'password_reset' %}">{% trans "Change password" %}</a></p>
+  </section>
+  <section class="card">
+    <form method="post" enctype="multipart/form-data" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn">{% trans "Save" %}</button></form>
+  </section>
+</div>
+{% endblock %}

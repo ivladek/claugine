@@ -1,0 +1,8 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}{% include "emails/_report_head.html" %}
+{% include "emails/_report_usage.html" %}
+{% include "emails/_report_matrix.html" %}
+{% include "emails/_report_orgstats.html" %}
+<p style="margin:18px 0 4px"><strong>{% trans "Your internal organizations" %}</strong></p>
+{% include "emails/_report_orgs.html" %}
+<p style="margin:10px 0 0"><a href="{{ link }}" style="color:#0f6b55">{{ link }}</a></p>
+{% endblock %}

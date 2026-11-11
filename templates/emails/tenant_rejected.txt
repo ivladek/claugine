@@ -1,0 +1,4 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with t=tenant.title|default:tenant.name %}The request for project {{ t }} on the Example Cloud portal was not approved.{% endblocktrans %}
+
+{% trans "Reason" %}: {{ tenant.rejection_reason }}
+{% endautoescape %}

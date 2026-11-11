@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Server profiles" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Server profiles" %}</h1>
+<p class="muted">{% trans "Server models of the hosts: chassis, CPU, RAM, GPUs, boot volumes and network cards. Check reads every host of a profile (its IPMI first, then its OS) and compares; a new host gets the profile that fits its hardware. The port aliases make the bonds. A profile can be edited until it is verified." %}</p>
+<section class="card olist" data-key="profiles" data-autoselect>
+  {% trans "Add server profile" as add_label %}{% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-profile" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Code" %}</th><th>{% trans "Model" %}</th><th>CPU</th><th class="num">{% trans "Cores" %}</th><th class="num">{% trans "RAM, GB" %}</th><th>GPU</th><th>{% trans "Network cards" %}</th><th class="num">{% trans "Hosts" %}</th><th>{% trans "Check" %}</th><th>{% trans "Verified" %}</th><th></th></tr></thead><tbody>
+  {% for p in profiles %}<tr class="orow" data-id="pr-{{ p.code }}"><td><span class="code">{{ p.code }}</span></td><td>{{ p.model|default:"—" }}</td><td><small>{{ p.cpu_model|default:"—" }}</small></td><td class="num">{{ p.cores }}</td><td class="num">{{ p.ram_gb|gb }}</td>
+    <td>{% if p.gpu_count %}{{ p.gpu_count }} × {{ p.gpu_model }}{% else %}—{% endif %}</td>
+    <td><small>{% for c in p.cards %}{{ c.ports }}×{{ c.speed }}G{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</small></td>
+    <td class="num">{{ p.host_list|length }}</td>
+    <td>{% if p.checking %}{% st "running" _("checking") %}{% elif p.checked_at %}{% if p.bad %}{% st "bad" _("different") %}{% else %}{% st "ok" _("same") %}{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td>{% if p.verified_at %}✓{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td class="row-actions"><span class="stack-right">
+      {% if can_check and p.host_list %}{% if not p.checking %}<form class="inline" method="post" action="{% url 'inv_profile_check' p.code %}">{% csrf_token %}<button class="btn ghost small" style="width:100%">{% trans "Check" %}</button></form>{% endif %}
+      <a class="btn ghost small" style="width:100%" href="{% url 'infra_profile_site_settings' p.code %}">{% trans "Site settings" %}</a>{% endif %}
+      {% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-pr-{{ p.code }}">{% trans "Edit" %}</button>
+      {% if not p.verified_at %}<form class="inline" method="post" action="{% url 'inv_profile_verify' p.code %}" onsubmit="return confirm('{% trans "Verify this server profile? Then only its volumes can be changed." %}')">{% csrf_token %}<button class="btn ghost small" style="width:100%">{% trans "Verify" %}</button></form>{% endif %}
+      {% if not p.hosts.all %}<form class="inline" method="post" action="{% url 'inv_profile_delete' p.code %}" onsubmit="return confirm('{% trans "Delete this server profile?" %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% trans "Delete" %}</button></form>{% endif %}{% endif %}</span></td></tr>
+  {% empty %}<tr><td colspan="11" class="muted">{% trans "No server profiles." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for p in profiles %}<div class="odetail card" data-for="pr-{{ p.code }}" hidden><h3><span class="code">{{ p.code }}</span> {{ p.model }}</h3>
+    <div class="grid two"><dl class="facts">
+      <dt>{% trans "Chassis" %}</dt><dd>{{ p.vendor|default:"—" }} {{ p.chassis }}{% if p.ipmi_type %} · IPMI {{ p.ipmi_type }}{% endif %}</dd>
+      <dt>CPU</dt><dd>{{ p.cpu_model|default:"—" }} · {{ p.sockets }} × {{ p.cores_per_socket }} = {{ p.cores }} {% trans "cores" %}{% if p.cpu_mhz %} · {{ p.cpu_mhz }} MHz{% endif %}</dd>
+      <dt>RAM</dt><dd>{{ p.ram_gb|gb }} GB{% if p.ram.modules %} · {{ p.ram.modules }} × {{ p.ram.size_gb }} GB{% if p.ram.freq %} {{ p.ram.freq }} MHz{% endif %}{% if p.ram.slots %} ({{ p.ram.slots }} {% trans "slots" %}){% endif %}{% endif %}</dd>
+      <dt>GPU</dt><dd>{% if p.gpu_count %}{{ p.gpu_count }} × {{ p.gpu_model }}{% if p.gpu_vram_gb %} {{ p.gpu_vram_gb|gb }} GB{% endif %}{% if p.gpu_slice %} · 1 GPU = {{ p.gpu_slice.cores }} {% trans "cores" %} + {{ p.gpu_slice.ram_gb|gb }} GB{% endif %}{% else %}—{% endif %}</dd>
+      <dt>{% trans "Made from" %}</dt><dd>{{ p.reference_host|default:"—" }}</dd>
+      <dt>{% trans "Verified" %}</dt><dd>{% if p.verified_at %}✓ {{ p.verified_at|date:"d.m.Y H:i" }} · {{ p.verified_by }}{% else %}{% trans "not yet: everything can be edited" %}{% endif %}</dd>
+    </dl><dl class="facts">
+      <dt>{% trans "Boot device" %}</dt><dd>{% if p.boot %}<span class="code">{{ p.boot.dev|default:"—" }}</span> · {{ p.boot.size_gb|default:"?" }} GB{% if p.boot.controller %} · {{ p.boot.controller }}{% endif %}{% else %}—{% endif %}</dd>
+      <dt>{% trans "Volumes" %}</dt><dd>{% for v in p.boot_volumes %}<span class="code">{{ v.path|default:v.name }}</span> {% if v.size_gb == -1 %}{% trans "the rest" %}{% else %}{{ v.size_gb }} GiB{% endif %} {{ v.fs }}<br>{% empty %}—{% endfor %}</dd>
+      <dt>{% trans "Hosts" %}</dt><dd>{% for h in p.host_list %}<span class="code">{{ h.site.code }}/{{ h.name }}</span> {% empty %}—{% endfor %}</dd>
+      <dt>{% trans "Last check" %}</dt><dd>{% if p.checked_at %}{{ p.checked_at|date:"d.m.Y H:i" }}{% for h, d in p.bad.items %}<br><small style="color:var(--bad)">{{ h }}: {{ d|join:"; " }}</small>{% empty %} · {% trans "all hosts the same" %}{% endfor %}{% else %}—{% endif %}</dd>
+    </dl></div>
+    <h4 style="margin:12px 0 4px">{% trans "Network cards" %}</h4>
+    <div class="table-wrap"><table><thead><tr><th>{% trans "PCI slot" %}</th><th>{% trans "Linux name" %}</th><th>{% trans "Vendor" %}</th><th>{% trans "Model" %}</th><th class="num">{% trans "Ports" %}</th><th class="num">Gb/s</th><th>{% trans "Transceiver" %}</th><th>{% trans "Interfaces" %}</th></tr></thead>
+    {% for c in p.cards %}<tr><td>{{ c.slot|default:"—" }}</td><td><span class="code">{{ c.name }}</span></td><td>{{ c.vendor }}</td><td><small>{{ c.model }}</small></td><td class="num">{{ c.ports }}</td><td class="num">{{ c.speed }}</td><td>{{ c.transceiver|default:"—" }}</td><td><span class="code">{{ c.links|join:" "|default:"—" }}</span></td></tr>
+    {% empty %}<tr><td colspan="8" class="muted">{% trans "Not described yet." %}</td></tr>{% endfor %}</table></div>
+    <h4 style="margin:12px 0 4px">{% trans "Port aliases and bonds" %} <small class="muted">· {% if p.fabrics == 1 %}{% trans "one fabric: data and storage together" %}{% else %}{% trans "two fabrics: data and storage" %}{% endif %}</small></h4>
+    {% if p.assign %}<div class="table-wrap"><table><thead><tr><th>{% trans "Bond" %}</th><th>MTU</th><th>{% trans "Traffic" %}</th><th>{% trans "Alias" %}</th><th>{% trans "Port" %}</th></tr></thead>
+    {% for b in p.bonds %}{% for a in b.aliases %}<tr><td>{% if forloop.first %}<span class="code">{{ b.name }}</span>{% endif %}</td><td>{% if forloop.first %}{{ b.mtu }}{% endif %}</td><td>{% if forloop.first %}{% if b.carries == "data" %}{% trans "data" %}{% elif b.carries == "storage" %}{% trans "storage" %}{% else %}{% trans "data and storage" %}{% endif %}{% endif %}</td>
+      <td><span class="code">{{ a }}</span></td><td>{% for x, port in p.assign.items %}{% if x == a %}<span class="code">{{ port }}</span>{% endif %}{% endfor %}</td></tr>{% endfor %}{% endfor %}</table></div>
+    {% elif p.bonds %}<p><small>{% trans "Bonds" %}: {% for b in p.bonds %}<span class="code">{{ b.name }}</span> = {{ b.links|join:" + " }}{% if b.mtu %} (MTU {{ b.mtu }}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</small></p>
+    {% else %}<p class="muted"><small>{% trans "No aliases assigned yet." %}</small></p>{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}
+<dialog id="dlg-profile" class="card" style="max-width:680px;width:94%"><h2>{% trans "Add a server profile" %}</h2>
+  <form method="post" action="{% url 'inv_profile_save' %}" class="stack">{% csrf_token %}
+    {% for f in profile_form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add server profile" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for p in profiles %}<dialog id="dlg-pr-{{ p.code }}" class="card" style="max-width:680px;width:94%"><h2>{% trans "Edit" %} <span class="code">{{ p.code }}</span></h2>
+  <form method="post" action="{% url 'inv_profile_edit' p.code %}" class="stack">{% csrf_token %}
+    {% if p.verified_at %}<p class="muted">{% if p.assign_locked %}{% trans "Verified: only the volumes can be changed. The aliases are fixed while active hosts of a cluster use the profile." %}{% else %}{% trans "Verified: only the volumes and the port aliases can be changed (no active host of a cluster uses the profile)." %}{% endif %}</p>{% endif %}
+    {% for f in p.form %}{% if f.name != 'code' %}{% include "includes/field.html" %}{% endif %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endif %}
+{% endblock %}
