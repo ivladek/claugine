@@ -1,0 +1,11 @@
+{% load i18n %}<!doctype html><html lang="{{ LANGUAGE_CODE|default:'en' }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% trans "New version under test" %} · {% provider_name %}</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f7f9;color:#1d2433;margin:0;display:grid;place-items:center;min-height:100vh}
+main{max-width:560px;padding:32px;background:#fff;border:1px solid #e3e6eb;border-radius:12px;margin:16px}h1{font-size:22px;margin:0 0 8px}p,li{color:#5b6475;line-height:1.5}code{font-size:12px}a{color:inherit}
+@media (prefers-color-scheme:dark){body{background:#12151b;color:#e6e9ef}main{background:#1a1e26;border-color:#2a303b}p,li{color:#a7afbd}}</style></head>
+<body><main><h1>{% trans "New version under test" %}</h1>
+{% if kind == 'migrations' %}<p>{% trans "This release changes the database, and the standby's database does not have the changes yet (it follows the active portal). Try it with “Publish the new version” in Settings → Portal on the portal: the standby takes a copy of the database with the changes." %}</p>
+<ul>{% for m in pending|slice:":8" %}<li><code>{{ m }}</code></li>{% endfor %}{% if pending|length > 8 %}<li>…</li>{% endif %}</ul>
+{% elif kind == 'super_admins' %}<p>{% trans "Only super admins can sign in to the version under test. Your work is on the portal itself." %}</p>
+{% else %}<p>{% trans "The version under test is read only: its database follows the active portal, so nothing can be changed here. Make changes on the portal itself." %}</p>{% endif %}
+<p><a href="/">{% trans "To the portal" %}</a></p></main></body></html>

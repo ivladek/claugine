@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Logs" %}{% endblock %}
+{% block content %}<h1>{% trans "Logs" %}</h1>
+<p class="muted">{% if scope %}{% blocktrans with o=scope %}Everything done in {{ o }}: the organization, its projects and its users.{% endblocktrans %}{% else %}{% blocktrans with d=days %}Every log of the portal in one place: projects, organizations, people, secrets, infrastructure, tasks and settings. Kept {{ d }} days (Settings).{% endblocktrans %}{% endif %}</p>
+
+<form method="get" class="filters filter-bar" data-auto>
+  <label class="inline" for="lf-from">{% trans "From" %}</label><input id="lf-from" type="date" name="from" value="{{ f.from }}">
+  <label class="inline" for="lf-to">{% trans "to" %}</label><input id="lf-to" type="date" name="to" value="{{ f.to }}">
+  {% if not scope %}<select name="section" aria-label="{% trans 'Section' %}"><option value="">{% trans "Every section" %}</option>{% for k, l in sections %}<option value="{{ k }}" {% if k == f.section %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>{% endif %}
+  <select name="user" aria-label="{% trans 'User' %}"><option value="">{% trans "Any user" %}</option>{% for p in people %}<option value="{{ p.pk }}" {% if f.user == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.email }}</option>{% endfor %}</select>
+  <select name="object" aria-label="{% trans 'Object' %}"><option value="">{% trans "Any object" %}</option>{% for group, items in objects %}<optgroup label="{{ group }}">{% for v, label in items %}<option value="{{ v }}" {% if f.object == v %}selected{% endif %}>{{ label }}</option>{% endfor %}</optgroup>{% endfor %}</select>
+  <input type="search" name="q" value="{{ f.q }}" placeholder="{% trans 'Text in the record' %}" aria-label="{% trans 'Text in the record' %}">
+  <a class="btn ghost small" href="?">{% trans "Clear" %}</a>
+  <noscript><button class="btn ghost small">{% trans "Filter" %}</button></noscript>
+</form>
+
+<section class="card olist" data-key="audit">
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Time" %}</th><th>{% trans "Section" %}</th><th>{% trans "User" %}</th><th>{% trans "Action" %}</th><th>{% trans "Object" %}</th></tr></thead><tbody>
+  {% for e in entries %}<tr class="orow" data-id="e-{{ e.pk }}"><td style="white-space:nowrap">{{ e.created_at|date:"d.m.Y H:i:s" }}</td><td>{% tp e.section e.section %}</td><td>{{ e.actor.email|default:"—" }}</td><td><span class="code">{{ e.action }}</span></td>
+    <td><small>{% if e.tenant %}{{ e.tenant }}{% else %}{{ e.target_type }} {{ e.target_id }}{% endif %}</small></td></tr>
+  {% empty %}<tr><td colspan="5" class="muted">{% trans "Nothing logged." %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for e in entries %}<div class="odetail card" data-for="e-{{ e.pk }}" hidden><h3><span class="code">{{ e.action }}</span></h3>
+    <dl class="facts"><dt>{% trans "Time" %}</dt><dd>{{ e.created_at|date:"d.m.Y H:i:s" }}</dd><dt>{% trans "User" %}</dt><dd>{{ e.actor|default:"—" }}</dd>
+    <dt>{% trans "Object" %}</dt><dd>{% if e.tenant %}{{ e.tenant }} · {% endif %}{{ e.target_type }} {{ e.target_id }}</dd>
+    {% for k, v in e.details.items %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl></div>{% endfor %}</div>
+</section>{% endblock %}

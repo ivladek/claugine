@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{% trans "Users" %}{% endblock %}
+{% block content %}
+{# u10: one top row, like the organizations list — the tabs (each with its count) on the left, the filter on the right #}
+<div class="olist-bar" style="margin-bottom:12px">
+  <div class="tabs">{% for key, label, cnt in tabs %}<a class="btn {% if tab != key %}ghost {% endif %}small" href="?tab={{ key }}">{{ label }} ({{ cnt }})</a>{% endfor %}</div>
+  <form class="filters" method="get" data-auto data-focus="no" style="margin:0">
+    <input type="hidden" name="tab" value="{{ tab }}">{% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
+    <input type="search" name="q" value="{{ q }}" placeholder="{% trans 'Filter' %}">
+    <a class="btn {% if not show_archived %}ghost {% endif %}small" href="?tab={{ tab }}{% if not show_archived %}&amp;archived=1{% endif %}">{% trans "archived" %}</a>
+  </form>
+</div>
+{% if last_link %}<div class="msg">{% trans "Invitation link (in case the email does not arrive):" %} <span class="code" style="word-break:break-all">{{ last_link }}</span></div>{% endif %}
+{% if tab == 'platform' %}
+{% if removals %}<section class="card" style="max-width:960px"><h2>{% trans "Super admin role: requests" %}</h2>
+  {% for x in removals %}<div class="stack" style="margin-bottom:10px"><div>{% if x.req.op == 'add' %}{% st "ok" _("grant") %}{% else %}{% st "warn" _("remove") %}{% endif %} <strong>{{ x.req.target.full_name|default:x.req.target.email }}</strong> <small class="muted">{{ x.req.target.email }}</small> — {% blocktrans with by=x.req.requested_by.full_name|default:x.req.requested_by.email at=x.req.created_at|date:"d.m.Y H:i" until=x.req.deadline|date:"d.m.Y H:i" %}asked by {{ by }} on {{ at }}; open until {{ until }}{% endblocktrans %}</div>
+    <div><small>{% blocktrans with a=x.approvals n=x.req.required %}{{ a }} of {{ n }} super admins have agreed{% endblocktrans %}{% if x.deciders %} · {% for d in x.deciders %}{{ d.full_name|default:d.email }} {% if d.pk in x.confirmed %}{% st "approved" "✓" %}{% else %}{% st "pending" _("waiting") %}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</small></div>
+    <div class="actions">{% if x.can_confirm %}<form class="inline" method="post" action="{% url 'super_admin_removal' x.req.pk 'confirm' %}">{% csrf_token %}<button class="btn small">{% trans "Confirm" %}</button></form>{% endif %}
+      {% if x.can_decline %}<form class="inline" method="post" action="{% url 'super_admin_removal' x.req.pk 'decline' %}">{% csrf_token %}<button class="btn ghost small">{% trans "Decline" %}</button></form>{% endif %}</div></div>{% endfor %}
+</section>{% endif %}
+{% include "ui/people.html" with kind="platform" role_columns=platform_columns show_org=False %}
+{% else %}
+{% include "ui/people.html" with kind="tenant" role_columns=customer_columns show_org=True %}
+{% endif %}
+{% endblock %}

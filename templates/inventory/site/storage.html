@@ -1,0 +1,47 @@
+{% load i18n %}<section class="card olist" data-key="site-storage-{{ site.code }}" data-autoselect>
+  {% trans "Add storage" as add_label %}{% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-storage" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Storage" %}</th><th>{% trans "Type" %}</th><th>{% trans "Targets" %}</th><th class="num">{% trans "Volumes" %}</th><th class="num">{% trans "Total, GiB" %}</th><th>{% trans "Used by" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead><tbody>
+  {% for s in storages %}<tr class="orow" data-id="st-{{ s.pk }}"><td><span class="code">{{ s.name }}</span></td><td>{% tp s.kind s.get_kind_display %}</td>
+    <td><small>{% if s.kind == 'local' %}{{ s.host.name|default:"—" }}{% else %}{{ s.targets|join:", "|default:"—" }}{% if s.port %}:{{ s.port }}{% endif %}{% endif %}</small></td>
+    <td class="num">{{ s.volumes.all|length }}</td><td class="num">{{ s.total_gb }}</td>
+    <td><small>{% include "ui/usedby.html" with items=s.used_by %}</small></td>
+    {% if can_edit %}<td class="row-actions"><span class="stack-right"><button class="btn ghost small" type="button" data-open="dlg-st-{{ s.pk }}">{% trans "Edit" %}</button>
+      <button class="btn ghost small" type="button" data-open="dlg-vol-new-{{ s.pk }}">+ {% trans "Volume" %}</button>
+      <form class="inline" method="post" action="{% url 'inv_storage_delete' site.code s.pk %}" onsubmit="return confirm('{% trans "Delete this storage and its volumes?" %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% trans "Delete" %}</button></form></span></td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="7" class="muted">{% trans "No storage." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for s in storages %}<div class="odetail card" data-for="st-{{ s.pk }}" hidden><h3><span class="code">{{ s.name }}</span> {% tp s.kind s.get_kind_display %}</h3>
+    <dl class="facts">
+      {% if s.kind == 'local' %}<dt>{% trans "Host" %}</dt><dd>{{ s.host.name|default:"—" }}</dd>
+      {% else %}<dt>{% trans "Targets" %}</dt><dd>{% for t in s.targets %}<span class="code">{{ t }}</span> {% empty %}—{% endfor %}</dd>
+      {% if s.kind == 'iscsi' %}<dt>{% trans "iSCSI port" %}</dt><dd>{{ s.port|default:3260 }}</dd>{% endif %}{% endif %}
+      <dt>{% trans "fstab parameters" %}</dt><dd><span class="code">{{ s.fstab|default:"—" }}</span></dd>
+    </dl>
+    <h4 style="margin:12px 0 4px">{% trans "Volumes" %}</h4>
+    <div class="table-wrap"><table><thead><tr><th>{% trans "Name" %}</th><th>{% if s.kind == 'nfs' %}{% trans "Export" %}{% else %}{% trans "Device" %}{% endif %}</th><th class="num">GiB</th>{% if s.kind != 'local' %}<th>{% if s.kind == 'nfs' %}{% trans "Clients" %}{% else %}IQN{% endif %}</th>{% endif %}<th>{% trans "Datastores" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+    {% for v in s.volumes.all %}<tr><td><span class="code">{{ v.name }}</span></td><td><span class="code">{{ v.device }}</span>{% if v.mount %} <small class="muted">→ {{ v.mount }}</small>{% endif %}</td><td class="num">{{ v.size_gb }}</td>
+      {% if s.kind != 'local' %}<td><small class="code">{{ v.clients|join:" " }}</small></td>{% endif %}
+      <td><small>{% for d in v.datastores.all %}{{ d.platform.key }}/{{ d.name }} {% empty %}—{% endfor %}</small></td>
+      {% if can_edit %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-vol-{{ v.pk }}">{% trans "Edit" %}</button>
+        {% if not v.datastores.all %}<form class="inline" method="post" action="{% url 'inv_volume_delete' site.code s.pk v.pk %}" onsubmit="return confirm('{% trans "Delete this volume?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}</td>{% endif %}</tr>
+    {% empty %}<tr><td colspan="6" class="muted">{% trans "No volumes." %}</td></tr>{% endfor %}</table></div>
+    {% if can_edit %}<p class="actions to-bar" style="margin-top:8px"><button class="btn small" type="button" data-open="dlg-vol-new-{{ s.pk }}">+ {% trans "Volume" %}</button></p>{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}
+<dialog id="dlg-storage" class="card" style="max-width:560px;width:92%"><h2>{% trans "Add storage" %}</h2>
+  <p class="muted"><small>{% trans "NFS: one target address; iSCSI: one or more target addresses and the port; local: the disks of a host." %}</small></p>
+  <form method="post" action="{% url 'inv_storage_new' site.code %}" class="stack">{% csrf_token %}{% for f in storage_form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add storage" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for s in storages %}<dialog id="dlg-st-{{ s.pk }}" class="card" style="max-width:560px;width:92%"><h2>{% trans "Edit" %} <span class="code">{{ s.name }}</span></h2>
+  <form method="post" action="{% url 'inv_storage_save' site.code s.pk %}" class="stack">{% csrf_token %}{% for f in s.form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+<dialog id="dlg-vol-new-{{ s.pk }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Add a volume" %} <small class="code">{{ s.name }}</small></h2>
+  <form method="post" action="{% url 'inv_volume_new' site.code s.pk %}" class="stack">{% csrf_token %}{% for f in volume_form %}{% if s.kind != 'local' or f.name != 'clients' %}{% include "includes/field.html" %}{% endif %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for v in s.volumes.all %}<dialog id="dlg-vol-{{ v.pk }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Volume" %} <span class="code">{{ s.name }}/{{ v.name }}</span></h2>
+  <form method="post" action="{% url 'inv_volume_save' site.code s.pk v.pk %}" class="stack">{% csrf_token %}{% for f in v.form %}{% if s.kind != 'local' or f.name != 'clients' %}{% include "includes/field.html" %}{% endif %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endfor %}
+{% endif %}
