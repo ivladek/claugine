@@ -1,0 +1,41 @@
+{% load ui %}{% load i18n %}<section class="card olist" data-key="site-clusters-{{ site.code }}">
+  {% trans "Add cluster" as add_label %}{% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-cluster" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Cluster" %}</th><th>{% trans "Platform" %}</th><th>{% trans "Type" %}</th><th>{% trans "State" %}</th><th class="num">{% trans "Hosts" %}</th><th class="num">{% trans "Datastores" %}</th><th class="num">{% trans "Networks" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead><tbody>
+  {% for p, c in clusters %}<tr class="orow" data-id="cl-{{ p.name }}-{{ c.name }}">
+    <td><span class="code">{{ c.name }}</span>{% if c.orderable %} {% tp "client" _("orderable") %}{% endif %}</td><td><span class="code">{{ p.key }}</span></td><td>{% tp c.kind %}</td><td>{% st c.state %}</td>
+    <td class="num">{{ c.hosts.all|length }}</td><td class="num">{{ c.datastores.all|length }}</td><td class="num">{{ c.networks.all|length }}</td>
+    {% if can_edit %}<td class="row-actions"><span class="stack-right">{% if c.state != 'retired' %}<button class="btn ghost small" type="button" data-open="dlg-cle-{{ c.pk }}">{% trans "Edit" %}</button>
+      <form class="inline" method="post" action="{% url 'inv_cluster_remove' p.site.code p.name c.name %}" onsubmit="return confirm('{% if c.state == 'planned' %}{% trans "Delete this planned cluster?" %}{% else %}{% trans "Mark this cluster retired?" %}{% endif %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% if c.state == 'planned' %}{% trans "Delete" %}{% else %}{% trans "Retire" %}{% endif %}</button></form>{% endif %}</span></td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="8" class="muted">{% trans "No clusters." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for p, c in clusters %}<div class="odetail card" data-for="cl-{{ p.name }}-{{ c.name }}" hidden><h3><span class="code">{{ c.name }}</span> {% tp c.kind %}</h3>
+    <div class="grid two"><dl class="facts"><dt>{% trans "Platform" %}</dt><dd>{{ p.key }}</dd>
+      <dt>{% trans "Hosts" %}</dt><dd><div class="tags">{% for h in c.hosts.all %}<span class="tp c-grey" title="{{ h.profile|default:'' }} · {{ h.state }}">{{ h.name }}{% if h.state != 'active' %} · {{ h.state }}{% endif %}</span>{% empty %}—{% endfor %}</div></dd>
+      <dt>{% trans "Capacity settings" %}</dt><dd>{% blocktrans with x=c.vcpu_ratio s=c.spare_hosts cpu=c.reserved_cpu_pct ram=c.reserved_ram_pct %}{{ x }} vCores/pCore · N+{{ s }} · reserved CPU {{ cpu }}%, RAM {{ ram }}%{% endblocktrans %}</dd>
+      {% if c.has_gpu %}{% with cards=c.gpu_cards b=c.bundle %}<dt>{% trans "GPU" %}</dt><dd>{{ c.gpu_model|default:_("GPU") }} · {% blocktrans with t=cards.total a=cards.available s=cards.spare %}{{ t }} cards, {{ a }} available ({{ s }} in spare hosts){% endblocktrans %}
+        <br><small class="muted">{% blocktrans with cr=b.cores r=b.ram_gb %}bundle: {{ cr }} vCores + {{ r }} GB RAM per card{% endblocktrans %}{% if not c.bundle_cores and not c.bundle_ram_gb %} · {% trans "from the hardware, not set by hand" %}{% endif %}</small></dd>{% endwith %}{% endif %}
+      <dt>{% trans "Datastores" %}</dt><dd>{% for d in c.datastores.all %}<span class="code">{{ d.name }}</span> {% tp d.kind %}<br>{% empty %}—{% endfor %}</dd>
+      <dt>{% trans "Networks" %}</dt><dd>{% for n in c.networks.all %}<span class="code">{{ n.name }}</span> <small class="muted">{{ n.kind }}</small><br>{% empty %}—{% endfor %}</dd></dl>
+    <div>{% for r in capacity %}{% if r.cluster.pk == c.pk %}<h4 style="margin:0 0 4px">{% trans "Capacity" %}</h4>
+    <dl class="facts">{% with l=r.logical ph=r.physical %}
+      <dt>{% trans "Logical" %}</dt><dd>{{ l.used_vcpu }} / {{ l.vcpu }} vCPU · {{ l.used_ram|gb }} / {{ l.ram_gb|gb }} GB{% if r.gpu %} · {{ l.used_gpus }} / {{ l.gpus }} {% trans "slots" %}{% endif %}
+        <div class="meter {% if l.over.cpu %}bad{% endif %}" style="max-width:260px"><span style="width:{% if l.cpu_pct > 100 %}100{% else %}{{ l.cpu_pct|default:0 }}{% endif %}%"></span></div></dd>
+      <dt>{% trans "Physical" %}</dt><dd>{{ ph.cores }} {% trans "cores" %} · {{ ph.ghz }} GHz · {{ ph.ram_gb|gb }} GB{% if r.gpu %} · {{ ph.gpus }} GPU{% endif %}
+        <br><small class="muted">{% blocktrans with u=ph.used_cores sc=ph.spare_cores rc=ph.reserved_cores %}projects take {{ u }} cores; spare hosts {{ sc }}, reserved {{ rc }}{% endblocktrans %}</small>
+        <div class="segbar" style="max-width:260px"><span class="u {% if ph.cpu_bar.over %}over{% endif %}" style="width:{{ ph.cpu_bar.used }}%"></span><span class="r" style="width:{{ ph.cpu_bar.reserved }}%"></span><span class="s" style="width:{{ ph.cpu_bar.spare }}%"></span></div></dd>
+      {% if r.oversubscription is not None %}<dt>{% trans "Oversubscription" %}</dt><dd>{{ r.oversubscription }}×</dd>{% endif %}
+      <dt>{% trans "Projects" %}</dt><dd>{{ r.alloc.tenants }}</dd>{% endwith %}</dl>{% endif %}{% endfor %}</div></div>
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}
+<dialog id="dlg-cluster" class="card" style="max-width:560px;width:92%"><h2>{% trans "Add a cluster" %}</h2>
+  <p class="muted"><small>{% trans "A new cluster is planned; on an installed platform the platform is marked updated until it is deployed. Only hosts in no cluster are offered; add new hosts on the Hosts tab. Datastores and networks are chosen with Edit." %}</small></p>
+  <form method="post" action="{% url 'inv_cluster_add' %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=cluster_form %}
+    <div class="actions"><button class="btn">{% trans "Add cluster" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for p, c in clusters %}{% if c.state != 'retired' %}
+<dialog id="dlg-cle-{{ c.pk }}" class="card" style="max-width:560px;width:92%"><h2>{% trans "Edit" %} <span class="code">{{ c.name }}</span></h2>
+  <form method="post" action="{% url 'inv_cluster_save' p.site.code p.name c.name %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=c.form %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% endif %}{% endfor %}
+{% endif %}

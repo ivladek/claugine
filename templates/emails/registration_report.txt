@@ -1,0 +1,30 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with d=date|date:"d.m.Y" %}Registration requests on the portal, {{ d }}.{% endblocktrans %}
+
+{% trans "Last 24 hours" %} / {% trans "30 days" %}
+  {% trans "Registrations started" %}: {{ day.started }} / {{ month.started }}
+  {% trans "E-mail confirmed (sent for approval)" %}: {{ day.confirmed }} / {{ month.confirmed }}
+  {% trans "Approved" %}: {{ day.approved }} / {{ month.approved }}
+  {% trans "Refused (deleted)" %}: {{ day.refused }} / {{ month.refused }}
+  {% trans "Not confirmed in time (deleted)" %}: {{ day.purged_unconfirmed }} / {{ month.purged_unconfirmed }}
+  {% trans "Join requests (a known IIN/BIN)" %}: {{ day.join }} / {{ month.join }}
+  {% trans "Join requests declined (deleted)" %}: {{ day.purged_join }} / {{ month.purged_join }}
+  {% trans "Robots stopped" %}: {{ day.blocked }} / {{ month.blocked }}
+  {% trans "Invalid forms with code in the fields" %}: {{ day.probed }} / {{ month.probed }}
+  {% trans "Suspicious" %}: {{ day.suspicious }} / {{ month.suspicious }}
+  {% trans "Addresses" %}: {{ day.unique_ips }} / {{ month.unique_ips }}
+{% if day.reasons %}
+{% trans "Reasons in the last 24 hours" %}:
+{% for r, n in day.reasons %}  {{ r }}: {{ n }}
+{% endfor %}{% endif %}{% if day.ips %}
+{% trans "Addresses with several attempts" %}:
+{% for ip, n in day.ips %}  {{ ip }}: {{ n }}
+{% endfor %}{% endif %}{% if day.flagged %}
+{% trans "Suspicious in the last 24 hours" %}:
+{% for f in day.flagged %}  {{ f.at }} · {{ f.kind }} · {{ f.email|default:"—" }} · {{ f.org|default:"—" }} {{ f.tax_id }} · {{ f.ip|default:"—" }} · {% trans "score" %} {{ f.score }} — {{ f.reasons }}
+{% endfor %}{% endif %}
+{% trans "Waiting for approval" %}: {{ waiting|length }}
+{% for w in waiting %}  {{ w.name }} {{ w.tax_id }} · {{ w.days }} {% trans "days" %}{% if w.reasons %} · {% trans "score" %} {{ w.score }} — {{ w.reasons }}{% endif %}
+{% endfor %}
+{% trans "Requests that were not approved are deleted; the portal's log keeps them (Logs)." %}
+{{ link }}
+{% endautoescape %}

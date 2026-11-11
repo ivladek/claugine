@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow"><h1>{{ target }}</h1><p class="muted">{{ target.email }}</p>
+<form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}
+<div class="actions"><button class="btn">{% trans "Save" %}</button><a href="{% url 'staff_users' %}?tab=rm">{% trans "Cancel" %}</a></div></form></div>
+{% endblock %}

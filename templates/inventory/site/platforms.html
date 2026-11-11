@@ -1,0 +1,170 @@
+{% load i18n %}<section class="card olist" data-key="site-platforms-{{ site.code }}" data-autoselect>
+  {% trans "Add platform" as add_label %}{% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-platform" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Platform" %}</th><th>{% trans "Type" %}</th><th>{% trans "State" %}</th><th>{% trans "FE mode" %}</th><th>{% trans "Endpoint" %}</th><th>{% trans "Health" %}</th><th>{% trans "Mode" %}</th><th class="num">{% trans "Clusters" %}</th><th></th></tr></thead><tbody>
+  {% for p in platforms %}<tr class="orow" data-id="pl-{{ p.name }}">
+    <td><span class="code">{{ p.key }}</span></td><td>{% tp p.kind %}</td>
+    <td>{% if not p.is_active %}{% st p.state %}{% elif p.control.credential_defined %}{% st "active" _("active") %}{% elif p.control.configured %}{% st "pending" _("credentials in files only") %}{% else %}{% st "missing" _("no credentials") %}{% endif %}</td>
+    <td>{% tp p.fe_mode %}{% if p.fe_primary %} <small class="muted">→ {{ p.fe_primary }}</small>{% endif %}</td>
+    <td>{% if p.control.fireedge_url %}<a class="ext" href="{{ p.control.fireedge_url }}" target="_blank" rel="noopener noreferrer">{{ p.fe_vip }}</a>{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td>{% if p.control.health_ok is None %}<span class="muted">—</span>{% elif p.control.health_ok %}{% st "ok" "ok" %}{% else %}<span title="{{ p.control.health.problems|join:'; ' }}">{% st "error" _("problem") %}</span>{% endif %}</td>
+    <td>{% if p.control.mode == 'execution' %}{% st "running" _("execution") %}{% else %}{% st "muted" _("read-only") %}{% endif %}</td>
+    <td class="num">{{ p.clusters.count }}</td>
+    <td class="row-actions"><span class="stack-right">
+      {% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-pl-{{ p.name }}">{% trans "Edit" %}</button>{% endif %}
+      {% if can_edit_endpoints %}{% if p.control.mode == 'execution' %}<form class="inline" method="post" action="{% url 'platform_control_mode' p.key 'adoption' %}" onsubmit="return confirm('{% trans "Disable operations on this platform? The portal will only read it." %}')">{% csrf_token %}<button class="btn ghost small" style="width:100%">{% trans "Switch to read-only" %}</button></form>{% elif p.is_active %}<form class="inline" method="post" action="{% url 'platform_control_mode' p.key 'execution' %}" onsubmit="return confirm('{% trans "Enable operations on this platform? The portal will create and delete project resources on it." %}')">{% csrf_token %}<button class="btn small" style="width:100%">{% trans "Switch to full mode" %}</button></form>{% endif %}{% endif %}
+      {% if p.control.configured and can_collect %}<form class="inline" method="post" action="{% url 'platform_control_test' p.key %}">{% csrf_token %}<button class="btn ghost small" style="width:100%">{% trans "Test" %}</button></form>{% endif %}
+      {% if can_edit and not p.is_active and p.state == 'planned' %}<form class="inline" method="post" action="{% url 'inv_platform_delete' p.site.code p.name %}" onsubmit="return confirm('{% trans "Delete this planned platform?" %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% trans "Delete" %}</button></form>{% endif %}
+    </span></td></tr>
+  {% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for p in platforms %}<div class="odetail card" data-for="pl-{{ p.name }}" hidden><h3><span class="code">{{ p.key }}</span> {% tp p.kind %}</h3>
+    <div class="grid two"><dl class="facts">
+      {# owner 2026-11-09: the left column is what the platform *is*; the right is how it is doing. #}
+      <dt>FQDN</dt><dd>{% if p.fe_fqdn_url %}<a class="ext" href="{{ p.fe_fqdn_url }}" target="_blank" rel="noopener noreferrer">{{ p.fe_fqdn_label }}</a>{% else %}{{ p.fe_fqdn_label|default:"—" }}{% endif %}</dd>
+      <dt>VIP</dt><dd>{% if p.fe_vip_url %}<a class="ext" href="{{ p.fe_vip_url }}" target="_blank" rel="noopener noreferrer">{{ p.fe_vip }}</a>{% else %}{{ p.fe_vip|default:"—" }}{% endif %}</dd>
+      <dt>{% trans "oneadmin password" %}</dt><dd>{% if p.secret_row %}
+        <form method="post" action="{% url 'infra_secret_values' p.secret_row.pk %}" class="inline">{% csrf_token %}
+          {% url 'infra_secret_values' p.secret_row.pk as values_url %}{% include "ui/show_values.html" with url=values_url %}
+          <span class="code" data-one-pw>••••••••</span>
+          {% include "ui/copy.html" with url=values_url pk=p.secret_row.pk field="oneadmin" %}</form>
+        <div class="help">{% trans "Showing or copying it is recorded in the audit log." %}</div>
+        {% else %}<span class="muted">{% trans "no secret on record" %}</span>{% endif %}</dd>
+      <dt>{% trans "Front-end nodes" %}</dt><dd>{% for n in p.fe_node_rows %}<div class="fe-node">
+          <span class="code">{{ n.ip }}</span>{% if n.name %} <span>{{ n.name }}</span>{% endif %}
+          {% if n.status %}{% st n.status %}{% else %}<small class="muted" title="{% trans "Not collected: the zone server pool is not read from OpenNebula yet" %}">—</small>{% endif %}
+          {% if n.state %}{% st n.state %}{% endif %}</div>
+        {% empty %}<span class="muted">—</span>{% endfor %}</dd>
+      <dt>{% trans "Gateway cluster" %}</dt><dd>{% if can_edit %}<form class="inline" method="post" action="{% url 'inv_platform_gateway' p.site.code p.name %}">{% csrf_token %}
+        <select name="gateway_cluster" {% if p.gateway_locked %}disabled{% endif %}>
+          <option value="">{% trans "— none —" %}</option>
+          {% for c in p.gateway_choices %}<option value="{{ c.name }}" {% if p.gateway_cluster_id == c.pk %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>{% if not p.gateway_locked %} <button class="btn ghost small">{% trans "Set" %}</button>{% endif %}</form>
+        {% if p.gateway_locked %}<div class="help">{% trans "Fixed: projects are deployed on this platform." %}</div>{% endif %}
+        {% else %}{% if p.gateway_cluster %}<span class="code">{{ p.gateway_cluster.name }}</span>{% else %}<span class="muted">—</span>{% endif %}{% endif %}</dd>
+      <dt>{% trans "Edge cluster" %}</dt><dd>{% if p.site.edge_cluster %}<span class="code">{{ p.site.edge_cluster.platform.key }}</span> / <span class="code">{{ p.site.edge_cluster.name }}</span>
+        <div class="help">{% trans "The site's; change it in the site settings." %}</div>{% else %}<span class="muted">{% trans "none: the site's management platform carries them" %}</span>{% endif %}</dd>
+    </dl><dl class="facts">
+      <dt>{% trans "Mode" %}</dt><dd>{{ p.control.get_mode_display }}</dd>
+      <dt>{% trans "OpenNebula front end" %}</dt><dd>{% if p.control.health_checked_at %}{% if p.control.health_ok %}{% st "ok" "ok" %}{% else %}{% st "error" _("problem") %}{% endif %} · OpenNebula {{ p.control.health.version|default:"?" }}
+        {% for pr in p.control.health.problems %}<br><small style="color:var(--bad)">{{ pr }}</small>{% endfor %}{% else %}<span class="muted">{% trans "not checked yet" %}</span>{% endif %}</dd>
+      <dt>{% trans "Errors" %}</dt><dd>{% if p.control.last_error %}<small style="color:var(--bad)">{{ p.control.last_error|truncatechars:200 }}</small>
+        {% else %}{% st "ok" _("none") %}{% endif %}
+        <div class="help">{% trans "The last read error. OneDB is not checked separately yet." %}</div></dd>
+      <dt>{% trans "Last refresh" %}</dt><dd>{% if p.control.last_collected_at %}{{ p.control.last_collected_at|date:"d.m.Y H:i" }}
+        {% if not p.control.collect_enabled %}<br><small class="muted">{% trans "reading projects is off" %}</small>{% endif %}
+        {% else %}<span class="muted">{% trans "never" %}</span>{% endif %}</dd>
+    </dl></div>
+    {% with cs=p.control.consistency %}<h4 style="margin:12px 0 4px">{% trans "Consistency with the portal" %}</h4>
+    {% if not cs.at %}<p class="muted">{% trans "Not checked yet: it is checked at every refresh of the platform." %}</p>
+    {% else %}<p>{% if cs.error %}{% st "error" _("not checked") %} <small style="color:var(--bad)">{{ cs.error }}</small>{% elif cs.quota or cs.leftovers or cs.unknown %}{% st "warn" _("inconsistent") %}{% else %}{% st "ok" _("consistent") %}{% endif %}
+      <small class="muted">· {% trans "checked" %} {{ cs.at|slice:":10" }} {{ cs.at|slice:"11:16" }} UTC · {% trans "quotas the same as the portal's; nothing on the platform without a project" %}</small></p>
+    {% if cs.quota %}<h5 style="margin:8px 0 2px">{% trans "Quota differs from the portal" %}</h5><ul class="tight">{% for q in cs.quota %}
+      <li><a href="{% url 'tenant_detail' q.tenant %}"><span class="code">{{ q.group }}</span></a>: {% for r in q.rows %}{{ r.0 }} {% trans "portal" %} <strong>{{ r.1 }}</strong>, {% trans "platform" %} <strong>{{ r.2 }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}</li>{% endfor %}</ul>{% endif %}
+    {% if cs.leftovers %}<h5 style="margin:8px 0 2px">{% trans "Left by archived projects" %}</h5><ul class="tight">{% for x in cs.leftovers %}
+      <li><a href="{% url 'tenant_detail' x.tenant %}"><span class="code">{{ x.group }}</span></a>: {% for k, v in x.counts.items %}{{ v }} {{ k }}{% if not forloop.last %}, {% endif %}{% endfor %}</li>{% endfor %}</ul>{% endif %}
+    {% if cs.unknown %}<h5 style="margin:8px 0 2px">{% trans "Groups without a project in the portal" %}</h5><ul class="tight">{% for u in cs.unknown %}
+      <li><span class="code">{{ u.group }}</span> #{{ u.id }} · {% blocktrans with n=u.objects %}{{ n }} object(s){% endblocktrans %}</li>{% endfor %}</ul>
+      <div class="help">{% trans "Not repaired by the button: the portal does not know what they are. Delete them on the platform, or tell the portal about them." %}</div>{% endif %}
+    {% if cs.actions %}<h5 style="margin:8px 0 2px">{% trans "Planned repair" %}</h5><ol class="tight">{% for a in cs.actions %}<li>{{ a }}</li>{% endfor %}</ol>
+      {% if cs.repair.state == 'running' %}<p>{% st "running" _("repairing") %} <small class="muted">{% trans "Reload the page to follow it." %}</small></p>
+      {% elif can_repair and p.control.mode == 'execution' %}<form method="post" action="{% url 'platform_consistency_repair' p.key %}" onsubmit="return confirm('{% trans "Run the planned repair on this platform? Quotas are set from the portal; what archived projects left is deleted." %}')">{% csrf_token %}<button class="btn small">{% trans "Make consistent" %}</button></form>
+      {% elif p.control.mode != 'execution' %}<div class="help">{% trans "The platform is read-only: switch it to full mode to repair." %}</div>{% endif %}{% endif %}
+    {% if cs.repair.done %}<div class="help">{% trans "Last repair" %} {{ cs.repair.at|slice:":10" }} {{ cs.repair.at|slice:"11:16" }} UTC: {{ cs.repair.done|join:"; " }}</div>{% endif %}
+    {% endif %}{% endwith %}
+    <h4 style="margin:12px 0 4px">{% trans "Clusters" %}</h4>
+    <div class="table-wrap"><table><thead><tr><th>{% trans "Cluster" %}</th><th>{% trans "Type" %}</th><th>{% trans "State" %}</th><th class="num">{% trans "Hosts" %}</th><th>{% trans "Role" %}</th></tr></thead><tbody>
+    {% for c in p.clusters.all %}<tr><td><a href="{% url 'infra_site' p.site.code %}?tab=clusters&amp;sel=cl-{{ c.name }}"><span class="code">{{ c.name }}</span></a></td><td>{% tp c.kind %}</td><td>{% st c.state %}</td>
+      <td class="num">{{ c.hosts.count }}</td>
+      <td>{% if p.gateway_cluster_id == c.pk %}{% st "ok" _("gateway") %}{% endif %}{% if p.site.edge_cluster_id == c.pk %} {% st "info" _("edge") %}{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="5" class="muted">{% trans "No clusters." %}</td></tr>{% endfor %}</tbody></table></div>
+
+    <h4 style="margin:12px 0 4px">{% trans "Networks" %}</h4>
+    <div class="table-wrap"><table><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Type" %}</th><th>{% trans "Site network" %}</th><th>{% trans "Ranges to create" %}</th><th>{% trans "Clusters" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+    {% for vn in p.vnets.all %}<tr><td><span class="code">{{ vn.name }}</span></td><td>{{ vn.kind }}{% if vn.bridge %} <small class="code">{{ vn.bridge }}</small>{% endif %}</td>
+      <td>{% if vn.network %}<span class="code">{{ vn.network.name }}</span> <small class="muted">VLAN {{ vn.network.vlan }}</small>{% else %}—{% endif %}</td>
+      <td><small>{% for r in vn.ranges.all %}{{ r.name }} {% empty %}—{% endfor %}</small></td><td><small>{% for c in vn.clusters.all %}{{ c.name }} {% empty %}—{% endfor %}</small></td>
+      {% if can_edit %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-vn-{{ vn.pk }}">{% trans "Edit" %}</button>
+        <form class="inline" method="post" action="{% url 'inv_vn_delete' p.site.code p.name vn.pk %}" onsubmit="return confirm('{% trans "Delete this network?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form></td>{% endif %}</tr>
+    {% empty %}<tr><td colspan="6" class="muted">{% trans "No networks." %}</td></tr>{% endfor %}</table></div>
+    <h4 style="margin:12px 0 4px">{% trans "Datastores" %}</h4>
+    <div class="table-wrap"><table><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Type" %}</th><th>{% trans "Storage volume" %}</th><th class="num">GiB</th><th class="num">{% trans "Reserved, %" %}</th><th>{% trans "Clusters" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+    {% for d in p.datastores.all %}<tr><td><a href="{% url 'infra_site' p.site.code %}?tab=storage&amp;sel=st-{{ d.name }}"><span class="code">{{ d.name }}</span></a></td><td>{% tp d.kind d.get_kind_display %}</td><td>{% if d.volume %}<span class="code">{{ d.volume.storage.name }}/{{ d.volume.name }}</span>{% if d.path %} <small class="muted">{{ d.path }}</small>{% endif %}{% elif d.backend == 's3' %}<span class="code">s3://{{ d.s3_endpoint }}/{{ d.s3_bucket }}</span>{% else %}{% st "missing" _("none") %}{% endif %}
+        {% if d.kind == 'backups' %}<br><small class="muted">{% if d.backend %}{{ d.get_backend_display }} · {% endif %}{% trans "restic VM" %} <span class="code">{{ d.restic_ip|default:"—" }}</span> · {% trans "password" %} {{ d.restic_secret|secret }}{% if d.backend == 's3' %} · S3 {{ d.s3_secret|secret }}{% endif %}</small>{% endif %}</td>
+      <td class="num">{{ d.volume.size_gb|default:"—" }}</td><td class="num">{{ d.reserved_pct }}</td><td><small>{% for c in d.clusters.all %}{{ c.name }} {% empty %}—{% endfor %}</small></td>
+      {% if can_edit %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-ds-{{ d.pk }}">{% trans "Edit" %}</button>
+        <form class="inline" method="post" action="{% url 'inv_ds_delete' p.site.code p.name d.pk %}" onsubmit="return confirm('{% trans "Delete this datastore?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form></td>{% endif %}</tr>
+    {% empty %}<tr><td colspan="7" class="muted">{% trans "No datastores." %}</td></tr>{% endfor %}</table></div>
+    <h4 style="margin:12px 0 4px">{% trans "Service images" %}</h4>
+    <div class="table-wrap"><table><thead><tr><th>{% trans "Type" %}</th><th>{% trans "Image or template" %}</th><th>{% trans "Name" %}</th><th>{% trans "Customization" %}</th><th class="num">ID</th><th>{% trans "Status" %}</th>{% if can_edit_endpoints %}<th></th>{% endif %}</tr></thead>
+    {% for r in p.service_images %}<tr><td>{% tp r.purpose %}{% if r.mandatory %} <small class="muted">{% trans "mandatory" %}</small>{% endif %}</td><td>{% tp r.kind r.get_kind_display %}</td><td>{{ r.name }}</td><td>{% if r.kind == 'image' %}{{ r.get_customization_display }}{% else %}—{% endif %}</td>
+      <td class="num">{{ r.one_id|default_if_none:"—" }}</td><td>{% if r.state %}{% st r.state %}{% else %}<span class="muted">{% trans "not checked" %}</span>{% endif %}</td>
+      {% if can_edit_endpoints %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-si-{{ r.pk }}">{% trans "Edit" %}</button>
+        {% if not r.mandatory %}<form class="inline" method="post" action="{% url 'service_image_delete' p.key r.pk %}" onsubmit="return confirm('{% if r.role %}{% trans "Delete the native router template and its image? Projects of this platform can then only get a VyOS igw." %}{% else %}{% trans "Delete this row?" %}{% endif %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}</td>{% endif %}</tr>
+    {% empty %}<tr><td colspan="7" class="muted">{% trans "Set up the platform's endpoint first." %}</td></tr>{% endfor %}</table></div>
+    <p class="actions to-bar" style="margin-top:10px">{% if can_edit %}<button class="btn small" type="button" data-open="dlg-ds-new-{{ p.name }}">+ {% trans "Datastore" %}</button>
+      <button class="btn small" type="button" data-open="dlg-vn-new-{{ p.name }}">+ {% trans "Network" %}</button>{% endif %}
+      {% if can_edit_endpoints %}<button class="btn small" type="button" data-open="dlg-si-new-{{ p.name }}">+ {% trans "Image" %}</button>
+        <form class="inline" method="post" action="{% url 'platform_control_collect' p.key %}">{% csrf_token %}<button class="btn ghost small" title="{% trans 'Whether the portal reads the tenant groups, users, quotas, VMs and usage of this platform (Dashboard, projects, quota checks)' %}">{% if p.control.collect_enabled %}{% trans "Read projects: on" %}{% else %}{% trans "Read projects: off" %}{% endif %}</button></form>{% endif %}</p>
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit_endpoints %}{% for p in platforms %}
+<dialog id="dlg-si-new-{{ p.name }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Add an image" %} <small class="code">{{ p.key }}</small></h2>
+  <form method="post" action="{% url 'service_image_add' p.key %}" class="stack">{% csrf_token %}
+    <div class="field"><label for="si-p-{{ p.name }}">{% trans "Type" %}</label><select id="si-p-{{ p.name }}" name="purpose">{% for v, l in image_types %}<option value="{{ v }}" {% if v == 'base-os' %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="si-k-{{ p.name }}">{% trans "Image or template" %}</label><select id="si-k-{{ p.name }}" name="kind"><option value="image">{% trans "image" %}</option><option value="template">{% trans "template" %}</option></select></div>
+    <div class="field"><label for="si-n-{{ p.name }}">{% trans "Name" %}</label><input id="si-n-{{ p.name }}" name="name" maxlength="200" required><div class="help">{% trans "As named on the platform (OpenNebula). The id and status are read at the next check." %}</div></div>
+    <div class="field"><label for="si-c-{{ p.name }}">{% trans "Customization" %}</label><select id="si-c-{{ p.name }}" name="customization"><option value="ssh">ssh</option><option value="context">context</option></select><div class="help">{% trans "How a template is applied to a VM made from this image: ssh — turned into a script run over ssh (a base OS); context — through a context variable at first boot (VyOS)." %}</div></div>
+    <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for r in p.service_images %}<dialog id="dlg-si-{{ r.pk }}" class="card" style="max-width:520px;width:92%"><h2>{{ r.purpose }} <small class="muted">{{ r.get_kind_display }}</small></h2>
+  <form method="post" action="{% url 'service_image_save' p.key r.pk %}" class="stack">{% csrf_token %}
+    {% if not r.role %}<div class="field"><label for="si-p-{{ r.pk }}">{% trans "Type" %}</label><select id="si-p-{{ r.pk }}" name="purpose">{% for v, l in image_types %}<option value="{{ v }}" {% if v == r.purpose %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="si-k-{{ r.pk }}">{% trans "Image or template" %}</label><select id="si-k-{{ r.pk }}" name="kind"><option value="image" {% if r.kind == 'image' %}selected{% endif %}>{% trans "image" %}</option><option value="template" {% if r.kind == 'template' %}selected{% endif %}>{% trans "template" %}</option></select></div>{% endif %}
+    {% if r.name_editable %}<div class="field"><label for="si-n-{{ r.pk }}">{% trans "Name" %}</label><input id="si-n-{{ r.pk }}" name="name" maxlength="200" value="{{ r.name }}" required>
+      {% if r.role == 'one-router-template' %}<div class="help">{% trans "The router image takes the same name." %}</div>{% endif %}</div>{% endif %}
+    <div class="field"><label for="si-c-{{ r.pk }}">{% trans "Customization" %}</label><select id="si-c-{{ r.pk }}" name="customization"><option value="ssh" {% if r.customization == 'ssh' %}selected{% endif %}>ssh</option><option value="context" {% if r.customization == 'context' %}selected{% endif %}>context</option></select><div class="help">{% trans "How a template is applied to a VM made from this image: ssh — turned into a script run over ssh (a base OS); context — through a context variable at first boot (VyOS)." %}</div></div>
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endfor %}{% endif %}
+{% if can_edit %}
+<dialog id="dlg-platform" class="card" style="max-width:560px;width:92%"><h2>{% trans "Add a platform" %}</h2>
+  <p class="muted">{% trans "A new platform is planned (not installed); all its items are planned." %}</p>
+  <form method="post" action="{% url 'inv_platform_save' %}" class="stack">{% csrf_token %}<input type="hidden" name="new" value="1">
+    <input type="hidden" name="site" value="{{ site.code }}">
+    <div class="grid cols3 compact-form">{% for f in platform_form %}{% if f.name != 'state' and f.name != 'site' %}{% include "includes/field.html" %}{% endif %}{% endfor %}</div>
+    <div class="actions"><button class="btn">{% trans "Add platform" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for p in platforms %}<dialog id="dlg-pl-{{ p.name }}" class="card wide" style="max-width:860px;width:94%"><h2>{% trans "Edit" %} <span class="code">{{ p.key }}</span></h2>
+  <form method="post" action="{% url 'inv_platform_save' %}" class="stack">{% csrf_token %}
+    <input type="hidden" name="site" value="{{ site.code }}"><input type="hidden" name="name" value="{{ p.name }}">
+    <div class="field" data-field="rename"><label for="pl-rn-{{ p.name }}">{% trans "Platform name" %}</label><input id="pl-rn-{{ p.name }}" name="rename" value="{{ p.name }}" pattern="[a-z][a-z0-9_\-]{1,30}" maxlength="31" required>
+      <div class="help">{% trans "Renaming changes the platform's key everywhere in the portal (projects, deployments, collected data). The front-end (zone) name on the platform stays." %}</div></div>
+    <div class="grid cols3 compact-form">{% for f in p.form %}{% if f.name != 'site' and f.name != 'name' %}{% include "includes/field.html" %}{% endif %}{% endfor %}</div>
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+<dialog id="dlg-ds-new-{{ p.name }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Add a datastore" %} <small class="code">{{ p.key }}</small></h2>
+  <form method="post" action="{% url 'inv_ds_new' p.site.code p.name %}" class="stack" data-ds-form>{% csrf_token %}{% for f in p.ds_form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+<dialog id="dlg-vn-new-{{ p.name }}" class="card" style="max-width:560px;width:92%"><h2>{% trans "Add a network" %} <small class="code">{{ p.key }}</small></h2>
+  <form method="post" action="{% url 'inv_vn_new' p.site.code p.name %}" class="stack">{% csrf_token %}{% for f in p.vn_form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for d in p.datastores.all %}<dialog id="dlg-ds-{{ d.pk }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Datastore" %} <span class="code">{{ d.name }}</span></h2>
+  <form method="post" action="{% url 'inv_ds_save' p.site.code p.name d.pk %}" class="stack" data-ds-form>{% csrf_token %}{% for f in d.form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% for vn in p.vnets.all %}<dialog id="dlg-vn-{{ vn.pk }}" class="card" style="max-width:560px;width:92%"><h2>{% trans "Network" %} <span class="code">{{ vn.name }}</span></h2>
+  <form method="post" action="{% url 'inv_vn_save' p.site.code p.name vn.pk %}" class="stack">{% csrf_token %}{% for f in vn.form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endfor %}
+{% endif %}
+<script>
+document.querySelectorAll("[data-ds-form]").forEach(function (f) {  /* the backup fields only for backups, S3 ones only for S3 */
+  var kind = f.querySelector("[name=kind]"), backend = f.querySelector("[name=backend]");
+  function show(name, on) { var x = f.querySelector('[data-field="' + name + '"]'); if (x) x.hidden = !on; }
+  function sync() {
+    var bk = kind && kind.value === "backups", s3 = bk && backend && backend.value === "s3";
+    ["backend", "restic_ip", "restic_secret"].forEach(function (n) { show(n, bk); });
+    ["s3_endpoint", "s3_bucket", "s3_secret"].forEach(function (n) { show(n, s3); });
+    show("volume", !s3); show("path", !s3);
+  }
+  if (kind) kind.addEventListener("change", sync);
+  if (backend) backend.addEventListener("change", sync);
+  sync();
+});
+</script>

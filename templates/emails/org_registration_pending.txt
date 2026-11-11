@@ -1,0 +1,11 @@
+{% load i18n %}{% autoescape off %}{% if step == 'sales' %}{% blocktrans with org=org.name %}The organization {{ org }} registered on the portal and the resource manager approved it. It waits for your approval as its sales rep.{% endblocktrans %}{% else %}{% blocktrans with org=org.name %}A new organization registered on the portal and waits for approval: {{ org }}.{% endblocktrans %}
+{% trans "Approve it and assign its sales rep and support engineer (the key account manager is optional)." %}{% endif %}
+
+{% trans "Organization" %}: {{ org.name }}
+{{ org.get_tax_id_type_display }}: {{ org.tax_id }}
+{% trans "City" %}: {{ org.city|default:"—" }}
+{% trans "Organization admin" %}: {{ admin.full_name }} <{{ admin.email }}>, {{ admin.phone_display|default:"—" }}
+{% if checks %}{% trans "Check of the entered data" %}: {% trans "score" %} {{ org.reg_check.score }} — {{ checks|join:"; " }}
+{% endif %}
+{{ link }}
+{% endautoescape %}

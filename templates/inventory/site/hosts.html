@@ -1,0 +1,62 @@
+{% load ui %}{% load i18n %}<section class="card olist" data-key="site-hosts-{{ site.code }}">
+  <div class="olist-bar"><div class="olist-tools"><input type="search" class="olist-search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter' %}">
+    {% if can_ipmi %}<a class="btn ghost small" href="{% url 'infra_site_ipmi' site.code %}">{% trans "IPMI settings" %}</a>{% endif %}
+    {% if can_edit %}<button class="btn small" type="button" data-open="dlg-host">+ {% trans "Add host" %}</button>{% endif %}</div></div>
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Host" %}</th><th>{% trans "Health" %}</th><th>{% trans "Address" %}</th><th>IPMI</th><th>{% trans "S/N" %}</th><th>{% trans "Clusters" %}</th><th>{% trans "State" %}</th><th></th></tr></thead><tbody>
+  {% for h in hosts %}<tr class="orow" data-id="h-{{ h.name }}"><td><span class="code">{{ h.name }}</span></td>
+    <td>{% if h.health_at %}<span title="{% if h.health.problems %}{{ h.health.problems|join:'; ' }}{% else %}{% trans 'read' %} {{ h.health_at|date:'d.m.Y H:i' }}{% endif %}">{% if h.health.ok %}{% st "ok" _("ok") %}{% elif h.health.error %}{% st "warn" _("not read") %}{% else %}{% st "bad" _("problems") %}{% endif %}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td>{{ h.ip|default:"—" }}</td>
+    <td>{% if h.ipmi_host %}<a class="ext" href="{{ h.ipmi_url }}" target="_blank" rel="noopener noreferrer">{{ h.ipmi_host }}{% if h.ipmi_port != 443 %}:{{ h.ipmi_port }}{% endif %}</a> {% if h.ipmi_type %}{% tp h.ipmi_type %}{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td><span class="code">{{ h.facts.serial|default:"—" }}</span>{% if h.diffs %} <span title="{{ h.diffs|join:'; ' }}">{% st "bad" _("differs") %}</span>{% endif %}</td>
+    <td><small>{% for c in h.clusters.all %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</small></td><td>{% st h.state %}</td>
+    <td class="row-actions"><span class="stack-right">
+      {% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-h-{{ h.name }}">{% trans "Edit" %}</button>{% endif %}
+      {% if can_ipmi %}<form class="inline" method="post" action="{% url 'inv_host_detect' site.code h.name %}">{% csrf_token %}<button class="btn ghost small" style="width:100%" title="{% trans 'Read the hardware and check the server profile' %}">{% trans "Read hardware" %}</button></form>{% endif %}
+      {% if can_edit %}{% if not h.used %}<form class="inline" method="post" action="{% url 'inv_host_remove' site.code h.name %}" onsubmit="return confirm('{% trans "Delete this host?" %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% trans "Delete" %}</button></form>
+      {% elif h.state == 'active' %}<form class="inline" method="post" action="{% url 'inv_host_remove' site.code h.name %}" onsubmit="return confirm('{% trans "Mark this host retired?" %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% trans "Retire" %}</button></form>{% endif %}{% endif %}</span></td></tr>
+  {% empty %}<tr><td colspan="8" class="muted">{% trans "No hosts." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for h in hosts %}<div class="odetail card" data-for="h-{{ h.name }}" hidden><h3><span class="code">{{ h.name }}</span> {% st h.state %}</h3>
+    <div class="grid two"><dl class="facts">
+      <dt>{% trans "Address (ssh)" %}</dt><dd>{{ h.ip|default:"—" }}</dd>
+      <dt>IPMI</dt><dd>{% if h.ipmi_host %}<a class="ext" href="{{ h.ipmi_url }}" target="_blank" rel="noopener noreferrer">{{ h.ipmi_host }}{% if h.ipmi_port != 443 %}:{{ h.ipmi_port }}{% endif %}</a>{% else %}—{% endif %} {% if h.ipmi_type %}{% tp h.ipmi_type %}{% endif %}</dd>
+      <dt>{% trans "IPMI user" %}</dt><dd><span class="code">{{ h.ipmi_user|secret }}</span></dd>
+      <dt>{% trans "Clusters" %}</dt><dd>{% for c in h.clusters.all %}{{ c.platform.key }}/{{ c.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
+      {% for s in h.storages.all %}{% if forloop.first %}<dt>{% trans "Local storage" %}</dt><dd>{% endif %}<span class="code">{{ s.name }}</span> {% if forloop.last %}</dd>{% endif %}{% endfor %}
+      <dt>{% trans "Server profile" %}</dt><dd>{% if h.profile %}<a href="{% url 'infra_profiles' %}?sel=pr-{{ h.profile.code }}">{{ h.profile.code }}</a> · {{ h.profile.model }}{% else %}—{% endif %}
+        {% for d in h.diffs %}<br><small style="color:var(--bad)">{{ d }}</small>{% endfor %}</dd>
+    </dl><dl class="facts">
+      <dt>{% trans "Hardware read" %}</dt><dd>{{ h.facts_at|date:"d.m.Y H:i"|default:"—" }}{% if h.facts %} · {% if h.facts.ipmi_read %}IPMI{% endif %}{% if h.facts.ipmi_read and h.facts.os_read %} + {% endif %}{% if h.facts.os_read %}OS{% endif %}{% endif %}{% if h.facts_error %}<br><small style="color:var(--bad)">{{ h.facts_error }}</small>{% endif %}{% if h.facts.os_unread %}<br><small class="muted">{% trans "OS not read (the host is in no cluster)" %}: {{ h.facts.os_unread }}</small>{% endif %}</dd>
+      {% if h.facts %}<dt>{% trans "Chassis" %}</dt><dd>{{ h.facts.vendor }} {{ h.facts.chassis }}</dd>
+      <dt>{% trans "Serial number" %}</dt><dd><span class="code">{{ h.facts.serial|default:"—" }}</span>{% if not h.facts.serial %} <small class="muted">{% trans "read from the IPMI: Read hardware" %}</small>{% endif %}</dd>
+      <dt>CPU</dt><dd>{% firstof h.facts.cpu_name h.facts.cpu_name_ipmi "—" %}{% if h.facts.sockets %} · {{ h.facts.sockets }} × {{ h.facts.cores_per_socket }}{% endif %}</dd>
+      <dt>RAM</dt><dd>{{ h.facts.ram_gb|gb|default:"—" }} GB</dd>
+      {% if h.facts.gpu_count %}<dt>GPU</dt><dd>{{ h.facts.gpu_count }} × {{ h.facts.gpu_model }}</dd>{% endif %}
+      {% if h.facts.boot %}<dt>{% trans "Boot device" %}</dt><dd>{% if h.facts.boot.dev %}<span class="code">{{ h.facts.boot.dev }}</span> · {% endif %}{{ h.facts.boot.size_gb }} GB{% if h.facts.boot.controller %} <small class="muted">{{ h.facts.boot.controller }}{% if h.facts.boot.raid %} {{ h.facts.boot.raid }}{% endif %}</small>{% endif %}</dd>{% endif %}
+      <dt>{% trans "Network cards" %}</dt><dd>{% for c in h.facts.nics.cards %}{% if c.slot %}{% trans "slot" %} {{ c.slot }}: {% endif %}<span class="code">{{ c.links|join:" " }}</span> · {{ c.ports }} × {{ c.speed }} Gb/s <small class="muted">{% firstof c.model c.chip %}</small>{% for a, port in c.aliases.items %}<br><small><span class="code">{{ a }}</span> = <span class="code">{{ port }}</span></small>{% endfor %}<br>{% empty %}—{% endfor %}</dd>{% endif %}
+    </dl></div>
+    <h4 style="margin:12px 0 4px">{% trans "Health" %} {% if h.health_at %}{% if h.health.ok %}{% st "ok" _("ok") %}{% elif h.health.error %}{% st "warn" _("not read") %}{% else %}{% st "bad" _("problems") %}{% endif %} <small class="muted">{% trans "from the IPMI" %}, {{ h.health_at|date:"d.m.Y H:i" }} · {% trans "read once a day and with Read hardware" %}</small>{% else %}<small class="muted">{% trans "not read yet (once a day, and with Read hardware)" %}</small>{% endif %}</h4>
+    {% if h.health_at %}<dl class="facts">
+      <dt>BIOS</dt><dd>{{ h.health.bios|default:"—" }}</dd>
+      <dt>IPMI</dt><dd>{% if h.health.ipmi_model %}{{ h.health.ipmi_model }} · {% endif %}{{ h.health.ipmi_fw|default:"—" }}</dd>
+      {% for p in h.health.problems %}{% if forloop.first %}<dt>{% trans "Problems" %}</dt><dd>{% endif %}<small style="color:var(--bad)">{{ p }}</small>{% if forloop.last %}</dd>{% else %}<br>{% endif %}{% endfor %}
+      {% if h.health.boot %}<dt>{% trans "Boot device" %}</dt><dd>{% firstof h.health.boot.health h.health.boot.controller_health "—" %} <small class="muted">{{ h.health.boot.controller }} · {{ h.health.boot.size_gb }} GB</small></dd>{% endif %}
+      {% if h.health.ports %}<dt>{% trans "Network" %}</dt><dd>{% for r in h.health.ports %}<small><span class="code">{{ r.alias }}</span> <span class="code">{{ r.port|default:"—" }}</span> · {{ r.link|default:"—" }}{% if r.speed %} {{ r.speed|floatformat:0 }} Gb/s{% endif %}{% if r.health %} · {{ r.health }}{% endif %}{% if r.problem %} <span style="color:var(--bad)">{{ r.problem }}</span>{% endif %}</small><br>{% endfor %}</dd>{% endif %}
+      {% if h.health.cpus %}<dt>CPU</dt><dd>{% for p in h.health.cpus %}{{ p.id }}: {{ p.health|default:"—" }}{% if not forloop.last %} · {% endif %}{% endfor %}</dd>{% endif %}
+      {% if h.health.gpus %}<dt>GPU</dt><dd>{% for p in h.health.gpus %}{{ p.id }}: {{ p.health|default:"—" }}{% if not forloop.last %} · {% endif %}{% endfor %}</dd>{% endif %}
+      {% if h.health.memory %}<dt>{% trans "Memory" %}</dt><dd>{{ h.health.memory }}</dd>{% endif %}
+    </dl>{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}
+<dialog id="dlg-host" class="card" style="max-width:560px;width:92%"><h2>{% trans "Add a host" %}</h2>
+  <p class="muted"><small>{% trans "The name is also the server's host name. New hosts are planned until a cluster with them is deployed. The hardware is read from the IPMI (and from the OS over ssh, when it answers) to find its server profile." %}</small></p>
+  <form method="post" action="{% url 'inv_host_add' %}" class="stack">{% csrf_token %}
+    <input type="hidden" name="site" value="{{ site.code }}">{% for f in host_form %}{% if f.name != 'site' %}{% include "includes/field.html" %}{% endif %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add host" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for h in hosts %}<dialog id="dlg-h-{{ h.name }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Edit" %} <span class="code">{{ h.name }}</span></h2>
+  <form method="post" action="{% url 'inv_host_edit' site.code h.name %}" class="stack">{% csrf_token %}
+    {% for f in h.form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endif %}

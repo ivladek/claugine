@@ -1,0 +1,16 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}{% include "emails/_report_head.html" %}
+<p style="margin:0 0 4px"><strong>{% trans "Last backups" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">
+<tr style="color:#6b736e"><td style="padding:3px 6px 3px 0"></td><td style="padding:3px 6px">{% trans "When" %}</td><td style="padding:3px 0 3px 6px">{% trans "Result" %}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Portal" %}</td><td style="padding:4px 6px;white-space:nowrap">{{ backups.portal_at|date:"d.m.Y H:i"|default:"—" }}</td><td style="padding:4px 0 4px 6px;color:{% if 'failed' in backups.portal_result %}#a61b0e{% else %}#176b2c{% endif %}">{{ backups.portal_result|default:"—" }}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Platforms" %}</td><td style="padding:4px 6px;white-space:nowrap">{{ backups.fe_at|date:"d.m.Y H:i"|default:"—" }}</td><td style="padding:4px 0 4px 6px;color:{% if 'failed' in backups.fe_result %}#a61b0e{% else %}#176b2c{% endif %}">{{ backups.fe_result|default:"—" }}</td></tr>
+</table>
+<p style="margin:16px 0 4px"><strong>{% trans "Schedule and destinations" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">
+<tr style="color:#6b736e"><td style="padding:3px 6px 3px 0"></td><td style="padding:3px 6px">{% trans "Local folder" %}</td><td style="padding:3px 6px">{% trans "S3 bucket" %}</td><td style="padding:3px 6px">{% trans "Daily at" %}</td><td style="padding:3px 0 3px 6px">{% trans "Keep" %}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Portal" %}</td><td style="padding:4px 6px">{% if bconf.portal.local_on %}{{ bconf.portal.local|default:"—" }}{% else %}—{% endif %}</td><td style="padding:4px 6px">{% if bconf.portal.s3 %}{{ bconf.portal.bucket|default:"—" }}{% else %}—{% endif %}</td><td style="padding:4px 6px">{{ bconf.portal.start|time:"H:i" }}</td><td style="padding:4px 0 4px 6px">{{ bconf.portal.keep }} {% trans "days" %}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Platforms" %}</td><td style="padding:4px 6px">{% if bconf.platform.local_on %}{{ bconf.platform.local|default:"—" }}{% else %}—{% endif %}</td><td style="padding:4px 6px">{% if bconf.platform.s3 %}{{ bconf.platform.bucket|default:"—" }}{% else %}—{% endif %}</td><td style="padding:4px 6px">{{ bconf.platform.start|time:"H:i" }}</td><td style="padding:4px 0 4px 6px">{{ bconf.platform.keep }} {% trans "days" %}</td></tr>
+</table>
+{% if bconf.platform.platforms %}<p style="margin:10px 0 0;color:#6b736e;font-size:12px">{% trans "Platforms included" %}: {{ bconf.platform.platforms|join:", " }}</p>{% endif %}
+<p style="margin:14px 0 0"><a href="{{ link }}" style="color:#0f6b55">{{ link }}</a></p>
+{% endblock %}
