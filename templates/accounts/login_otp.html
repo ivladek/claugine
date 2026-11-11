@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto">
+  <h1>{% trans "Two-factor code" %}</h1>
+  <p class="muted">{% trans "Enter the 6-digit code from your authenticator app." %}</p>
+  <form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn">{% trans "Continue" %}</button></form>
+</div>
+{% endblock %}

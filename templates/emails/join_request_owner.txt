@@ -1,0 +1,8 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with name=user.full_name email=user.email org=org.name tax=org.tax_id %}{{ name }} <{{ email }}> registered with the IIN/BIN of {{ org }} ({{ tax }}) and asks to join it.{% endblocktrans %}
+
+{% trans "Accept only if you know this person. Decide here:" %}
+
+{{ link }}
+
+{% trans "Our resource manager and your sales rep have been informed." %}
+{% endautoescape %}
