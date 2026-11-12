@@ -1,0 +1,2 @@
+{% load i18n %}{{ label }} · {{ since|date:"d.m.Y H:i" }} – {{ now|date:"d.m.Y H:i" }}{% if redirected %}
+{% blocktrans with w=for_whom %}Redirected: this report is for {{ w }}.{% endblocktrans %}{% endif %}
