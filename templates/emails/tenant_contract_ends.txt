@@ -1,0 +1,7 @@
+{% autoescape off %}Hello,
+
+The contract of project {{ tenant.name|default:tenant.title }} ends on {{ date }} — in {{ days }} day{{ days|pluralize }}.
+Contact your sales rep to prolong it{% if tenant.sales_rep %}: {{ tenant.sales_rep.full_name|default:tenant.sales_rep.email }} <{{ tenant.sales_rep.email }}>{% endif %}.
+
+{{ link }}
+{% endautoescape %}

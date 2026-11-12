@@ -1,0 +1,4 @@
+{% load i18n %}{% autoescape off %}{% if join.state == 'accepted' %}{% blocktrans with org=org.name %}You now have access to {{ org }} on the Example Cloud portal. Its admin will give you access to its projects.{% endblocktrans %}
+
+{{ site_url }}/login/{% else %}{% blocktrans with org=org.name %}The admin of {{ org }} declined your request to join.{% endblocktrans %}{% endif %}
+{% endautoescape %}

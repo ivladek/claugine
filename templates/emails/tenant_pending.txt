@@ -1,0 +1,11 @@
+{% load i18n %}{% autoescape off %}{% trans "A project is waiting for approval." %}
+
+{% trans "Project" %}: {{ tenant.title|default:tenant.name }}
+{% trans "Organization" %}: {{ tenant.organization.name }}{% if tenant.organization.tax_id %} ({{ tenant.organization.tax_id }}){% endif %}
+{% trans "Type" %}: {{ tenant.get_kind_display }} · {{ tenant.get_stage_display }}
+{% if tenant.order %}{% trans "Resources" %}: {{ tenant.order.cpu }} vCPU, {{ tenant.order.ram_gb }} GB RAM, {{ tenant.order.disk_gb }} GB {% trans "storage" %}
+{% trans "Connection" %}: {{ order_summary }}
+{% endif %}{% if user %}{% trans "Requested by" %}: {{ user.full_name }} <{{ user.email }}>{% endif %}
+
+{{ link }}
+{% endautoescape %}

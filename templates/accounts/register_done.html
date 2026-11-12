@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto"><h1>{% trans "Check your email" %}</h1><p>{% blocktrans %}We sent a confirmation link to <strong>{{ email }}</strong>. Open it to finish registration.{% endblocktrans %}</p></div>
+{% endblock %}
