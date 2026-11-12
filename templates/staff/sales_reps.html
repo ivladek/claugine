@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Sales reps" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Sales reps" %}</h1>
+<p class="muted">{% if settings_obj.sales_approval_required %}{% trans "Sales approval is on: sales reps sign in and approve their organizations' projects." %}{% else %}{% trans "Sales approval is off: sales reps are directory entries without login." %}{% endif %}</p>
+<section class="card olist" data-key="sales-reps">
+  {% if can_edit %}{% trans "Add sales rep" as add_label %}{% include "ui/bar.html" with add_dialog="dlg-rep-new" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Mobile" %}</th><th class="num">{% trans "Organizations" %}</th><th>{% trans "Registration" %}</th><th></th></tr></thead><tbody>
+  {% for r, orgs, form in rows %}<tr class="orow" data-id="rep-{{ r.pk }}"><td>{{ r.full_name|default:"—" }}</td><td>{{ r.email }}</td><td>{{ r.phone_display|default:"—" }}</td><td class="num">{{ orgs|length }}</td>
+    <td>{% if r.login_enabled %}<span class="pill ok">{% trans "can sign in" %}</span>{% else %}<span class="pill muted">{% trans "directory entry" %}</span>{% endif %}</td>
+    <td class="row-actions"><span class="stack-right">{% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-rep-{{ r.pk }}">{% trans "Edit" %}</button>
+    {% if not r.login_enabled %}<form class="inline" method="post" action="{% url 'sales_rep_invite' r.pk %}">{% csrf_token %}<button class="btn small">{% trans "Invite" %}</button></form>{% if not orgs %}<form class="inline" method="post" action="{% url 'sales_rep_delete' r.pk %}" onsubmit="return confirm('{% trans "Delete this sales rep?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}{% endif %}{% endif %}</span></td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">{% trans "No sales reps yet." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for r, orgs, form in rows %}<div class="odetail card" data-for="rep-{{ r.pk }}" hidden><h3>{{ r.full_name|default:r.email }}</h3>
+    <dl class="facts"><dt>{% trans "Email" %}</dt><dd>{{ r.email }}</dd><dt>{% trans "Mobile" %}</dt><dd>{{ r.phone_display|default:"—" }}</dd>
+      <dt>{% trans "Registration" %}</dt><dd>{% if r.login_enabled %}{% trans "can sign in" %}{% else %}{% trans "directory entry" %}{% endif %}</dd>
+      <dt>{% trans "Organizations" %}</dt><dd>{% for o in orgs %}<a href="{% url 'org_detail' o.pk %}">{{ o.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd></dl>
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}
+<dialog id="dlg-rep-new" class="card" style="max-width:520px;width:92%"><h2>{% trans "Add sales rep" %}</h2>
+  <form method="post" action="{% url 'sales_rep_new' %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=new_form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for r, orgs, form in rows %}<dialog id="dlg-rep-{{ r.pk }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Edit" %} <small>{{ r.email }}</small></h2>
+  <form method="post" action="{% url 'sales_rep_edit' r.pk %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endif %}
+{% endblock %}

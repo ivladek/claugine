@@ -1,0 +1,5 @@
+{% load i18n %}
+{% trans "Organizations and projects in the period" %}:
+{% for c in changes %}  {{ c.label }}: {{ c.n }} ({{ c.names }})
+{% empty %}  {% trans "No changes." %}
+{% endfor %}
