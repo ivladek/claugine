@@ -1,0 +1,5 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with t=tenant.name|default:tenant.title who=d.requested_by %}{{ who }} asks to delete project {{ t }}.{% endblocktrans %}{% if d.note %}
+{{ d.note }}{% endif %}
+
+{% trans "Approve or reject on the project page:" %} {{ link }}
+{% endautoescape %}

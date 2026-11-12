@@ -1,0 +1,30 @@
+{% load ui %}{% load i18n %}{# The definition of a core service: f — ServiceForm. #}
+<div class="cs-form" data-cs-form data-vyos-images="{{ f.vyos_images }}">
+  <div class="cs-row3">{% with f=f.name %}{% include "includes/field.html" %}{% endwith %}{% with f=f.kind %}{% include "includes/field.html" %}{% endwith %}{% with f=f.state %}{% include "includes/field.html" %}{% endwith %}</div>
+  {% with f=f.description %}{% include "includes/field.html" %}{% endwith %}
+  <div class="cs-row2"><div class="cs-vm">{% with f=f.platform %}{% include "includes/field.html" %}{% endwith %}</div>{% with f=f.serves %}{% include "includes/field.html" %}{% endwith %}</div>
+  <div class="field"><label><span class="cs-vm">{% trans "VM resources" %}</span><span class="cs-host">{% trans "Connection" %}</span></label>
+    <div class="cs-grid cs-res1">
+      <div class="cs-vm cs-sub"><label for="{{ f.vcpu.id_for_label }}">vCPU</label>{{ f.vcpu }}</div>
+      <div class="cs-vm cs-sub"><label for="{{ f.ram_gb.id_for_label }}">{% trans "RAM, GB" %}</label>{{ f.ram_gb }}</div>
+      <div class="cs-vm cs-sub"><label for="{{ f.disk_gb.id_for_label }}">{% trans "Disk, GB" %}</label>{{ f.disk_gb }}</div>
+      <div class="cs-sub"><label for="{{ f.ssh_port.id_for_label }}">{% trans "ssh port" %}</label>{{ f.ssh_port }}</div>
+    </div>
+    <div class="cs-grid cs-res2 cs-vm">
+      <div class="cs-sub"><label for="{{ f.image.id_for_label }}">{% trans "Image" %}</label>{{ f.image }}</div>
+      <div class="cs-sub"><label for="{{ f.nic1_network.id_for_label }}">{% trans "NIC 1 subnet" %}</label>{{ f.nic1_network }}</div>
+      <div class="cs-sub"><label for="{{ f.nic1_gateway.id_for_label }}">{% trans "NIC 1 gateway" %}</label>{{ f.nic1_gateway }}</div>
+    </div>
+    {% for x in f.resource_fields %}{{ x.errors }}{% endfor %}</div>
+  <div class="cs-grid cs-res2 cs-vm cs-nics"><div class="cs-sub"><label for="{{ f.more_nics.id_for_label }}">{% trans "Further NICs" %}</label><small class="muted">NIC 2, 3, 4</small></div>
+    <div class="cs-nics-rows">{% with f=f.more_nics %}{% include "includes/field.html" %}{% endwith %}</div></div>
+  <div class="cs-vm">{% with f=f.routes %}{% include "includes/field.html" %}{% endwith %}</div>
+  {% with f=f.nodes %}{% include "includes/field.html" %}{% endwith %}
+  <div class="cs-row2">{% with f=f.ssh_secret %}{% include "includes/field.html" %}{% endwith %}{% with f=f.service_secret %}{% include "includes/field.html" %}{% endwith %}</div>
+  {% if groups %}<div class="field"><label>{% trans "BGP peer groups" %}</label>{% include "inventory/site/_core_peer_secrets.html" %}</div>{% endif %}
+  <div class="cs-fw">{% with f=f.firewall %}{% include "includes/field.html" %}{% endwith %}</div>
+  {% with f=f.template %}{% include "includes/field.html" %}{% endwith %}
+  {% with f=f.config_diff %}{% include "includes/field.html" %}{% endwith %}
+  <details class="field"><summary>{% trans "Checks" %} <small class="muted">{% trans "what a read verifies on every host and VM" %}</small></summary>
+    <div class="cs-row2">{% for x in f.check_fields %}{% with f=x %}{% include "includes/field.html" %}{% endwith %}{% endfor %}</div></details>
+</div>

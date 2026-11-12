@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<h1>{% trans "My profile" %}</h1>
+<div class="grid two">
+  <section class="card">
+    <dl class="facts">
+      <dt>{% trans "Email" %}</dt><dd>{{ user.email }}</dd>
+      <dt>{% trans "Role" %}</dt><dd>{{ user.role_display }}</dd>
+      {% if user.organization %}<dt>{% trans "Organization" %}</dt><dd>{{ user.organization.name }}</dd>{% endif %}
+      <dt>{% trans "Two-factor" %}</dt><dd>{% if user.totp_enabled %}<span class="pill ok">{% trans "on" %}</span>{% if not user.requires_2fa %} <a href="{% url 'totp_disable' %}">{% trans "turn off" %}</a>{% endif %}{% else %}<span class="pill muted">{% trans "off" %}</span> <a href="{% url 'totp_setup' %}">{% trans "turn on" %}</a>{% endif %}</dd>
+    </dl>
+    {% if user.photo %}<p style="margin-top:16px"><img class="avatar" style="width:96px;height:96px" src="{% url 'user_photo' user.pk %}" alt=""></p>{% endif %}
+    <p><a href="{% url 'password_reset' %}">{% trans "Change password" %}</a></p>
+  </section>
+  <section class="card">
+    <form method="post" enctype="multipart/form-data" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn">{% trans "Save" %}</button></form>
+  </section>
+</div>
+  <section class="card" id="passkeys" style="margin-top:16px">
+    <h2>{% trans "Passkeys" %}</h2>
+    <p class="muted">{% trans "Sign in with Touch ID, Face ID, Windows Hello, your phone or a security key instead of typing the authenticator code. The authenticator app stays as the way back if a device is lost." %}</p>
+    {% if passkeys %}<table class="table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Added" %}</th><th>{% trans "Last used" %}</th><th></th></tr></thead><tbody>
+      {% for k in passkeys %}<tr><td>{{ k.name }}</td><td>{{ k.created_at|date:"d.m.Y H:i" }}</td><td>{{ k.last_used_at|date:"d.m.Y H:i"|default:"—" }}</td>
+        <td><form method="post" action="{% url 'passkey_remove' k.pk %}" class="inline" onsubmit="return confirm('{% trans "Remove this passkey?" %}')">{% csrf_token %}<button class="btn ghost small">{% trans "Remove" %}</button></form></td></tr>{% endfor %}
+    </tbody></table>{% endif %}
+    <div class="actions" style="margin-top:12px">{% csrf_token %}
+      <input id="pk-name" maxlength="64" placeholder="{% trans 'Name, e.g. MacBook' %}">
+      <button type="button" class="btn" data-passkey="register" data-name="pk-name" data-options="{% url 'passkey_register_options' %}" data-verify="{% url 'passkey_register_verify' %}" data-out="pk-out"
+        data-unsupported="{% trans 'This browser does not support passkeys.' %}" data-cancelled="{% trans 'No passkey was made.' %}">{% trans "Add a passkey" %}</button>
+    </div>
+    <p id="pk-out" class="error" hidden></p>
+  </section>
+{% load static %}<script src="{% static 'passkeys.js' %}?v={{ asset_v }}" defer></script>
+{% endblock %}

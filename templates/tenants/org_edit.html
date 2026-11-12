@@ -1,0 +1,99 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% if org %}{{ org.name }}{% else %}{% trans "New organization" %}{% endif %}{% endblock %}
+{% block content %}
+{{ people_meta|json_script:"people-meta" }}
+<h1>{% if org %}{% trans "Edit organization" %}{% else %}{% trans "New organization" %}{% endif %}</h1>
+<div class="actions" style="margin-bottom:12px">
+  <button class="btn" form="org-form">{% trans "Save" %}</button>
+  <a class="btn ghost" href="{% if next %}{{ next }}{% elif org %}{% url 'org_detail' org.pk %}{% else %}{% url 'org_list' %}{% endif %}">← {% trans "Back" %}</a>
+</div>
+<form id="org-form" method="post" class="stack">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+<section class="card compact">
+  {% if org %}
+  <p class="ctxline"><strong>{{ org.name }}</strong>{% if org.tax_id %} · {{ org.country_name }} · {{ org.get_tax_id_type_display }} {{ org.tax_id }}{% endif %} · {{ org.get_kind_display }}</p>
+  <div class="fld-inline">{{ form.short_name.label_tag }} {{ form.short_name }}{% if form.short_name.help_text %}<span class="fnote">{{ form.short_name.help_text }}</span>{% endif %}</div>
+  {% if form.short_name.errors %}<div class="field">{{ form.short_name.errors }}</div>{% endif %}
+  {% if form.sales_rep %}
+  <table class="ptable" style="margin-top:4px">
+    <thead><tr><th>{% trans "Role" %}</th><th>{% trans "Full name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Mobile" %}</th><th>{% trans "City" %}</th></tr></thead>
+    <tbody>
+      <tr data-person><td class="role">{% trans "Sales rep" %}</td><td>{{ form.sales_rep }}</td>
+        <td class="auto" data-cell="e">{{ org.sales_rep.email|default:"—" }}</td>
+        <td class="auto" data-cell="p">{{ org.sales_rep.phone|default:"—" }}</td>
+        <td class="auto" data-cell="c">{% if org.sales_rep %}{{ org.sales_rep.get_city_display }}{% else %}—{% endif %}</td></tr>
+      <tr data-person><td class="role">{% trans "Key account manager" %}</td><td>{{ form.kam }}</td>
+        <td class="auto" data-cell="e">{{ org.kam.email|default:"—" }}</td>
+        <td class="auto" data-cell="p">{{ org.kam.phone|default:"—" }}</td>
+        <td class="auto" data-cell="c">{% if org.kam %}{{ org.kam.get_city_display }}{% else %}—{% endif %}</td></tr>
+      {% if form.org_admin %}{% with a=org.admins.first %}<tr data-person><td class="role">{% trans "Org admin" %}</td><td>{{ form.org_admin }}</td>
+        <td class="auto" data-cell="e">{{ a.email|default:"—" }}</td>
+        <td class="auto" data-cell="p">{{ a.phone|default:"—" }}</td>
+        <td class="auto" data-cell="c">{% if a %}{{ a.get_city_display }}{% else %}—{% endif %}</td></tr>{% endwith %}{% endif %}
+    </tbody>
+  </table>
+  {% if form.sales_rep.errors or form.kam.errors or form.org_admin.errors %}<div class="field">{{ form.sales_rep.errors }}{{ form.kam.errors }}{{ form.org_admin.errors }}</div>{% endif %}
+  {% if form.org_admin %}<p class="fnote">{{ form.org_admin.help_text }}</p>{% endif %}
+  {% endif %}
+  <div style="margin-top:12px">{{ form.notes.label_tag }}{{ form.notes }}{% if form.notes.help_text %}<div class="help">{{ form.notes.help_text }}</div>{% endif %}{{ form.notes.errors }}</div>
+  {% else %}
+  {# u10: new organization #}
+  <div class="fld-inline">{{ form.kind.label_tag }} {{ form.kind }}</div>{{ form.kind.errors }}
+  <div class="fld-inline">{{ form.country.label_tag }} {{ form.country }}</div>{{ form.country.errors }}
+  <div class="fld-inline"><label><span data-taxid-label>{{ form.tax_id.label }}</span> <span style="color:var(--bad)">*</span></label>{{ form.tax_id_type }} {{ form.tax_id }}</div>{{ form.tax_id_type.errors }}{{ form.tax_id.errors }}
+  <div class="fld-inline wide">{{ form.name.label_tag }} {{ form.name }}</div>{{ form.name.errors }}
+  <div class="fld-inline">{{ form.short_name.label_tag }} {{ form.short_name }}{% if form.short_name.help_text %}<span class="fnote">{{ form.short_name.help_text }}</span>{% endif %}</div>{{ form.short_name.errors }}
+  {% if form.sales_rep %}
+  <table class="ptable" style="margin-top:4px">
+    <thead><tr><th>{% trans "Role" %}</th><th>{% trans "Full name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Mobile" %}</th><th>{% trans "City" %}</th></tr></thead>
+    <tbody>
+      <tr data-person><td class="role">{% trans "Sales rep" %}</td><td>{{ form.sales_rep }}</td>
+        <td class="auto" data-cell="e">—</td><td class="auto" data-cell="p">—</td><td class="auto" data-cell="c">—</td></tr>
+      <tr data-person><td class="role">{% trans "Key account manager" %}</td><td>{{ form.kam }}</td>
+        <td class="auto" data-cell="e">—</td><td class="auto" data-cell="p">—</td><td class="auto" data-cell="c">—</td></tr>
+      <tr><td class="role">{% trans "Org admin" %}</td><td>{{ form.user_name }}</td><td>{{ form.user_email }}</td><td>{{ form.user_phone }}</td><td>{{ form.user_city }}</td></tr>
+    </tbody>
+  </table>
+  {{ form.sales_rep.errors }}{{ form.kam.errors }}{{ form.user_name.errors }}{{ form.user_email.errors }}{{ form.user_phone.errors }}
+  {% endif %}
+  <div style="margin-top:12px">{{ form.notes.label_tag }}{{ form.notes }}{{ form.notes.errors }}</div>
+  {% endif %}
+</section>
+</form>
+{% if form.sales_rep %}
+<script>
+(function(){
+  var meta={};try{meta=JSON.parse(document.getElementById("people-meta").textContent)||{};}catch(e){}
+  var PH={p:"—",c:"—"};
+  document.querySelectorAll("#org-form tr[data-person]").forEach(function(tr){
+    var sel=tr.querySelector("select");if(!sel)return;
+    sel.addEventListener("change",function(){
+      var m=meta[sel.value]||{};
+      tr.querySelector('[data-cell=e]').textContent=m.e||"—";
+      tr.querySelector('[data-cell=p]').textContent=m.p||PH.p;
+      tr.querySelector('[data-cell=c]').textContent=m.c||PH.c;
+    });
+  });
+})();
+</script>
+{% endif %}
+{% if not org %}
+<script>
+(function(){
+  var TR={"а":"a","ә":"a","б":"b","в":"v","г":"g","ғ":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z","и":"i","й":"i","і":"i","к":"k","қ":"q","л":"l","м":"m","н":"n","ң":"n","о":"o","ө":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ұ":"u","ү":"u","ф":"f","х":"kh","һ":"h","ц":"ts","ч":"ch","ш":"sh","щ":"sch","ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya"};
+  var name=document.getElementById("id_name"), sn=document.getElementById("id_short_name");
+  if(!name||!sn)return;
+  var edited=false; sn.addEventListener("input",function(){edited=true;});
+  var LEGAL={too:1,llp:1,ip:1,ao:1,jsc:1,ooo:1,ltd:1,llc:1,inc:1,tdo:1,gu:1,ku:1,rgp:1,gkp:1,pk:1,chu:1,ojsc:1,pao:1,zao:1,oao:1,kh:1,fl:1,ul:1,s:1};
+  function slug(s){
+    s=(s||"").toLowerCase(); var t="";
+    for(var i=0;i<s.length;i++){var c=s[i];t+=TR.hasOwnProperty(c)?TR[c]:c;}
+    var words=t.split(/[^a-z0-9]+/).filter(Boolean);
+    var kept=words.filter(function(w){return !LEGAL[w];}); if(!kept.length)kept=words;
+    var o="";
+    for(var j=0;j<kept.length;j++){var w=kept[j]; if(!o)w=w.replace(/^[0-9]+/,""); if(!w)continue; if(o.length+w.length>8){if(!o)o=w.slice(0,8);break;} o+=w;}
+    return o;
+  }
+  name.addEventListener("input",function(){if(edited)return;var g=slug(name.value);if(g.length>=3)sn.value=g;});
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow"><h1>{% if rep %}{{ rep }}{% else %}{% trans "New sales rep" %}{% endif %}</h1>
+<p class="muted">{% trans "A directory entry: no password and no sign-in until you invite the user to register." %}</p>
+<form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}
+<div class="actions"><button class="btn">{% trans "Save" %}</button><a href="{% url 'sales_reps' %}">{% trans "Cancel" %}</a></div></form></div>
+{% endblock %}
