@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto">
+  <h1>{% trans "Remove the resource pool" %}</h1>
+  <p>{% blocktrans with p=cluster_name s=rec.site %}VMs of the project are on {{ p }} ({{ s }}). Removing the pool deletes them when a resource manager approves the removal:{% endblocktrans %}</p>
+  <ul>{% for v in vms %}<li class="code">{{ v.name }}</li>{% endfor %}</ul>
+  <p class="error">{% trans "The VMs and their disks are deleted for good. Move or back up what you need first." %}</p>
+  <form method="post" action="{% url 'tenant_pool_remove' tenant.pk %}" class="stack">{% csrf_token %}
+    <input type="hidden" name="site" value="{{ rec.site }}"><input type="hidden" name="cluster" value="{{ rec.cluster }}">
+    <label><input type="checkbox" name="delete_vms" value="1" required> {% trans "Delete these VMs with the pool" %}</label>
+    <div class="actions"><button class="btn danger">{% trans "Ask to remove the pool" %}</button><a href="{{ back }}">{% trans "Cancel" %}</a></div>
+  </form>
+</div>
+{% endblock %}

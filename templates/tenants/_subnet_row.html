@@ -1,0 +1,2 @@
+{% load i18n %}<tr><td>{{ p.site }}</td><td><span class="code">{{ p.cidr }}</span></td>
+  <td class="row-actions">{% if p.busy %}<small class="muted">{% trans "change pending" %}</small>{% elif net_can_request and deletable %}<button class="btn danger small" type="button" data-open="dlg-net-del-{{ p.pk }}">{% trans "Delete" %}</button>{% endif %}</td></tr>

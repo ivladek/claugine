@@ -1,0 +1,15 @@
+# The direct dependencies, as ranges. requirements.txt is compiled from this file with every version and hash
+# pinned (owner 2026-11-11, the same as claugine-web): after a change here run
+#   uv pip compile requirements.in --universal --generate-hashes --python-version 3.14 -o requirements.txt
+# deploy/check.sh fails when requirements.txt no longer matches this file.
+Django>=5.2,<5.3
+mysqlclient>=2.2
+django-otp>=1.7
+gunicorn>=23
+webauthn>=3
+django-countries>=7.6
+segno>=1.6
+pillow>=10
+PyYAML>=6.0
+cryptography>=42
+pyzipper>=0.3.6
