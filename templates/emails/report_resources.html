@@ -1,0 +1,6 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}{% include "emails/_report_head.html" %}
+{% include "emails/_report_usage.html" %}
+{% include "emails/_report_matrix.html" %}
+{% include "emails/_report_orgstats.html" %}
+<p style="margin:14px 0 0"><a href="{{ link }}" style="color:#0f6b55">{{ link }}</a></p>
+{% endblock %}

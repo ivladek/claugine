@@ -1,0 +1,2 @@
+{% load i18n %}{% with n=items|length %}{% if n %}<details class="usedby"><summary>{% blocktrans count n=n %}used by {{ n }}{% plural %}used by {{ n }}{% endblocktrans %} <span class="muted u-show">· {% trans "show contributors" %}</span><span class="muted u-hide">· {% trans "hide" %}</span></summary>
+<ul>{% for p in items %}<li><span class="code">{{ p }}</span></li>{% endfor %}</ul></details>{% else %}<span class="muted">{{ empty|default:_("not used") }}</span>{% endif %}{% endwith %}

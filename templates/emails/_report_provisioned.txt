@@ -1,0 +1,6 @@
+{% load i18n %}{% if provisioned %}
+{% trans "Resources provisioned per project" %}:
+{% trans "Organization" %} | {% trans "Type" %} | {% trans "Project" %} | {% trans "Sites" %} | vCPU | {% trans "RAM, GB" %} | GPU | {% trans "Disk, GB" %} | {% trans "Backups, GB" %}
+{% for r in provisioned %}  {{ r.org }} | {{ r.kind }} | {{ r.name }} | {{ r.sites }} | {{ r.cpu }} | {{ r.ram }} | {{ r.gpu }} | {{ r.disk }} | {{ r.backups }}
+{% endfor %}  {% trans "Total" %} ({{ totals.projects }}): vCPU {{ totals.cpu }}, RAM {{ totals.ram }} GB, GPU {{ totals.gpu }}, {% trans "disk" %} {{ totals.disk }} GB, {% trans "backups" %} {{ totals.backups }} GB
+{% endif %}

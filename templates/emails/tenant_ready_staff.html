@@ -1,0 +1,6 @@
+{% extends "emails/_base.html" %}{% block body %}
+<p style="margin:0 0 10px">Hello {{ you.full_name|default:you.email }},</p>
+<p style="margin:0 0 6px">Project <strong>{{ tenant.name|default:tenant.title }}</strong> of <strong>{{ org.name }}</strong> has been provisioned on {{ platforms }}. You are its {{ role|lower }}.</p>
+<p style="margin:0 0 6px">{% if admin_person %}The credentials were sent to the project admin: <a href="mailto:{{ admin_person.email }}" style="color:#0f6b55">{{ admin_person.full_name|default:admin_person.email }}</a>.{% else %}The project has no project admin: nobody got the credentials.{% endif %}</p>
+{% include "emails/_pools_conns.html" with show_access=False %}
+{% endblock %}

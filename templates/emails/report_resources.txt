@@ -1,0 +1,6 @@
+{% load i18n %}{% autoescape off %}{% include "emails/_report_head.txt" %}
+{% include "emails/_report_usage.txt" %}
+{% include "emails/_report_matrix.txt" %}
+{% include "emails/_report_orgstats.txt" %}
+{{ link }}
+{% endautoescape %}

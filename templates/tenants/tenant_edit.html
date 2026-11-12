@@ -1,0 +1,65 @@
+{% extends "base.html" %}{% load i18n %}{% load ui %}{% block title %}{% trans "Edit project" %}: {{ tenant.name|default:tenant.title }}{% endblock %}
+{% block content %}
+{{ people_meta|json_script:"people-meta" }}
+<h1>{% trans "Edit project" %}</h1>
+
+<div class="actions" style="margin-bottom:16px">
+  <button class="btn" form="edit-form">{% trans "Save" %}</button>
+  <a class="btn ghost" href="{% if next %}{{ next }}{% else %}{% url 'tenant_detail' tenant.pk %}{% endif %}">{% trans "Cancel" %}</a>
+  {% if move_form and not pending_move %}<button class="btn ghost" type="button" style="margin-left:auto" onclick="var m=document.getElementById('t-move');m.hidden=!m.hidden">{% trans "Move to another org…" %}</button>{% elif pending_move %}<small class="muted" style="margin-left:auto">{% trans "a move to another organization waits for approval" %}</small>{% endif %}
+</div>
+
+<form id="edit-form" method="post" action="{% url 'tenant_edit_all' tenant.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+<section class="card compact">
+  <p class="ctxline"><strong>{{ tenant.name|default:tenant.title }}</strong> · {{ tenant.organization.name|default:"—" }}{% if tenant.organization.tax_id %} <small class="muted">{{ tenant.organization.tax_id }}</small>{% endif %}</p>
+  {% if can_edit %}<input type="hidden" name="e-name" value="{{ tenant.name }}"><input type="hidden" name="e-title" value="{{ tenant.title }}"><input type="hidden" name="e-resource_manager" value="{{ tenant.resource_manager_id|default:'' }}">{% endif %}
+  {% if move_form and not pending_move %}<div id="t-move" class="sub" hidden style="margin-bottom:12px">
+    <div class="fld-inline"><label for="{{ move_form.organization.id_for_label }}">{% trans "Move to the new organization" %}</label>{{ move_form.organization }}</div>{{ move_form.organization.errors }}</div>{% endif %}
+
+  <fieldset>
+    <div class="fld-inline"><label>{% trans "Short name" %}</label><input value="{{ tenant.name }}" disabled style="width:180px"><span class="fnote">{% trans "4–15 lowercase latin/digits and -; unique in the org; fixed after approval." %}</span></div>
+    <div class="grid four" style="align-items:start">
+      <div class="field"><label>{% trans "Type" %}</label>{% if can_kind %}<select name="kd-kind" id="id_kd-kind">{% for v, l in kind_choices %}<option value="{{ v }}"{% if v == tenant.kind %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{% else %}<p class="ro">{{ tenant.get_kind_display }}</p>{% endif %}</div>
+      <div class="field"><label>{% trans "Stage" %}</label>{% if can_stage %}{{ stage_form.stage }}{% else %}<p class="ro">{{ tenant.get_stage_display }}</p>{% endif %}</div>
+      <div class="field"><label>{% trans "Status" %}</label>{% if can_status %}{{ status_form.status }}{% else %}<p class="ro">{{ tenant.get_status_display }}</p>{% endif %}</div>
+      <div class="field"><label>{% trans "Review date" %}</label>{% if can_review %}{{ review_form.date_review }}{% else %}<p class="ro">{{ tenant.date_review|date:"d.m.Y"|default:"—" }}</p>{% endif %}</div>
+    </div>
+  </fieldset>
+
+  <fieldset><legend>{% trans "Team" %}</legend>
+    <table class="ptable">
+      <thead><tr><th>{% trans "Role" %}</th><th>{% trans "Full name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Mobile" %}</th><th>{% trans "City" %}</th></tr></thead>
+      <tbody>
+        <tr data-person><td class="role">{% trans "Project admin" %}</td>
+          <td>{% if can_admin %}<select name="ta-user" id="id_ta-user"><option value="">—</option>{% for v, l in admin_choices %}<option value="{{ v }}"{% if v == tenant.tenant_admin_id|stringformat:"s" %} selected{% endif %}>{{ l }}</option>{% endfor %}</select>{% else %}{% with a=tenant.tenant_admin %}{% if a %}{{ a.full_name|default:a.email }}{% else %}—{% endif %}{% endwith %}{% endif %}</td>
+          <td class="auto" data-cell="e">{{ tenant.tenant_admin.email|default:"—" }}</td>
+          <td class="auto" data-cell="p">{{ tenant.tenant_admin.phone|default:"—" }}</td>
+          <td class="auto" data-cell="c">{% if tenant.tenant_admin %}{{ tenant.tenant_admin.get_city_display }}{% else %}—{% endif %}</td></tr>
+        <tr data-person><td class="role">{% trans "Support engineer" %}</td>
+          <td>{% if can_edit %}{{ edit_form.support_engineer }}{% else %}{% with s=tenant.effective_support_engineer %}{% if s %}{{ s.full_name|default:s.email }}{% else %}—{% endif %}{% endwith %}{% endif %}</td>
+          <td class="auto" data-cell="e">{{ tenant.effective_support_engineer.email|default:"—" }}</td>
+          <td class="auto" data-cell="p">{{ tenant.effective_support_engineer.phone|default:"—" }}</td>
+          <td class="auto" data-cell="c">{% if tenant.effective_support_engineer %}{{ tenant.effective_support_engineer.get_city_display }}{% else %}—{% endif %}</td></tr>
+      </tbody>
+    </table>
+  </fieldset>
+
+  {% if can_edit %}<fieldset><legend>{% trans "Notes" %}</legend>{% include "includes/field.html" with f=edit_form.notes %}</fieldset>{% endif %}
+</section>
+</form>
+<script>
+(function(){
+  var meta={};try{meta=JSON.parse(document.getElementById("people-meta").textContent)||{};}catch(e){}
+  var PH={p:"—",c:"—"};
+  document.querySelectorAll("#edit-form tr[data-person]").forEach(function(tr){
+    var sel=tr.querySelector("select");if(!sel)return;
+    sel.addEventListener("change",function(){
+      var m=meta[sel.value]||{};
+      tr.querySelector('[data-cell=e]').textContent=m.e||"—";
+      tr.querySelector('[data-cell=p]').textContent=m.p||PH.p;
+      tr.querySelector('[data-cell=c]').textContent=m.c||PH.c;
+    });
+  });
+})();
+</script>
+{% endblock %}
