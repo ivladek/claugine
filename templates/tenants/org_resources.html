@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{% trans "Resource tracking" %} · {% if tenant %}{{ tenant.name|default:tenant.title }}{% else %}{{ org.name }}{% endif %}{% endblock %}
+{% block content %}
+{% if tenant %}<p><a href="{% url 'tenant_detail' tenant.pk %}">← {{ tenant.name|default:tenant.title }}</a></p>
+<h1>{% trans "Resource tracking" %} <small class="muted">{{ tenant.name|default:tenant.title }}{% if org %} · {{ org.name }}{% endif %}</small></h1>
+<p class="muted"><small>{% trans "Every change of the project's resources, newest first: its totals right after the change. vCPU and RAM: the GPU bundles of GPU clusters in brackets." %}</small></p>
+<section class="card olist" data-key="tenant-resources-{{ tenant.pk }}">{% else %}<p><a href="{% url 'org_detail' org.pk %}">← {{ org.name }}</a></p>
+<h1>{% trans "Resource tracking" %} <small class="muted">{{ org.name }}</small></h1>
+<p class="muted"><small>{% trans "Every change of the resources of the organization's projects, newest first: the project's totals right after the change. vCPU and RAM: the GPU bundles of GPU clusters in brackets." %}</small></p>
+<section class="card olist" data-key="org-resources-{{ org.pk }}">{% endif %}
+  <div class="olist-bar"><div class="olist-tools"><input type="search" class="olist-search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter' %}"></div></div>
+  {% include "tenants/_resource_rows.html" %}
+</section>
+{% endblock %}

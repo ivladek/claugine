@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Templates" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Templates" %}</h1>
+<p class="muted">{% trans "Sources of the configurations of network functions (VyOS) and host services (FRR), taken from the running services. Addresses, names, ASNs and users are variables; secrets come from Secrets and are masked in previews." %}</p>
+<section class="card olist" data-key="templates" data-autoselect>
+  {% if can_edit and missing_roles %}{% trans "Add template" as add_label %}{% include "ui/bar.html" with add_dialog="dlg-tpl-new" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table">
+  <thead><tr><th>{% trans "Name" %}</th><th>{% trans "Role" %}</th><th>{% trans "Scope" %}</th><th>{% trans "Target" %}</th><th>{% trans "Updated" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead><tbody>
+  {% for t in templates %}<tr class="orow" data-id="tpl-{{ t.pk }}"><td>{{ t.name }}</td><td>{% tp t.role %}</td><td>{% if t.scope == 'tenant' %}{% trans "project" %}{% elif t.scope == 'image' %}{% trans "image" %}{% else %}{% trans "site" %}{% endif %}</td>
+    <td>{{ t.get_os_display }} <small class="muted">{{ t.os_version }}</small></td><td><small>{{ t.updated_at|date:"d.m.Y H:i" }}{% if t.updated_by %} · {{ t.updated_by }}{% endif %}</small></td>
+    {% if can_edit %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-tpl-{{ t.pk }}">{% trans "Edit" %}</button>
+      {% if not t.users %}<form class="inline" method="post" action="{% url 'infra_template_delete' t.pk %}" onsubmit="return confirm('{% trans "Delete this template?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}</td>{% endif %}</tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for t in templates %}<div class="odetail card" data-for="tpl-{{ t.pk }}" hidden><h3>{{ t.name }} {% tp t.role %}</h3>
+    {% if t.description %}<p>{{ t.description }}</p>{% endif %}
+    <p><small>{% trans "nothing now: it can be deleted" as e %}{% include "ui/usedby.html" with items=t.users empty=e %}</small></p>
+    {% if t.scope == 'image' %}<p class="muted"><small>{% trans "A script of the VyOS image, kept as it is (not rendered, no preview). Every VyOS VM runs the first-boot script: it applies the OpenNebula context (host name, time zone, login user, its key and password, NIC addresses, MTU and routes), then the portal's configuration as the one-time init script, then reboots. The templates above leave all of that to it." %}</small></p>
+    {% else %}<dl class="facts"><dt>{% trans "Variables" %}</dt><dd><small class="mono">{{ common_vars }}<br>{{ t.variables }}</small></dd></dl>
+    <form method="get" class="actions" style="margin:12px 0">
+      <input type="hidden" name="preview" value="{{ t.role }}"><input type="hidden" name="sel" value="tpl-{{ t.pk }}">
+      {% if t.scope == 'tenant' %}<select name="tenant" style="width:auto">{% for x in tenants %}<option value="{{ x.pk }}" {% if q.tenant == x.pk|stringformat:"s" %}selected{% endif %}>{{ x.group_name }}</option>{% endfor %}</select>
+      {% else %}<select name="site" style="width:auto">{% for s in sites %}<option value="{{ s.code }}" {% if q.site == s.code %}selected{% endif %}>{{ s.code }}</option>{% endfor %}</select>
+        <select name="index" style="width:auto">{% for i in "012" %}<option value="{{ i }}" {% if q.index == i %}selected{% endif %}>{% if t.role == 'host-frr' %}{% trans "host" %}{% else %}RR {{ forloop.counter }}{% endif %}</option>{% endfor %}</select>{% endif %}
+      <button class="btn small">{% trans "Preview" %}</button></form>{% endif %}
+    <h3 style="margin-top:12px">{% trans "Template" %}</h3>
+    <pre class="config">{{ t.body }}</pre>
+    {% if t.error %}<div class="msg warning" style="margin-top:12px">{{ t.error }}</div>{% endif %}
+    {% if t.rendered %}<h3 style="margin-top:12px">{% trans "Preview" %}</h3><pre class="config">{{ t.rendered }}</pre>
+      {% if can_edit %}<form method="post" action="{% url 'infra_template_reveal' t.pk %}" style="margin-top:8px">{% csrf_token %}{% for k, v in q.items %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}<button class="btn ghost small">{% trans "Show secrets" %}</button></form>{% endif %}{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit and missing_roles %}<dialog id="dlg-tpl-new" class="card wide" style="width:96%"><h2>{% trans "New template" %}</h2>
+  <form method="post" action="{% url 'infra_template_new' %}" class="stack">{% csrf_token %}
+  <div class="field"><label for="id_new_role">{% trans "Role" %}</label><select id="id_new_role" name="role">{% for v, l in missing_roles %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+  {% include "includes/form.html" with form=new_form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% if can_edit %}{% for t in templates %}<dialog id="dlg-tpl-{{ t.pk }}" class="card wide" style="width:96%"><h2>{% trans "Edit" %} {{ t.name }}</h2>
+  <form method="post" action="{% url 'infra_template_save' t.pk %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=t.form %}
+  <p class="muted"><small>{% verbatim %}{{ variable }} · {% for x in list %}…{% endfor %} · {% if … %}…{% endif %}{% endverbatim %}</small></p>
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}{% endif %}
+{% endblock %}

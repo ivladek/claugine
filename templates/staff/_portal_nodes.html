@@ -1,0 +1,33 @@
+{% load i18n %}{% if pair_ui %}{% include "staff/_portal_pair.html" %}{% else %}<section class="card" style="max-width:960px">
+  <h2>{% trans "Portal node" %}</h2>
+  <p>{% blocktrans with r=ha_role %}This portal runs on one node (role: {{ r }}).{% endblocktrans %}{% if add_node.allowed %} {% trans "Add the second node below." %}{% endif %}</p>
+</section>{% endif %}
+{% if add_node.allowed and not add_node.paired %}{% include "staff/_portal_add_node.html" %}{% endif %}
+<section class="card" style="max-width:960px">
+  <h2>{% trans "Updates" %}</h2>
+  <p class="muted">{% if pair_ui %}{% trans "New releases come as bundles from the control plane. The standby gets a release first, and only then is it installed on the active node, after a backup, with the database changes." %}{% else %}{% trans "New releases come as bundles from the control plane." %}{% endif %}</p>
+  <dl class="facts">
+    {% if licence.configured %}<dt>{% trans "Licence" %}</dt><dd>
+      {% if licence.state == 'active' %}{% st "ok" _("active") %}{% elif licence.state == 'grace' %}{% st "warn" _("grace") %}{% elif licence.state == 'pending' %}{% st "warn" _("not yet in force") %}{% elif licence.state == 'conflict' %}{% st "bad" _("conflict") %}{% elif licence.state == 'retired' %}{% st "bad" _("retired") %}{% elif licence.state == 'expired' %}{% st "bad" _("expired") %}{% else %}{% st "warn" _("awaiting check-in") %}{% endif %}
+      <small class="muted">· {% trans "control plane" %} <span class="code">{{ licence.url }}</span> · {% trans "installation" %} <span class="code">{{ licence.install_id }}</span> · {% trans "stream" %} {{ licence.stream }}{% if licence.checked_at %} · {% trans "last check-in" %} {{ licence.checked_at|slice:":10" }} {{ licence.checked_at|slice:"11:16" }}{% endif %}</small>
+      {% if licence.state == 'retired' %}<div class="help">{% trans "This installation was released from its licence: it receives no more updates. Decommission this node; a new installation uses a new installation id." %}</div>{% endif %}
+      {% if upgrade.available %}<div class="help" style="margin-top:6px">{% if upgrade.requested %}{% st "running" _("upgrading") %} {% trans "This node installs the Enterprise edition within a few minutes. Reload the page to follow it." %}{% else %}{% trans "The licence is Enterprise, but this node runs the Standard edition." %}
+        <form method="post" style="display:inline" onsubmit="return confirm('{% trans "Take a backup and install the Enterprise edition now? The portal is unavailable for about a minute." %}')">{% csrf_token %}<input type="hidden" name="tab" value="portal"><input type="hidden" name="section" value="upgrade_enterprise"><button class="btn small">{% trans "Upgrade to Enterprise" %}</button></form>{% endif %}</div>{% endif %}
+      {% if upgrade.result %}<div class="help">{% trans "Upgrade" %}{% if upgrade.at %} {{ upgrade.at|slice:":10" }} {{ upgrade.at|slice:"11:16" }}{% endif %}: {{ upgrade.result }}</div>{% endif %}
+      {% if licence.grace_until %}<div class="help">{% blocktrans with d=licence.grace_until|slice:":10" %}The licence has lapsed; updates continue until {{ d }}, then stop. The portal keeps running.{% endblocktrans %}</div>{% endif %}
+      {% for n in licence.notices %}<div class="msg warning" style="margin-top:4px"><small>{{ n }}</small></div>{% endfor %}
+    </dd>{% endif %}
+    <dt>{% trans "Releases" %}</dt><dd>{% blocktrans with u=licence.url %}bundles from the control plane ({{ u }}){% endblocktrans %}{% if auto_update_state.latest %} · {% trans "latest" %} <strong class="code">{{ auto_update_state.latest }}</strong>{% endif %}</dd>
+    {% if pair_ui %}{% include "staff/_portal_pair_test_address.html" %}{% endif %}
+    <dt>{% trans "Automatic updates" %}</dt><dd>
+      <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="tab" value="portal"><input type="hidden" name="section" value="auto_update">
+        <label class="check"><input type="checkbox" name="auto_update" {% if auto_update %}checked{% endif %} onchange="this.form.submit()"> {% if pair_ui %}{% trans "install new releases on both nodes by themselves" %}{% else %}{% trans "install new releases by itself" %}{% endif %}</label></form>
+      {% if pair_ui %}<div class="help">{% trans "On: every 10 minutes the active node looks for a newer release; the standby installs it first, and only when that worked does the active node (no tasks running, a backup, then the database changes). If a step fails, nothing more happens with that release and the super admins get an e-mail." %}</div>{% else %}<div class="help">{% trans "On: the portal looks for a newer release every 10 minutes and installs it after a backup, with its database changes. If it fails, nothing more happens with that release and the super admins get an e-mail." %}</div>{% endif %}
+      {% if checkin_configured %}{% if update_locked %}<div style="margin-top:6px">{% trans "Update stream" %} <b>{% trans "stable only" %}</b>{% if update_window %} · {% blocktrans with w=update_window %}installed in one window a week, {{ w }}{% endblocktrans %}{% endif %}
+        <div class="help">{% trans "Fixed in the Standard edition." %}</div></div>
+      {% else %}{% include "staff/_update_stream.html" %}{% endif %}
+      <div class="help">{% blocktrans with u=licence.url %}Which releases the licence control plane ({{ u }}) may install: stable only, or also preview builds.{% endblocktrans %}</div>{% endif %}
+      {% if auto_update_state.checked_at %}<small class="muted">{% trans "last check" %} {{ auto_update_state.checked_at|slice:":10" }} {{ auto_update_state.checked_at|slice:"11:16" }}{% if auto_update_state.result %} · {% trans "last result" %}{% if auto_update_state.at %} {{ auto_update_state.at|slice:":10" }} {{ auto_update_state.at|slice:"11:16" }}{% endif %}: {{ auto_update_state.result }}{% endif %}{% if auto_update_state.failed_tag %} · {% blocktrans with t=auto_update_state.failed_tag %}{{ t }} is skipped (it failed){% endblocktrans %}{% endif %}</small>{% endif %}</dd>
+  </dl>
+  {% if ha_running %}<p>{% st "running" _("an operation is running") %} <small class="muted">{% trans "Reload the page to follow its steps." %}</small></p>{% endif %}
+</section>

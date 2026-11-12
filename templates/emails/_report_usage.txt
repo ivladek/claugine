@@ -1,0 +1,4 @@
+{% load i18n %}{% if usage %}
+{% trans "Usage of the shared clusters" %} ({% trans "used / available" %}):
+{% for u in usage %}  {{ u.site }} {{ u.cluster }}{% if u.kind %} ({{ u.kind }}){% endif %}: {{ u.projects }} {% trans "projects" %}, vCPU {{ u.vcpu }}/{{ u.vcpu_cap }}, RAM {{ u.ram }}/{{ u.ram_cap }} GB, GPU {{ u.gpu }}/{{ u.gpu_cap }}, {% trans "disk" %} {{ u.disk }} GB
+{% endfor %}{% endif %}

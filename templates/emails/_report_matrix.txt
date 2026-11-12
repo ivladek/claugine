@@ -1,0 +1,5 @@
+{% load i18n %}{% if matrix %}
+{% trans "Projects by cluster" %}:
+   | {% trans "Total" %}{% for l in matrix.labels %} | {{ l }}{% endfor %}
+{% for r in matrix.rows %}  {{ r.label }} | {{ r.total }}{% for c in r.cells %} | {{ c }}{% endfor %}
+{% endfor %}{% endif %}

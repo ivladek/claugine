@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Tasks" %}{% endblock %}
+{% block content %}<h1>{% trans "Tasks" %}</h1>
+<p class="muted">{% if customer %}{% blocktrans with d=days %}The work on your projects: deployments, network changes, deletions and configuration checks of the last {{ d }} days.{% endblocktrans %}{% else %}{% blocktrans with d=days %}Long work the portal does in the background: provisioning, network changes, deletions, checks and site settings on servers. Finished tasks are kept {{ d }} days (Settings).{% endblocktrans %}{% endif %}</p>
+<form method="get" class="filters" data-auto>
+  <select name="state" aria-label="{% trans 'State' %}"><option value="">{% trans "Any state" %}</option>
+    <option value="running" {% if state == 'running' %}selected{% endif %}>{% trans "Running" %}</option>
+    <option value="failed" {% if state == 'failed' %}selected{% endif %}>{% trans "Failed" %}</option>
+    <option value="done" {% if state == 'done' %}selected{% endif %}>{% trans "Done" %}</option></select>
+  {% if tenants %}<select name="tenant" aria-label="{% trans 'Tenant' %}"><option value="">{% trans "Any project" %}</option>{% for t in tenants %}<option value="{{ t.pk }}" {% if tenant == t.pk|stringformat:"s" %}selected{% endif %}>{{ t.name|default:t.title }}</option>{% endfor %}</select>{% endif %}
+  <a class="btn ghost small" href="?">{% trans "Clear" %}</a><noscript><button class="btn ghost small">{% trans "Filter" %}</button></noscript></form>
+<section class="card olist" data-key="tasks">
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Started" %}</th><th>{% trans "Task" %}</th><th>{% trans "Object" %}</th><th>{% trans "State" %}</th><th>{% trans "User" %}</th><th>{% trans "Took" %}</th></tr></thead><tbody>
+  {% for r in rows %}<tr class="orow" data-id="{{ r.id }}"><td style="white-space:nowrap">{{ r.at|date:"d.m.Y H:i" }}</td><td>{% tp r.kind r.kind %}</td><td><small>{{ r.title }}</small></td>
+    <td>{% if r.stale %}{% st "bad" _("stopped") %}{% else %}{% st r.state r.label %}{% endif %}{% if r.state == 'running' and r.progress %}<br><small class="muted">{{ r.progress }}</small>{% endif %}</td>
+    <td><small>{{ r.by.email|default:"—" }}</small></td><td><small>{% if r.end %}{{ r.at|timesince:r.end }}{% else %}…{% endif %}</small></td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">{% trans "No tasks." %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for r in rows %}<div class="odetail card" data-for="{{ r.id }}" hidden><h3>{% tp r.kind r.kind %} {{ r.title }}</h3>
+    <dl class="facts"><dt>{% trans "State" %}</dt><dd>{{ r.label }}</dd><dt>{% trans "Started" %}</dt><dd>{{ r.at|date:"d.m.Y H:i:s" }}</dd>
+      <dt>{% trans "Finished" %}</dt><dd>{{ r.end|date:"d.m.Y H:i:s"|default:"—" }}</dd><dt>{% trans "User" %}</dt><dd>{{ r.by|default:"—" }}</dd>
+      {% if r.tenant %}<dt>{% trans "Project" %}</dt><dd><a href="{% url 'tenant_detail' r.tenant.pk %}">{{ r.tenant }}</a></dd>{% endif %}
+      {% if r.error and not customer %}<dt>{% trans "Error" %}</dt><dd class="mono" style="white-space:pre-wrap">{{ r.error }}</dd>{% endif %}
+      {% for k, v in r.result.items %}<dt>{{ k }}</dt><dd><small class="mono">{{ v }}</small></dd>{% endfor %}</dl>
+    {% if r.steps %}<ul style="list-style:none;padding-left:0;margin:8px 0">{% for s in r.steps %}<li>{% st s.status s.status %} <strong>{{ s.name }}</strong>{% if not customer %} <small class="mono">{{ s.detail }}</small>{% endif %}</li>{% endfor %}</ul>{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% if any_running %}<script>setTimeout(function () { if (!document.querySelector("dialog[open]")) location.reload(); }, 5000);</script>{% endif %}
+{% endblock %}
