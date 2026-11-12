@@ -1,0 +1,7 @@
+{% load i18n %}{% if usage %}<p style="margin:14px 0 4px"><strong>{% trans "Usage of the shared clusters" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">
+<tr style="color:#6b736e"><td style="padding:3px 6px 3px 0">{% trans "Cluster" %}</td>{% if usage.0.kind %}<td style="padding:3px 6px">{% trans "Type" %}</td>{% endif %}<td style="padding:3px 6px;text-align:right">{% trans "Projects" %}</td><td style="padding:3px 6px;text-align:right">vCPU</td><td style="padding:3px 6px;text-align:right">{% trans "RAM, GB" %}</td><td style="padding:3px 6px;text-align:right">GPU</td><td style="padding:3px 0 3px 6px;text-align:right">{% trans "Disk, GB" %}</td></tr>
+{% for u in usage %}<tr style="border-top:1px solid #eef0ee"><td style="padding:3px 6px 3px 0">{{ u.site }} · {{ u.cluster }}</td>{% if usage.0.kind %}<td style="padding:3px 6px">{{ u.kind }}</td>{% endif %}<td style="padding:3px 6px;text-align:right">{{ u.projects }}</td>
+<td style="padding:3px 6px;text-align:right">{{ u.vcpu }} / {{ u.vcpu_cap }}{% if u.vcpu_pct is not None %} <span style="color:#6b736e">({{ u.vcpu_pct }}%)</span>{% endif %}</td>
+<td style="padding:3px 6px;text-align:right">{{ u.ram }} / {{ u.ram_cap }}{% if u.ram_pct is not None %} <span style="color:#6b736e">({{ u.ram_pct }}%)</span>{% endif %}</td>
+<td style="padding:3px 6px;text-align:right">{{ u.gpu }} / {{ u.gpu_cap }}</td><td style="padding:3px 0 3px 6px;text-align:right">{{ u.disk }}</td></tr>{% endfor %}</table>{% endif %}
