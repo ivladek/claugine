@@ -1,0 +1,101 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Approval requests" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Approval requests" %}</h1>
+<p class="muted">{% trans "Project requests from organizations. Each request shows the approvals it needs, who can give them now and whether one is waiting for you." %} <a href="{% url 'portal_settings' %}">{% trans "Approval settings" %}</a></p>
+<div class="subnav">
+  <a class="btn {% if tab != 'pending' or mine %}ghost{% endif %} small" href="?tab=pending">{% trans "Waiting" %} <span class="count">{{ counts.pending }}</span></a>
+  <a class="btn {% if not mine %}ghost{% endif %} small" href="?tab=pending&mine=1">{% trans "Waiting for me" %} <span class="count">{{ counts.mine }}</span></a>
+  <a class="btn {% if tab != 'approved' %}ghost{% endif %} small" href="?tab=approved">{% trans "Approved, last 30 days" %} <span class="count">{{ counts.approved }}</span></a>
+  <a class="btn {% if tab != 'closed' %}ghost{% endif %} small" href="?tab=closed">{% trans "Rejected or cancelled, last 30 days" %} <span class="count">{{ counts.closed }}</span></a>
+</div>
+{% if tab == 'pending' %}
+{% if orgs %}<section class="card"><h2>{% trans "New organizations" %}</h2>
+  <div class="table-wrap"><table><tr><th>{% trans "Organization" %}</th><th>{% trans "IIN/BIN" %}</th><th>{% trans "City" %}</th><th>{% trans "Organization admin" %}</th><th>{% trans "Registered" %}</th><th>{% trans "Approves now" %}</th><th></th></tr>
+  {% for o in orgs %}<tr><td>{{ o.org.name }}</td><td><span class="code">{{ o.org.tax_id|default:"—" }}</span></td><td>{{ o.org.city|default:"—" }}</td>
+    <td>{% if o.admin %}{{ o.admin.full_name|default:"—" }} <small class="muted">{{ o.admin.email }}</small>{% else %}—{% endif %}</td><td><small>{{ o.org.created_at|date:"d.m.Y H:i" }}</small></td>
+    <td>{% for st in o.steps %}{% if st.key == o.step %}<small>{{ st.label }}</small>{% endif %}{% endfor %} {% if o.mine %}{% st "pending" _("you") %}{% endif %}</td>
+    <td class="row-actions"><a class="btn {% if o.can %}{% else %}ghost {% endif %}small" href="{% url 'org_detail' o.org.pk %}#registration">{% if o.can %}{% trans "Review" %}{% else %}{% trans "Open" %}{% endif %}</a></td></tr>{% endfor %}
+  </table></div></section>{% endif %}
+<section class="card olist" data-key="approvals-waiting" data-autoselect>
+  {% include "ui/bar.html" %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Project" %}</th><th>{% trans "Request" %}</th><th>{% trans "Requested resources" %}</th><th>{% trans "Organization" %}</th><th>{% trans "Requested" %}</th><th>{% trans "Approves now" %}</th><th></th></tr></thead><tbody>
+  {% for i in items %}{% with t=i.t %}<tr class="orow" data-id="{{ i.kind }}-{% if i.obj %}{{ i.obj.pk }}{% else %}{{ t.pk }}{% endif %}">
+    <td><span class="code">{{ t.one_group_name|default:t.name }}</span></td>
+    <td>{% if i.kind == 'tenant' %}{% tp "client" i.label %}{% elif i.kind == 'resources' %}{% tp "shared" i.label %}{% elif i.kind == 'network' %}{% tp i.net_kind i.label %}{% elif i.kind == 'provision' %}{% tp "new" i.label %}{% elif i.kind == 'vlan' %}{% tp "l2" i.label %}{% elif i.kind == 'move' %}{% tp "shared" i.label %}{% else %}{% tp "deleted" i.label %}{% endif %}</td>
+    <td><small>{% if i.kind == 'tenant' %}{{ i.res.site|default:"" }}{% if i.res.cluster %}/{{ i.res.cluster|cluster_name:i.res.site }}{% endif %} · {{ i.res.cpu|default:"—" }} vCPU · {{ i.res.ram_gb|gb|default:"—" }} GB{% if i.res.gpu %} · {{ i.res.gpu }} {% trans "bundles" %}{% endif %} · {{ i.res.disk_gb|default:"—" }} GB{% if i.res.backups_gb %} · {% trans "backups" %} {{ i.res.backups_gb }} GB{% endif %}{% if i.what %}<br>{{ i.what }}{% endif %}{% elif i.what %}{{ i.what }}{% endif %}</small></td>
+    <td><span style="display:inline-block;max-width:220px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;vertical-align:bottom" title="{{ t.organization.name }}">{{ t.organization.name|default:"—" }}</span></td>
+    <td><small>{{ i.at|date:"d.m.Y H:i" }}</small></td>
+    <td>{% if i.kind == 'tenant' %}{% for st in i.steps %}{% if not st.done %}<small>{{ st.role }}</small>{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}{% elif i.kind == 'provision' %}<small>{% trans "Organization admin or support engineer" %}</small>{% elif i.kind == 'vlan' %}<small>{% trans "Support engineer" %}</small>{% elif i.kind == 'move' %}<small>{{ i.move_wait|join:", " }}</small>{% else %}<small>{% trans "Resource manager" %}</small>{% endif %}
+      {% if i.mine %}{% st "pending" _("you") %}{% endif %}</td>
+    <td class="row-actions">{% url 'approvals' as here %}{% with nxt=request.get_full_path %}
+      {% if i.kind == 'tenant' %}
+        {% if 'resource_manager' in i.mine_roles %}<a class="btn small" href="{% url 'tenant_detail' t.pk %}">{% trans "Review" %}</a>
+        {% elif 'support' in i.mine_roles %}<form class="inline" method="post" action="{% url 'tenant_support_approve' t.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><button class="btn small">{% trans "Approve" %}</button></form>
+        {% elif 'sales_manager' in i.mine_roles %}<form class="inline" method="post" action="{% url 'tenant_sales_approve' t.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><button class="btn small">{% trans "Approve" %}</button></form>{% endif %}
+        {% if i.can_reject %}<form class="inline" method="post" action="{% url 'tenant_reject' t.pk %}" onsubmit="var x=prompt('{% trans "Reason" %}'); if(!x) return false; this['rej-reason'].value=x;">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><input type="hidden" name="rej-reason"><button class="btn danger small">{% trans "Reject" %}</button></form>{% endif %}
+      {% elif i.kind == 'resources' and i.can %}
+        <button class="btn small" type="button" data-open="dlg-rc-{{ i.obj.pk }}">{% trans "Approve" %}</button>{% include "tenants/_rc_approve.html" with c=i.obj %}
+        <form class="inline" method="post" action="{% url 'tenant_resource_decide' t.pk i.obj.pk 'reject' %}" onsubmit="var x=prompt('{% trans "Reason" %}'); if(x===null) return false; this.reason.value=x;">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><input type="hidden" name="reason"><button class="btn danger small">{% trans "Reject" %}</button></form>
+      {% elif i.kind == 'network' and i.mine %}
+        <form class="inline" method="post" action="{% url 'tenant_network_decide' t.pk i.obj.pk 'approve' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><button class="btn small">{% trans "Approve" %}</button></form>
+        <form class="inline" method="post" action="{% url 'tenant_network_decide' t.pk i.obj.pk 'reject' %}" onsubmit="var x=prompt('{% trans "Reason" %}'); if(x===null) return false; this.reason.value=x;">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><input type="hidden" name="reason"><button class="btn danger small">{% trans "Reject" %}</button></form>
+      {% elif i.kind == 'provision' and i.mine %}<a class="btn small" href="{% url 'tenant_detail' t.pk %}?provision=1">{% trans "Provision" %}</a>
+      {% elif i.kind == 'vlan' and i.mine %}<a class="btn small" href="{% url 'tenant_detail' t.pk %}#connectivity">{% trans "Set VLAN" %}</a>
+      {% elif i.kind == 'move' and i.can %}
+        {% for st in i.move_steps %}<form class="inline" method="post" action="{% url 'tenant_move_decide' t.pk i.obj.pk st.key %}">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><button class="btn small">{% trans "Approve" %}{% if i.move_steps|length > 1 %} · {{ st.label }}{% endif %}</button></form>{% endfor %}
+        <form class="inline" method="post" action="{% url 'tenant_move_decide' t.pk i.obj.pk 'reject' %}" onsubmit="var x=prompt('{% trans "Reason" %}'); if(x===null) return false; this.reason.value=x;">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><input type="hidden" name="reason"><button class="btn danger small">{% trans "Reject" %}</button></form>
+      {% elif i.kind == 'deletion' and i.can %}
+        <button class="btn danger small" type="button" data-open="dlg-ap-del-{{ i.obj.pk }}">{% trans "Approve deletion" %}</button>
+        <form class="inline" method="post" action="{% url 'tenant_deletion_decide' t.pk i.obj.pk 'reject' %}" onsubmit="var x=prompt('{% trans "Reason" %}'); if(x===null) return false; this.reason.value=x;">{% csrf_token %}<input type="hidden" name="next" value="{{ nxt }}"><input type="hidden" name="reason"><button class="btn ghost small">{% trans "Reject" %}</button></form>
+      {% endif %}
+      <a class="btn ghost small" href="{% url 'tenant_detail' t.pk %}{% if i.kind == 'resources' %}#resources{% elif i.kind == 'network' %}#connectivity{% elif i.kind == 'deletion' %}#delete{% endif %}">{% trans "Open" %}</a>{% endwith %}</td>
+  </tr>{% endwith %}{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% if items %}{% trans "Select a row to see its details." %}{% else %}{% trans "No requests." %}{% endif %}</div>
+  {% for i in items %}{% with t=i.t %}<div class="odetail card" data-for="{{ i.kind }}-{% if i.obj %}{{ i.obj.pk }}{% else %}{{ t.pk }}{% endif %}" hidden>
+    <h3><a href="{% url 'tenant_detail' t.pk %}">{{ t.one_group_name|default:t.name }}</a> · {{ i.label }}</h3>
+    <div class="grid two"><dl class="facts">
+      <dt>{% trans "Organization" %}</dt><dd>{{ t.organization.name|default:"—" }}<br><small class="code">{{ t.organization.tax_id|default:"" }}</small></dd>
+      <dt>{% trans "Requested" %}</dt><dd>{{ i.at|date:"d.m.Y H:i" }}{% if i.by %} · {{ i.by.full_name|default:i.by.email }}{% endif %}</dd>
+      {% if i.kind == 'tenant' %}<dt>{% trans "Resources" %}</dt><dd>{{ i.res.cpu|default:"—" }} vCPU · {{ i.res.ram_gb|gb|default:"—" }} GB RAM · {{ i.res.disk_gb|default:"—" }} GB{% if i.what %}<br><small>{{ i.what }}</small>{% endif %}</dd>
+      {% elif i.what %}<dt>{% trans "Request" %}</dt><dd>{{ i.what }}</dd>{% endif %}
+      {% if i.obj.note %}<dt>{% trans "Comment" %}</dt><dd>{{ i.obj.note }}</dd>{% endif %}
+    </dl>{% if i.kind == 'tenant' %}<dl class="facts">
+      {% for st in i.steps %}<dt>{{ st.role }}</dt><dd>{% if st.done %}{% st "approved" "✓" %}{% else %}{% if st.mine %}{% st "pending" _("waiting for you") %}{% else %}{% st "pending" _("waiting") %}{% endif %}<br><small class="muted">{% for p in st.people %}{{ p.full_name|default:p.email }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</small>{% endif %}</dd>{% endfor %}
+    </dl>{% endif %}</div>
+    {% if i.kind == 'deletion' %}<h3 style="margin-top:12px">{% trans "Resources to delete" %}</h3>{% include "tenants/_deletion_plan.html" with plan=i.obj %}{% endif %}</div>{% endwith %}{% endfor %}</div>
+</section>
+{% for i in items %}{% if i.can and i.kind == 'deletion' %}{% with t=i.t %}<dialog id="dlg-ap-del-{{ i.obj.pk }}" class="card" style="max-width:480px;width:92%"><h2>{% trans "Approve deletion" %}</h2>
+  <p>{% blocktrans with n=t.group_name|default:t.name %}Everything of <strong>{{ n }}</strong> in OpenNebula is deleted now. This cannot be undone.{% endblocktrans %}</p>
+  <form method="post" action="{% url 'tenant_deletion_decide' t.pk i.obj.pk 'approve' %}" class="stack">{% csrf_token %}
+    <div class="field"><label>{% trans "Type the project name to confirm" %}: <span class="code">{{ t.name }}</span></label><input name="confirm" autocomplete="off" required></div>
+    <div class="actions"><button class="btn danger">{% trans "Approve deletion" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endwith %}{% endif %}
+{% endfor %}
+{% else %}
+<section class="card olist" data-key="approvals-{{ tab }}">
+  {% include "ui/bar.html" %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Project" %}</th><th>{% trans "Organization" %}</th><th>{% trans "Type" %}</th><th>{% trans "Requested" %}</th><th>{% if tab == 'pending' %}{% trans "Approves now" %}{% else %}{% trans "Outcome" %}{% endif %}</th><th></th></tr></thead><tbody>
+  {% for r in rows %}{% with t=r.t %}<tr class="orow" data-id="t-{{ t.pk }}">
+    <td><span class="code">{{ t.one_group_name|default:t.name }}</span>{% if r.mine %} {% st "pending" _("your approval") %}{% endif %}</td>
+    <td style="max-width:240px"><span style="display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="{{ t.organization.name }}">{{ t.organization.name|default:"—" }}</span></td>
+    <td>{% tp t.stage t.stage %}</td><td><small>{{ t.created_at|date:"d.m.Y H:i" }}</small></td>
+    <td>{% if tab == 'pending' %}{% for s in r.steps %}{% if not s.done %}<small>{{ s.role }}</small>{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}
+      {% elif t.approval == 'approved' %}{% st "approved" _("approved") %}{% else %}{% st t.approval t.get_approval_display %}{% endif %}</td>
+    <td class="row-actions"><a class="btn ghost small" href="{% url 'tenant_detail' t.pk %}">{% trans "Open" %}</a></td></tr>{% endwith %}{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% if rows %}{% trans "Select a row to see its details." %}{% else %}{% trans "No requests." %}{% endif %}</div>
+  {% for r in rows %}{% with t=r.t %}<div class="odetail card" data-for="t-{{ t.pk }}" hidden><h3><a href="{% url 'tenant_detail' t.pk %}">{{ t.one_group_name|default:t.name }}</a> {% tp t.stage t.stage %}</h3>
+    <div class="grid two"><dl class="facts">
+      <dt>{% trans "Organization" %}</dt><dd>{{ t.organization.name|default:"—" }}<br><small class="code">{{ t.organization.tax_id|default:"" }}</small></dd>
+      <dt>{% trans "Requested" %}</dt><dd>{{ t.created_at|date:"d.m.Y H:i" }}{% if t.created_by %} · {{ t.created_by.full_name|default:t.created_by.email }}{% endif %}</dd>
+      <dt>{% trans "Resources" %}</dt><dd>{{ r.res.cpu|default:"—" }} vCPU · {{ r.res.ram_gb|gb|default:"—" }} GB RAM · {{ r.res.disk_gb|default:"—" }} GB{% if r.order %}<br><small>{{ r.order }}</small>{% endif %}</dd>
+    </dl><dl class="facts">
+      {% if tab == 'pending' %}{% for s in r.steps %}<dt>{{ s.role }}</dt><dd>{% if s.done %}{% st "approved" "✓" %}{% else %}{% if s.mine %}{% st "pending" _("waiting for you") %}{% else %}{% st "pending" _("waiting") %}{% endif %}<br><small class="muted">{% for p in s.people %}{{ p.full_name|default:p.email }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</small>{% endif %}</dd>{% endfor %}
+      {% elif t.approval == 'approved' %}<dt>{% trans "Approved" %}</dt><dd>{{ t.approved_at|date:"d.m.Y H:i" }}</dd>
+      {% else %}<dt>{% trans "Outcome" %}</dt><dd>{% st t.approval t.get_approval_display %}{% if t.rejection_reason %}<br><small>{{ t.rejection_reason }}</small>{% endif %}</dd>{% endif %}
+    </dl></div></div>{% endwith %}{% endfor %}</div>
+</section>
+{% endif %}
+{% endblock %}

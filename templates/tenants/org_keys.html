@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Keys" %}{% endblock %}
+{% block content %}
+<h1>{% trans "SSH keys" %}</h1>
+<p class="muted">{% trans "Public keys of your projects. Keys assigned to a project's igw can log in to it over ssh (password login over ssh is off)." %}</p>
+<section class="card olist" data-key="org-keys">
+  {% trans "Add keys" as add_label %}{% if tenants %}{% include "ui/bar.html" with add_dialog="dlg-org-keys" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Project" %}</th><th>{% trans "Type" %}</th><th>{% trans "Fingerprint" %}</th><th>igw</th><th></th></tr></thead><tbody>
+  {% if org.default_ssh_key or key_form %}<tr class="orow" data-id="k-default"><td><span class="code">{% trans "default key" %}</span></td><td><span class="muted">{% trans "new projects" %}</span></td>
+    <td>{% if org.default_ssh_key %}{% tp default_type default_type %}{% else %}—{% endif %}</td><td><small class="mono">{{ default_fp|default:"—" }}</small></td><td><span class="muted">—</span></td>
+    <td class="row-actions">{% if key_form %}<button class="btn ghost small" type="button" data-open="dlg-org-default-key">{% trans "Edit" %}</button>{% endif %}</td></tr>{% endif %}
+  {% for k in keys %}<tr class="orow" data-id="k-{{ k.pk }}"><td><span class="code">{{ k.name }}</span></td><td><a href="{% url 'tenant_detail' k.tenant.pk %}#sshkeys">{{ k.tenant.name }}</a></td>
+    <td>{% tp k.key_type k.key_type %}</td><td><small class="mono">{{ k.fingerprint }}</small></td>
+    <td>{% if k.on_igw %}{% st "active" _("assigned") %}{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td class="row-actions">
+      <form class="inline" method="post" action="{% url 'tenant_ssh_key_action' k.tenant.pk k.pk k.on_igw|yesno:'unassign,assign' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn ghost small">{% if k.on_igw %}{% trans "Unassign from igw" %}{% else %}{% trans "Assign to igw" %}{% endif %}</button></form>
+      <form class="inline" method="post" action="{% url 'tenant_ssh_key_action' k.tenant.pk k.pk 'delete' %}" onsubmit="return confirm('{% trans "Delete this key?" %}')">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn danger small">{% trans "Delete" %}</button></form></td></tr>
+  {% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% if keys or org.default_ssh_key %}{% trans "Select a row to see its details." %}{% else %}{% trans "No keys yet: the keys of your projects and the default key for new projects are listed here." %}{% endif %}</div>
+  <div class="odetail card" data-for="k-default" hidden><h3>{% trans "Default ssh key" %}</h3>
+    <dl class="facts"><dt>{% trans "Key" %}</dt><dd><span class="code" style="word-break:break-all">{{ org.default_ssh_key|default:"—" }}</span></dd>
+    <dt>{% trans "Use" %}</dt><dd>{% trans "Offered for the igw when a project is ordered." %}</dd></dl></div>
+  {% for k in keys %}<div class="odetail card" data-for="k-{{ k.pk }}" hidden><h3><span class="code">{{ k.name }}</span> · {{ k.tenant.name }}</h3>
+    <dl class="facts"><dt>{% trans "Key" %}</dt><dd><span class="code" style="word-break:break-all">{{ k.key }}</span></dd>
+    <dt>{% trans "Fingerprint" %}</dt><dd><span class="mono">{{ k.fingerprint }}</span></dd>
+    <dt>{% trans "Added" %}</dt><dd>{{ k.created_at|date:"d.m.Y H:i" }}{% if k.created_by %} · {{ k.created_by }}{% endif %}</dd></dl></div>{% endfor %}</div>
+</section>
+{% if key_form %}<dialog id="dlg-org-default-key" class="card" style="max-width:560px;width:92%"><h2>{% trans "Default ssh key" %}</h2>
+  <p class="muted">{% trans "Offered for the igw when a project is ordered." %}</p>
+  <form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" with form=key_form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% if tenants %}<dialog id="dlg-org-keys" class="card" style="max-width:560px;width:92%"><h2>{% trans "Add keys" %}</h2>
+  <form method="post" enctype="multipart/form-data" class="stack">{% csrf_token %}<input type="hidden" name="section" value="add">
+    <div class="field radios"><label>{% trans "Projects" %}</label><ul>{% for t in tenants %}<li><label><input type="checkbox" name="tenants" value="{{ t.pk }}" {% if tenants|length == 1 %}checked{% endif %}> {{ t.name }} <small class="muted">{{ t.one_group_name }}</small></label></li>{% endfor %}</ul></div>
+    <div class="field"><label>{% trans "Public keys" %}</label><textarea name="keys" rows="5" class="mono" placeholder="ssh-ed25519 AAAA… alice@laptop"></textarea><div class="help">{% trans "One key per line." %}</div></div>
+    <div class="field"><label>{% trans "…or .pub files" %}</label><input type="file" name="files" multiple accept=".pub,text/plain"></div>
+    <div class="field check"><input type="checkbox" name="on_igw" id="id_org_on_igw"> <label for="id_org_on_igw">{% trans "Assign to the igw" %}</label></div>
+    <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% endblock %}
