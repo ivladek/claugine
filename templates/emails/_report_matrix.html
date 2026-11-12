@@ -1,0 +1,5 @@
+{% load i18n %}{% if matrix %}<p style="margin:16px 0 4px"><strong>{% trans "Projects by cluster" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">
+<tr style="color:#6b736e"><td style="padding:3px 6px 3px 0"></td><td style="padding:3px 6px;text-align:right">{% trans "Total" %}</td>{% for l in matrix.labels %}<td style="padding:3px 6px;text-align:right">{{ l }}</td>{% endfor %}</tr>
+{% for r in matrix.rows %}<tr style="border-top:1px solid #eef0ee"><td style="padding:3px 6px 3px 0">{{ r.label }}</td><td style="padding:3px 6px;text-align:right"><strong>{{ r.total }}</strong></td>{% for c in r.cells %}<td style="padding:3px 6px;text-align:right">{{ c }}</td>{% endfor %}</tr>{% endfor %}
+</table>{% endif %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Edit resources" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Edit resources" %}</h1>
+<p class="muted">{% blocktrans %}Every change is saved as a new version of the record; nothing is overwritten. Storage is one number for VM disks, images and files; the project splits it on the project page. Backups default to 0.{% endblocktrans %}</p>
+<form method="post" class="card">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">{{ formset.management_form }}
+  {% if formset.non_form_errors %}<ul class="errorlist">{% for e in formset.non_form_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  <div class="table-wrap"><table class="edit-table">
+  <tr><th>{% trans "Site / cluster" %}</th><th>vCPU</th><th>{% trans "RAM, GB" %}</th><th>GPU</th><th>{% trans "Storage, GB" %}</th><th>{% trans "Backups, GB" %}</th><th>{% trans "Remove" %}</th></tr>
+  {% for f in formset %}<tr>
+    <td>{{ f.key }}{% if f.initial.key %}<span class="code">{{ f.initial.key }}</span>{% else %}{{ f.placement }}<br><small class="muted">{% trans "new" %}</small>{% endif %}{{ f.placement.errors }}{{ f.non_field_errors }}</td>
+    <td>{{ f.cpu }}{{ f.cpu.errors }}</td><td>{{ f.ram_gb }}{{ f.ram_gb.errors }}</td><td>{{ f.gpu }}{{ f.gpu.errors }}</td>
+    <td>{{ f.disk_gb }}{{ f.disk_gb.errors }}</td><td>{{ f.backups_gb }}{{ f.backups_gb.errors }}</td>
+    <td>{% if f.initial.key %}{{ f.remove }}{% endif %}</td>
+  </tr>{% endfor %}
+  </table></div>
+  <div class="actions" style="margin-top:14px"><button class="btn">{% trans "Save" %}</button> <a class="btn ghost" href="{{ next }}">{% trans "Cancel" %}</a></div>
+</form>
+{% endblock %}

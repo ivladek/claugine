@@ -1,0 +1,7 @@
+{% load i18n %}{% autoescape off %}{% trans "Someone registered with an IIN/BIN that already belongs to an organization. Its admins were asked to decide." %}
+
+{% trans "Applicant" %}: {{ user.full_name }} <{{ user.email }}>
+{% trans "Organization" %}: {{ org.name }} ({{ org.tax_id }})
+
+{{ link }}
+{% endautoescape %}

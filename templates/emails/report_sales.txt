@@ -1,0 +1,4 @@
+{% load i18n %}{% autoescape off %}{% include "emails/_report_head.txt" %}
+{% include "emails/_report_orgs.txt" %}
+{{ link }}
+{% endautoescape %}

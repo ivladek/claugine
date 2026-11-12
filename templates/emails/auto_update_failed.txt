@@ -1,0 +1,4 @@
+{% load i18n %}{% autoescape off %}{{ text }}
+
+{% trans "Settings → Portal → Updates shows the nodes and the steps. Auto-update waits for a newer release." %}
+{% endautoescape %}
