@@ -1,0 +1,41 @@
+{% load i18n %}{% if deletion or can_request_deletion or can_delete_now %}
+{% if deletion or del_preview %}
+<section class="card" id="delete" style="border-color:color-mix(in srgb, var(--bad) 35%, var(--line))">
+<div class="olist-bar"><h2 style="margin:0">{% trans "Delete project" %}</h2><div class="olist-tools">{% if can_delete_now and not del_pending %}<a class="btn ghost small" href="?preview_delete=1#delete">{% trans "What would be deleted" %}</a>{% endif %}</div></div>
+{% if tenant.status == 'archived' %}<div class="msg error">{% trans "This project is archived: nothing is left on the platform; its records are kept." %}</div>{% endif %}
+<p class="muted">{% trans "Deleting removes everything of the project in OpenNebula — VMs and its gateways (egw, igw, cgw, L2), templates, images and backups, networks with the main one, ACLs, users and the group — releases its addresses and marks it deleted. The resources are listed when the deletion is requested; after approval exactly they are deleted, then the platform is checked for anything left. It cannot be undone." %}</p>
+{% if del_preview %}<h3>{% trans "What would be deleted" %}</h3>{% include "tenants/_deletion_plan.html" with plan=del_preview %}{% endif %}
+{% if deletion %}{% with d=deletion %}
+<dl class="facts" style="margin-top:10px"><dt>{% trans "Request" %}</dt><dd>{% st d.state d.get_state_display %} · {{ d.requested_by|default:"—" }} · {{ d.created_at|date:"d.m.Y H:i" }}{% if d.note %}<br><small>{{ d.note }}</small>{% endif %}</dd>
+  {% if d.decided_by %}<dt>{% trans "Decided" %}</dt><dd>{{ d.decided_by }} · {{ d.decided_at|date:"d.m.Y H:i" }}{% if d.reason %}<br><small>{{ d.reason }}</small>{% endif %}</dd>{% endif %}
+  {% if d.error %}<dt>{% trans "Error" %}</dt><dd style="color:var(--bad)">{{ d.error }}</dd>{% endif %}</dl>
+<h3 style="margin-top:12px">{% trans "Resources to delete" %}</h3>{% include "tenants/_deletion_plan.html" with plan=d %}
+{% if d.steps %}<div class="table-wrap" style="margin-top:8px"><table>{% for s in d.steps %}<tr><td><strong>{{ s.name }}</strong></td><td>{% st s.status %}</td><td><small>{{ s.detail }}</small></td></tr>{% endfor %}</table></div>{% endif %}
+{% if d.state == 'running' %}<script>setTimeout(function () { location.reload(); }, 4000);</script>{% endif %}
+{% if d.state == 'pending' %}<div class="actions" style="margin-top:10px">
+  {% if can_decide_deletion %}<button class="btn danger small" type="button" data-open="dlg-delete-approve">{% trans "Approve deletion" %}</button>
+    <form class="inline" method="post" action="{% url 'tenant_deletion_decide' tenant.pk d.pk 'reject' %}" onsubmit="var x=prompt('{% trans "Reason" %}'); if(x===null) return false; this.reason.value=x;">{% csrf_token %}<input type="hidden" name="reason"><button class="btn ghost small">{% trans "Reject" %}</button></form>{% endif %}
+  <form class="inline" method="post" action="{% url 'tenant_deletion_decide' tenant.pk d.pk 'cancel' %}">{% csrf_token %}<button class="btn ghost small">{% trans "Cancel request" %}</button></form></div>{% endif %}
+{% if d.state == 'failed' and can_delete_now %}<p class="muted"><small>{% trans "Request the deletion again: after approval it runs again, what is already gone is skipped." %}</small></p>{% endif %}
+{% endwith %}{% endif %}
+</section>
+{% endif %}
+{% trans "Type the project name to confirm" as confirm_label %}
+{% if can_request_deletion %}<dialog id="dlg-delete-request" class="card" style="max-width:480px;width:92%"><h2>{% trans "Request deletion" %}</h2>
+  <p>{% blocktrans with n=tenant.name %}All virtual machines, networks, images and data of project <strong>{{ n }}</strong> will be deleted after a resource manager approves.{% endblocktrans %}</p>
+  <form method="post" action="{% url 'tenant_deletion_request' tenant.pk %}" class="stack">{% csrf_token %}
+    <div class="field"><label>{{ confirm_label }}: <span class="code">{{ tenant.name }}</span></label><input name="confirm" autocomplete="off" required></div>
+    <div class="field"><label>{% trans "Comment" %}</label><textarea name="note" rows="2"></textarea></div>
+    <div class="actions"><button class="btn danger">{% trans "Request deletion" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% if can_delete_now and not del_pending %}<dialog id="dlg-delete-now" class="card" style="max-width:480px;width:92%"><h2>{% trans "Request deletion" %}</h2>
+  <p>{% blocktrans with n=tenant.group_name|default:tenant.name %}Everything of <strong>{{ n }}</strong> in OpenNebula is deleted after the request is approved; you can approve it yourself. This cannot be undone.{% endblocktrans %}</p>
+  <form method="post" action="{% url 'tenant_delete_now' tenant.pk %}" class="stack">{% csrf_token %}
+    <div class="field"><label>{{ confirm_label }}: <span class="code">{{ tenant.name }}</span></label><input name="confirm" autocomplete="off" required></div>
+    <div class="field"><label>{% trans "Comment" %}</label><textarea name="note" rows="2"></textarea></div>
+    <div class="actions"><button class="btn danger">{% trans "Request deletion" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% if del_pending and can_decide_deletion %}<dialog id="dlg-delete-approve" class="card" style="max-width:480px;width:92%"><h2>{% trans "Approve deletion" %}</h2>
+  <p>{% blocktrans with n=tenant.group_name|default:tenant.name %}Everything of <strong>{{ n }}</strong> in OpenNebula is deleted now. This cannot be undone.{% endblocktrans %}</p>
+  <form method="post" action="{% url 'tenant_deletion_decide' tenant.pk del_pending.pk 'approve' %}" class="stack">{% csrf_token %}
+    <div class="field"><label>{{ confirm_label }}: <span class="code">{{ tenant.name }}</span></label><input name="confirm" autocomplete="off" required></div>
+    <div class="actions"><button class="btn danger">{% trans "Approve deletion" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% endif %}
