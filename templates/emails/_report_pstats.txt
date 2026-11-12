@@ -1,0 +1,3 @@
+{% load i18n %}{% if pstats %}
+{% trans "Projects in the period" %}: {% trans "total" %} {{ pstats.total }}, {% trans "new" %} +{{ pstats.new }}, {% trans "updated" %} {{ pstats.updated }}, {% trans "deleted" %} −{{ pstats.deleted }}
+{% endif %}

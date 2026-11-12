@@ -1,0 +1,130 @@
+{% load i18n ui %}<section class="card olist" data-key="site-core-{{ site.code }}" data-autoselect>
+  <div class="olist-bar"><div class="olist-tools"><input type="search" class="olist-search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter' %}">
+    {% if can_edit %}<button class="btn small" type="button" data-open="dlg-cs-new">+ {% trans "Add a core service" %}</button>{% endif %}</div></div>
+  <p class="muted" style="margin:0 0 8px"><small>{% trans "What the site itself runs, by type: each type has its own form, the rest of its definition is calculated. The goal: every service redeployed by the portal; a VM the portal has not made (redeployed) is non-compliant." %}
+    {% if core_vms_at %}{% blocktrans with t=core_vms_at|date:"d.m.Y H:i" %}Platforms read {{ t }}.{% endblocktrans %}{% else %}{% trans "Not read yet." %}{% endif %}</small></p>
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Type" %}</th><th class="num">{% trans "Instances" %}</th><th class="num">vCPU</th><th class="num">{% trans "RAM, GB" %}</th><th class="num">{% trans "Disk, GB" %}</th><th>{% trans "State" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead><tbody>
+  {% for s in core_services %}<tr class="orow" data-id="cs-{{ s.pk }}"><td><span class="code">{{ s.name }}</span></td>
+    <td>{% tp s.stype %}</td>
+    <td class="num">{{ s.node_list|length }}</td>
+    {% if s.kind == 'vm' %}<td class="num">{{ s.vcpu|default:"?" }}</td><td class="num">{{ s.ram_gb|gb|default:"?" }}</td><td class="num">{{ s.disk_gb|default:"?" }}</td>{% else %}<td class="num muted">—</td><td class="num muted">—</td><td class="num muted">—</td>{% endif %}
+    <td>{% st s.state s.get_state_display %}{% if s.noncompliant %} {% st "warn" _("non-compliant") %} <small class="muted">{{ s.noncompliant }}/{{ s.node_list|length }}</small>{% elif s.node_list %} {% st "ok" _("compliant") %}{% endif %}</td>
+    {% if can_edit %}<td class="row-actions"><span class="stack-right">
+      <button class="btn ghost small" type="button" data-open="dlg-cs-{{ s.pk }}">{% trans "Edit" %}</button>
+      <form class="inline" method="post" action="{% url 'core_delete' site.code s.pk %}" onsubmit="return confirm('{% trans "Delete this core service from the portal? Its hosts and VMs are not touched." %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>
+    </span></td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="8" class="muted">{% trans "No core services yet." %}{% if can_edit %} {% trans "Add them by type." %}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for s in core_services %}<div class="odetail card" data-for="cs-{{ s.pk }}" hidden><h3><span class="code">{{ s.name }}</span> {% tp s.stype %}</h3>
+    <div class="grid two"><dl class="facts">
+      <dt>{% trans "Name" %}</dt><dd><span class="code">{{ s.name }}</span></dd>
+      <dt>{% trans "Type" %}</dt><dd>{{ s.get_stype_display }}</dd>
+      <dt>{% trans "Deployment type" %}</dt><dd>{{ s.get_kind_display }}</dd>
+      <dt>{% trans "Description" %}</dt><dd><small>{{ s.description|linebreaksbr|default:"—" }}</small></dd>
+      {% if s.kind == 'vm' %}<dt>{% trans "Platform hosting the VMs" %}</dt><dd>{{ s.platform.key|default:"—" }}</dd>{% endif %}
+      <dt>{% trans "Platform served" %}</dt><dd>{% if s.serves %}{{ s.serves.key }}{% else %}{% trans "core (common)" %}{% endif %}</dd>
+      <dt>{% trans "Secret for ssh" %}</dt><dd><span class="code">{{ s.ssh_secret|secret|default:"—" }}</span></dd>
+      <dt>{% trans "Secret for the service" %}</dt><dd><span class="code">{{ s.service_secret|secret|default:"—" }}</span></dd>
+      {% if s.peer_groups %}<dt>{% trans "BGP peer groups" %}</dt><dd>{% include "inventory/site/_core_peer_secrets.html" with groups=s.peer_groups net=s.peer_net %}</dd>{% endif %}
+      <dt>{% trans "Template" %}</dt><dd>{{ s.template.name|default:"—" }}{% if s.diff_lines %} · {% blocktrans count n=s.diff_lines %}{{ n }} line of differences{% plural %}{{ n }} lines of differences{% endblocktrans %}{% endif %}</dd>
+    </dl>
+    <div>{% if s.kind == 'vm' %}
+      <table class="mini"><thead><tr><th>vCPU</th><th>{% trans "RAM, GB" %}</th><th>{% trans "Disk, GB" %}</th><th>{% trans "Image" %}</th><th>{% trans "ssh port" %}</th></tr></thead>
+        <tr><td>{{ s.vcpu|default:"?" }}</td><td>{{ s.ram_gb|gb|default:"?" }}</td><td>{{ s.disk_gb|default:"?" }}</td><td>{% if s.image %}{{ s.image.name }} <small class="muted">{{ s.image.get_customization_display }}</small>{% else %}—{% endif %}</td><td>{{ s.ssh_port }}</td></tr></table>
+      <table class="mini" style="margin-top:6px"><thead><tr><th>NIC</th><th>{% trans "Subnet" %}</th><th>{% trans "Gateway" %}</th></tr></thead>
+        {% for net, gw in s.nics %}<tr><td>{{ forloop.counter }}</td><td>{{ net.name|default:"?" }} <small class="code">{{ net.cidr }}</small></td><td><span class="code">{{ gw|default:net.gateway|default:"—" }}</span>{% if not gw and net.gateway %} <small class="muted">({% trans "the subnet's" %})</small>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="3" class="muted">—</td></tr>{% endfor %}</table>
+      {% if s.routes %}<table class="mini" style="margin-top:6px"><thead><tr><th>NIC</th><th>{% trans "Subnet" %}</th><th>{% trans "Next hop" %}</th><th>{% trans "Metric" %}</th></tr></thead>
+        {% for r in s.routes %}<tr><td>{{ r.nic }}</td><td><span class="code">{{ r.subnet }}</span></td><td><span class="code">{{ r.via|default:"—" }}</span></td><td>{{ r.metric|default_if_none:"—" }}</td></tr>{% endfor %}</table>{% endif %}
+      {% endif %}{% if s.firewall and not s.vyos_image %}<table class="mini" style="margin-top:6px"><thead><tr><th>ufw</th><th>{% trans "Port" %}</th><th>{% trans "Protocol" %}</th><th>{% trans "From" %}</th></tr></thead>
+        {% for r in s.firewall %}<tr><td>allow</td><td>{{ r.port }}</td><td>{{ r.proto }}</td><td><span class="code">{{ r.source|default:"any" }}</span></td></tr>{% endfor %}</table>{% endif %}
+    </div></div>
+    {% if s.typed %}<details style="margin-top:8px"><summary>{% trans "Calculated definition" %}</summary>{% include "inventory/site/_core_calc.html" with calc=s.calc calc_error=s.calc_error %}</details>{% endif %}
+    {% if s.problems %}<p><small style="color:var(--warn)">{% for node, text in s.problems %}{{ node }}: {{ text }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</small></p>{% endif %}
+    <h4 style="margin:12px 0 4px">{% if s.kind == 'vm' %}{% trans "VMs" %}{% else %}{% trans "Hosts" %}{% endif %}</h4>
+    <div class="table-wrap"><table><thead><tr><th>{% if s.kind == 'vm' %}{% trans "VM name" %}{% else %}{% trans "Host" %}{% endif %}</th><th>{% if s.kind == 'vm' and s.vyos_tpl %}{% trans "Management IP" %}{% elif s.kind == 'vm' %}{% trans "NIC 1 IP" %}{% else %}{% trans "Address" %}{% endif %}</th><th>{% trans "Status" %}</th><th></th></tr></thead>
+    {% for n in s.node_list %}<tr><td><span class="code">{{ n.name }}</span></td>
+      <td><span class="code">{{ n.nic1_ip|default:"—" }}</span></td>
+      <td>{% if s.kind == 'vm' %}{% if n.deployed %}{% st n.deployed.status %}{% else %}<span class="muted">{% trans "not on the platforms" %}</span>{% endif %}{% endif %}
+        {% if n.busy %}<br>{% st "running" _("task running") %}{% endif %}
+        {% if n.old_vm %}<br>{% st "warn" _("old VM kept") %}{% endif %}
+        {% if n.deployed.init_script %}<br>{% st "warn" _("init script in the context") %}{% endif %}
+        <br>{% if n.compliant %}{% st "ok" _("compliant") %}{% else %}{% st "warn" _("non-compliant") %}{% endif %}</td>
+      <td class="row-actions"><span class="stack-right"><button class="btn ghost small" type="button" data-open="dlg-cn-{{ n.pk }}">{% trans "Details" %}</button>
+        {% if s.vyos_tpl %}<a class="btn ghost small" href="{% url 'core_config' site.code s.pk n.pk %}">{% trans "Configuration" %}</a>{% endif %}
+        {% if can_edit and s.vyos_tpl and n.deployed.init_script and not n.busy %}<form class="inline" method="post" action="{% url 'core_clean' site.code s.pk n.pk %}" onsubmit="return confirm('{% trans "Remove the one-time init script (the first configuration, secrets included) from the context of the VM on the platform? The VM keeps running as it is." %}')">{% csrf_token %}<button class="btn ghost small">{% trans "Remove the init script" %}</button></form>{% endif %}
+        {% if can_edit and s.redeployable and not n.busy %}{% if n.old_vm %}<form class="inline" method="post" action="{% url 'core_finish' site.code s.pk n.pk %}" onsubmit="return confirm('{% trans "Remove the old VM? The new one stays." %}')">{% csrf_token %}<button class="btn ghost small">{% trans "Remove the old VM" %}</button></form> <form class="inline" method="post" action="{% url 'core_rollback' site.code s.pk n.pk %}" onsubmit="return confirm('{% trans "Remove the new VM and bring the old one back?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Roll back" %}</button></form>{% else %}<a class="btn ghost small" href="{% url 'core_plan' site.code s.pk n.pk %}">{% trans "Redeploy…" %}</a>{% endif %}{% endif %}</span></td></tr>{% endfor %}</table></div>
+    {% for n in s.node_list %}<dialog id="dlg-cn-{{ n.pk }}" class="card" style="max-width:760px;width:94%"><h2><span class="code">{{ n.name }}</span> <small class="muted">{{ s.name }}</small></h2>
+      <dl class="facts">
+        <dt>{% trans "Host name" %}</dt><dd>{{ n.hostname|default:"—" }}</dd>
+        <dt>{% trans "Compliance" %}</dt><dd>{% if n.compliant %}{% st "ok" _("compliant") %} <small class="muted">{% trans "made by the portal" %} (#{{ n.deployed_vm_id }})</small>{% else %}{% st "warn" _("non-compliant") %} <small class="muted">{% trans "not made by the portal: to be redeployed" %}</small>{% endif %}</dd>
+        {% if s.kind == 'vm' %}<dt>{% trans "Definition" %}</dt><dd><small>{% for i, net, ip in n.def_ips %}NIC {{ i }} {{ net }}: <span class="code">{{ ip|default:_("assigned when the VM is made") }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}</small></dd>
+        {% if n.deployed %}<dt>{% trans "Platform" %}</dt><dd>{{ n.deployed.platform }} · {% trans "VM" %} #{{ n.deployed.id }} · {% trans "cluster" %} {{ n.deployed.cluster|default:"—" }} · {% trans "host" %} {{ n.deployed.host|default:"—" }}</dd>
+        <dt>{% trans "Status" %}</dt><dd>{% st n.deployed.status %}{% if n.busy %} {% st "running" _("task running") %}{% endif %}</dd>
+        <dt>{% trans "Size on the platform" %}</dt><dd><small>{{ n.deployed.vcpu|default:"?" }} vCPU · {{ n.deployed.ram_gb|gb|default:"?" }} GB · {% trans "disks" %} {{ n.deployed.disks_gb|join:" + "|default:"—" }} GB{% if n.deployed.images %} · {{ n.deployed.images|join:", " }}{% endif %}</small></dd>
+        <dt>{% trans "NICs on the platform" %}</dt><dd>{% for net, ip in n.deployed.nics %}<small>NIC {{ forloop.counter }} {{ net }} <span class="code">{{ ip|default:"—" }}</span></small>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
+        <dt>{% trans "Init script" %}</dt><dd><small>{% if n.deployed.init_script %}<span style="color:var(--warn)">{% trans "still in the VM's context on the platform (the first configuration, secrets included)" %}</span>{% elif n.deployed.init_script is None %}<span class="muted">{% trans "not read (Read reads it)" %}</span>{% else %}{% trans "not in the context" %}{% endif %}</small></dd>
+        {% else %}<dt>{% trans "Status" %}</dt><dd class="muted">{% trans "not on the platforms (last read)" %}</dd>{% endif %}
+        {% if n.old_vm %}<dt>{% trans "Old VM" %}</dt><dd><small><span class="code">{{ n.name }}-old</span> #{{ n.old_vm.id }} · {% st n.old_vm.status %} · {% trans "host" %} {{ n.old_vm.host|default:"—" }}</small></dd>{% endif %}
+        {% elif n.host %}<dt>{% trans "Host" %}</dt><dd>{{ n.host.name }}</dd>{% endif %}
+        <dt>{% trans "Login" %}</dt><dd><span class="code">{{ n.address }}:{{ n.ssh_port }}</span> · <span class="code">{{ n.secret|secret|default:"—" }}</span></dd>
+      </dl>
+      <div class="actions"><button class="btn ghost" type="button" data-close>{% trans "Close" %}</button></div></dialog>{% endfor %}
+  </div>{% endfor %}</div>
+</section>
+
+{% if can_edit %}
+<dialog id="dlg-cs-new" class="card" style="max-width:560px;width:94%"><h2>{% trans "Add a core service" %}</h2>
+  <p class="muted"><small>{% trans "Choose its type: each type has its own form, the rest is calculated." %}</small></p>
+  <div style="display:flex;flex-direction:column;gap:6px">{% for t, label, ok, f in core_new_types %}<button class="btn ghost small" type="button" style="text-align:left;justify-content:flex-start{% if not ok %};opacity:.45{% endif %}" {% if ok %}data-open="dlg-cs-new-{{ t }}"{% else %}disabled title="{% trans 'One per site: it exists.' %}"{% endif %}>{{ label }}{% if not ok %} · {% trans "exists" %}{% endif %}</button>{% endfor %}</div>
+  <div class="actions"><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></dialog>
+{% for t, label, ok, f in core_new_types %}{% if ok %}<dialog id="dlg-cs-new-{{ t }}" class="card" style="max-width:820px;width:96%"><h2>{% trans "Add" %} <span class="code">{{ t }}</span></h2>
+  <form method="post" action="{% url 'core_new' site.code %}" class="stack">{% csrf_token %}{% if f %}{% include "inventory/site/_core_type_form.html" %}{% else %}<input type="hidden" name="stype" value="core-vm">{% include "inventory/site/_core_form.html" with f=core_form %}{% endif %}
+    <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}{% endfor %}
+{% for s in core_services %}<dialog id="dlg-cs-{{ s.pk }}" class="card" style="max-width:{% if s.typed %}820px{% else %}1000px{% endif %};width:96%"><h2>{% trans "Edit" %} <span class="code">{{ s.name }}</span> <small class="muted">{{ s.stype }}</small></h2>
+  <form method="post" action="{% url 'core_save' site.code s.pk %}" class="stack">{% csrf_token %}{% if s.typed %}{% include "inventory/site/_core_type_form.html" with f=s.tform calc=s.calc calc_error=s.calc_error %}{% else %}{% include "inventory/site/_core_form.html" with f=s.form vyos=s.vyos_image groups=s.peer_groups net=s.peer_net %}{% endif %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+<style>
+.cs-row3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0 12px; }
+.cs-row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 12px; }
+/* one size for every control of the form, the row editors included */
+.cs-form input[type=text], .cs-form input[type=number], .cs-form select, .cs-form textarea,
+.cs-form .rowlist-table input, .cs-form .rowlist-table select { box-sizing: border-box; width: 100%; min-width: 0;
+  padding: 6px 9px; font-size: .9rem; line-height: 1.35; font-family: inherit; }
+.cs-form textarea.mono, .cs-form .rowlist-table input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+.cs-form .field { margin-bottom: 12px; }
+.cs-grid { display: grid; gap: 8px 12px; }
+.cs-res1 { grid-template-columns: repeat(4, minmax(110px, 160px)); }
+.cs-res2 { grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(140px, 2fr); margin-top: 8px; }
+.cs-sub label, .cs-form .rowlist-table th { font-size: .75rem; font-weight: 600; color: var(--ink-2); text-transform: uppercase;
+  letter-spacing: .02em; margin-bottom: 3px; }
+/* further NICs: subnet and gateway right under NIC 1's (the second and third columns of the row above) */
+.cs-nics { margin-bottom: 12px; }
+.cs-nics-rows { grid-column: 2 / 4; }
+.cs-nics-rows > .field { margin: 0; }
+.cs-nics-rows > .field > label { display: none; }
+.cs-nics-rows .rowlist-table { table-layout: fixed; border-spacing: 0; width: calc(100% + 28px); margin-right: -28px; }
+.cs-nics-rows .rowlist-table th, .cs-nics-rows .rowlist-table td { padding: 2px 0; }
+.cs-nics-rows .rowlist-table th:first-child, .cs-nics-rows .rowlist-table td:first-child { width: 58%; padding-right: 12px; box-sizing: border-box; }
+.cs-nics-rows .rowlist-table th:last-child, .cs-nics-rows .rowlist-table td:last-child { width: 28px; text-align: right; }
+.cs-form.host .cs-vm, .cs-form:not(.host) .cs-host { display: none; }
+@media (max-width: 760px) { .cs-res1 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cs-res2 { grid-template-columns: 1fr; } .cs-nics-rows { grid-column: auto; } }
+.cs-form.vyos .cs-fw { display: none; }
+@media (max-width: 640px) { .cs-row3 { grid-template-columns: 1fr; } }
+</style>
+<script>
+document.querySelectorAll("[data-cs-form]").forEach(function (box) {
+  var kind = box.querySelector("select[name=kind]"), image = box.querySelector("select[name=image]");
+  var vyos = (box.dataset.vyosImages || "").split(" ");
+  function sync() {
+    box.classList.toggle("host", !!kind && kind.value === "host");
+    box.classList.toggle("vyos", !!image && vyos.indexOf(image.value) >= 0);
+  }
+  if (kind) kind.addEventListener("change", sync);
+  if (image) image.addEventListener("change", sync);
+  sync();
+});
+</script>
+{% endif %}
+

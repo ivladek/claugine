@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>{{ subject }}</title></head>
+<body style="margin:0;padding:0;background:#f4f5f4;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;line-height:1.5;color:#1d2420">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f4"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border:1px solid #e3e6e3;border-radius:10px">
+{% provider_name as pname %}{% provider_logo True as plogo %}<tr><td style="padding:18px 24px;border-bottom:1px solid #e3e6e3">{% if plogo %}<img src="{{ plogo }}" alt="{{ pname }}" height="32" style="height:32px;width:auto;display:block;border:0">{% else %}<span style="display:inline-block;width:14px;height:14px;background:#0f6b55;border-radius:4px;vertical-align:-2px"></span>
+  <strong style="font-size:16px;margin-left:6px">{{ pname }}</strong>{% endif %}</td></tr>
+<tr><td style="padding:20px 24px">{% block body %}{% endblock %}</td></tr>
+<tr><td style="padding:14px 24px;border-top:1px solid #e3e6e3;color:#6b736e;font-size:12px">{% block foot %}{{ pname }} · Kazakhstan{% endblock %}</td></tr>
+</table></td></tr></table></body></html>
