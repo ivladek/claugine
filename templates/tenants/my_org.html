@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{{ org.name }}{% endblock %}
+{% block content %}
+<h1>{% trans "Projects" %}</h1>
+<p class="muted">{% tp org.kind org.kind %} {{ org.tax_id }}{% if org.short_name %} · {% trans "short name" %} <span class="code">{{ org.short_name }}</span>{% endif %}{% if org.sales_rep %} · {% trans "Your sales rep" %}: {{ org.sales_rep }} ({{ org.sales_rep.email }}){% endif %}</p>
+
+<section class="card">{% if is_admin %}{% url 'new_tenant' as add_url %}{% trans "Order a project" as add_text %}{% include "tenants/_table.html" with list_add_url=add_url list_add_label=add_text list_key="my-tenants" empty_text=_("No tenants yet. Order your first one.") %}{% else %}{% include "tenants/_table.html" with list_key="my-tenants" empty_text=_("No tenants you can access.") %}{% endif %}</section>
+{% endblock %}

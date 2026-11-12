@@ -1,0 +1,47 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}{% include "emails/_report_head.html" %}
+
+{# tiles #}
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:8px 0;width:100%;margin:4px 0 6px"><tr>
+<td style="width:25%;background:#f0f7f4;border:1px solid #d9e8e1;border-radius:8px;padding:10px 12px;vertical-align:top"><div style="font-size:22px;font-weight:700;color:#0f6b55">{{ pstats.total }}</div><div style="color:#6b736e;font-size:12px">{% trans "Projects" %}</div><div style="font-size:12px;margin-top:3px"><span style="color:#0f6b55">+{{ pstats.new }}</span> · {{ pstats.updated }} {% trans "upd." %} · <span style="color:#a61b0e">−{{ pstats.deleted }}</span></div></td>
+<td style="width:25%;background:#f0f7f4;border:1px solid #d9e8e1;border-radius:8px;padding:10px 12px;vertical-align:top"><div style="font-size:22px;font-weight:700;color:#0f6b55">{{ stats.orgs }}</div><div style="color:#6b736e;font-size:12px">{% trans "Organizations" %}</div><div style="font-size:12px;margin-top:3px">{% trans "cloud" %} {{ stats.orgs_cloud }} · {% trans "corp" %} {{ stats.orgs_corp }} · <span style="color:#0f6b55">+{{ stats.orgs_new }}</span></div></td>
+<td style="width:25%;background:#fbf7ef;border:1px solid #ecdfc7;border-radius:8px;padding:10px 12px;vertical-align:top"><div style="font-size:22px;font-weight:700;color:#8a5200">{{ stats.requests_waiting|add:stats.changes_waiting|add:stats.network_waiting }}</div><div style="color:#6b736e;font-size:12px">{% trans "Waiting for approval" %}</div><div style="font-size:12px;margin-top:3px">{% trans "proj." %} {{ stats.requests_waiting }} · {% trans "res." %} {{ stats.changes_waiting }} · {% trans "net." %} {{ stats.network_waiting }}</div></td>
+<td style="width:25%;background:{% if stats.deploy_failed or stats.tasks_failed %}#fdeeec{% else %}#f4f5f4{% endif %};border:1px solid #e6c9c4;border-radius:8px;padding:10px 12px;vertical-align:top"><div style="font-size:22px;font-weight:700;color:{% if stats.deploy_failed or stats.tasks_failed %}#a61b0e{% else %}#6b736e{% endif %}">{{ stats.deploy_failed|add:stats.tasks_failed }}</div><div style="color:#6b736e;font-size:12px">{% trans "Failed in the period" %}</div><div style="font-size:12px;margin-top:3px">{% trans "depl." %} {{ stats.deploy_failed }} · {% trans "tasks" %} {{ stats.tasks_failed }}</div></td>
+</tr></table>
+
+{# projects by type and stage #}
+<p style="margin:16px 0 4px"><strong>{% trans "Projects by type and stage" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;max-width:420px">
+<tr style="color:#6b736e"><td style="padding:3px 6px 3px 0">{% trans "Type" %}</td><td style="padding:3px 6px">{% trans "Stage" %}</td><td style="padding:3px 0 3px 6px;text-align:right">{% trans "Projects" %}</td></tr>
+{% for k, s, n in stats.by %}<tr style="border-top:1px solid #eef0ee"><td style="padding:3px 6px 3px 0">{{ k }}</td><td style="padding:3px 6px">{{ s }}</td><td style="padding:3px 0 3px 6px;text-align:right">{{ n }}</td></tr>{% empty %}<tr><td style="padding:3px 0;color:#6b736e" colspan="3">—</td></tr>{% endfor %}
+</table>
+
+{# statuses #}
+<p style="margin:16px 0 4px"><strong>{% trans "Projects by status" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;max-width:420px">
+<tr style="color:#6b736e"><td style="padding:3px 6px 3px 0">{% trans "Status" %}</td><td style="padding:3px 0 3px 6px;text-align:right">{% trans "Projects" %}</td></tr>
+{% for s, n in stats.statuses %}<tr style="border-top:1px solid #eef0ee"><td style="padding:3px 6px 3px 0">{{ s }}</td><td style="padding:3px 0 3px 6px;text-align:right">{{ n }}</td></tr>{% endfor %}
+</table>
+
+{% if stats.reviews %}<p style="margin:16px 0 4px"><strong>{% trans "Review dates come or close" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">
+<tr style="color:#6b736e"><td style="padding:3px 6px 3px 0">{% trans "Organization" %}</td><td style="padding:3px 6px">{% trans "Type" %}</td><td style="padding:3px 6px">{% trans "Project" %}</td><td style="padding:3px 6px">{% trans "Stage" %}</td><td style="padding:3px 0 3px 6px;text-align:right">{% trans "Review" %}</td></tr>
+{% for t in stats.reviews %}<tr style="border-top:1px solid #eef0ee"><td style="padding:3px 6px 3px 0">{{ t.org }}</td><td style="padding:3px 6px">{{ t.kind }}</td><td style="padding:3px 6px">{{ t.name }}</td><td style="padding:3px 6px">{{ t.stage }}</td>
+<td style="padding:3px 0 3px 6px;text-align:right;white-space:nowrap">{% if t.alert == 'due' %}<span style="background:#fde8e6;color:#a61b0e;padding:1px 6px;border-radius:8px">{{ t.review|date:"d.m.Y" }}</span>{% else %}<span style="background:#fdf1dc;color:#8a5200;padding:1px 6px;border-radius:8px">{{ t.review|date:"d.m.Y" }}</span>{% endif %}</td></tr>{% endfor %}</table>{% endif %}
+
+{% include "emails/_report_usage.html" %}
+
+<p style="margin:16px 0 4px"><strong>{% trans "Platform and portal health" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;max-width:520px">
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Portal release" %}</td><td style="padding:4px 0 4px 6px;text-align:right"><code>{{ health.version|default:stats.version|default:"—" }}</code></td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "High availability" %}</td><td style="padding:4px 0 4px 6px;text-align:right">{% if health.role %}{{ health.role }}{% if health.has_peer is not None %} · {% if health.has_peer %}{% trans "peer present" %}{% else %}{% trans "no peer" %}{% endif %}{% endif %}{% else %}—{% endif %}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Managed platforms" %}</td><td style="padding:4px 0 4px 6px;text-align:right">{{ health.platforms|default:"—" }}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Sign-ins in the period" %}</td><td style="padding:4px 0 4px 6px;text-align:right">{{ stats.logins }}</td></tr>
+</table>
+<p style="margin:16px 0 4px"><strong>{% trans "Backups" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;max-width:640px">
+<tr style="color:#6b736e"><td style="padding:3px 6px 3px 0"></td><td style="padding:3px 6px">{% trans "When" %}</td><td style="padding:3px 0 3px 6px">{% trans "Result" %}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Portal" %}</td><td style="padding:4px 6px;white-space:nowrap">{{ backups.portal_at|date:"d.m.Y H:i"|default:"—" }}</td><td style="padding:4px 0 4px 6px;color:#6b736e">{{ backups.portal_result|default:"—" }}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px 4px 0">{% trans "Platform front ends" %}</td><td style="padding:4px 6px;white-space:nowrap">{{ backups.fe_at|date:"d.m.Y H:i"|default:"—" }}</td><td style="padding:4px 0 4px 6px;color:#6b736e">{{ backups.fe_result|default:"—" }}</td></tr>
+</table>
+<p style="margin:14px 0 0"><a href="{{ link }}" style="color:#0f6b55">{{ link }}</a></p>
+{% endblock %}

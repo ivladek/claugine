@@ -1,0 +1,5 @@
+{% load i18n %}{% if pstats %}<p style="margin:16px 0 4px"><strong>{% trans "Projects in the period" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px;max-width:360px">
+<tr style="color:#6b736e"><td style="padding:3px 6px;text-align:right">{% trans "Total" %}</td><td style="padding:3px 6px;text-align:right">{% trans "New" %}</td><td style="padding:3px 6px;text-align:right">{% trans "Updated" %}</td><td style="padding:3px 6px;text-align:right">{% trans "Deleted" %}</td></tr>
+<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 6px;text-align:right"><strong>{{ pstats.total }}</strong></td><td style="padding:4px 6px;text-align:right;color:#0f6b55">+{{ pstats.new }}</td><td style="padding:4px 6px;text-align:right">{{ pstats.updated }}</td><td style="padding:4px 6px;text-align:right;color:#a61b0e">−{{ pstats.deleted }}</td></tr>
+</table>{% endif %}

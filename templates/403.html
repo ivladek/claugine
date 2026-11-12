@@ -1,0 +1,1 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}<div class="card narrow"><h1>{% trans "No access" %}</h1><p>{% trans "Your role does not allow this page." %}</p><a href="{% url 'dashboard' %}">{% trans "Back to dashboard" %}</a></div>{% endblock %}

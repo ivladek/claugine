@@ -1,0 +1,136 @@
+{% load i18n ui %}<div id="connectivity"></div>
+{% with c=connectivity.0 %}
+{% if 'inet' in net_kinds or net_public %}{% include "tenants/_internet.html" %}{% endif %}
+
+{% if 'corpnet' in net_kinds or net_corp or net_corp_allowed and 'inet' not in net_kinds %}
+<div class="olist-bar" style="margin-top:14px"><h3 style="margin:0">{% trans "Corporate" %}</h3><div class="olist-tools">
+  {% if net_can_request and net_corp_allowed and 'inet' not in net_kinds %}<button class="btn small" type="button" data-open="dlg-net-corpnet">+ {% trans "prefix" %}</button>{% endif %}</div></div>
+<div class="table-wrap"><table class="subnets">
+  <thead><tr><th>{% trans "Site" %}</th><th>{% trans "Subnet" %}</th><th></th></tr></thead>
+  {% for p in net_corp %}{% include "tenants/_subnet_row.html" with deletable=net_corp_deletable %}{% endfor %}
+  {% for r in net_pending_add.corpnet %}{% include "tenants/_subnet_request_row.html" %}{% endfor %}
+  {% if not net_corp and not net_pending_add.corpnet %}<tr><td colspan="3" class="muted">{% trans "No corporate subnets." %}</td></tr>{% endif %}
+</table></div>
+{% if net_pending_other.corpnet %}<div class="table-wrap"><table class="mini">{% for r in net_pending_other.corpnet %}{% include "tenants/_net_request_row.html" %}{% endfor %}</table></div>{% endif %}
+{% endif %}
+
+<div class="olist-bar" style="margin-top:14px"><h3 style="margin:0">L2</h3><div class="olist-tools">
+  {% if net_can_request %}<button class="btn small" type="button" data-open="dlg-l2-add">+ {% trans "Channel" %}</button>{% endif %}</div></div>
+<div class="table-wrap"><table>
+  <thead><tr><th>{% trans "Type" %}</th><th>{% trans "Endpoint 1" %}</th><th>{% trans "Endpoint 2" %}</th><th>{% trans "State" %}</th><th></th></tr></thead>
+  {% for ch in net_l2 %}<tr><td>{% tp ch.kind ch.get_kind_display %}{% if ch.name and ch.name != 'external' %} <small class="muted">{{ ch.name }}</small>{% endif %}</td>
+    <td><small>{{ ch.endpoint_1 }}</small></td>
+    <td><small>{{ ch.endpoint_2 }}</small></td>
+    <td>{% st ch.state ch.get_state_display %}{% if ch.running %} {% st "running" _("running") %}{% endif %}</td>
+    <td class="row-actions">{% if ch.busy or ch.running %}<small class="muted">{% trans "change pending" %}</small>{% else %}
+      {% if net_can_set_vlan and ch.state == 'planned' and ch.kind == 'external' %}<button class="btn small" type="button" data-open="dlg-l2-vlan-{{ ch.pk }}">{% if ch.vlan %}{% trans "Change VLAN" %}{% else %}{% trans "Set VLAN" %}{% endif %}</button>{% endif %}
+      {% if net_can_request %}<button class="btn ghost small" type="button" data-open="dlg-l2-net-{{ ch.pk }}">{% trans "Change subnet" %}</button>
+      <form class="inline" method="post" action="{% url 'tenant_network_request' tenant.pk %}" onsubmit="return confirm('{% trans "Ask to remove this L2 channel?" %}')">{% csrf_token %}<input type="hidden" name="kind" value="l2"><input type="hidden" name="action" value="delete"><input type="hidden" name="target" value="{{ ch.vni }}"><button class="btn danger small">{% trans "Remove" %}</button></form>{% endif %}{% endif %}</td></tr>{% endfor %}
+  {% for r in net_pending.l2 %}{% include "tenants/_net_request_row.html" %}{% endfor %}
+  {% if not net_l2 and not net_pending.l2 %}<tr><td colspan="6" class="muted">{% trans "No L2 channels." %}</td></tr>{% endif %}
+</table></div>
+{% endwith %}
+
+{% include "tenants/_gateways.html" %}
+{% if net_running or net_failed %}<div class="table-wrap" style="margin-top:12px"><table class="mini">
+  {% for r in net_running %}<tr><td>{% tp r.kind r.get_kind_display %} <small>{{ r.get_action_display }}</small></td><td><small>{{ r.what }}</small></td><td>{% st r.run r.get_run_display %}</td><td></td></tr>{% endfor %}
+  {% for r in net_failed %}<tr><td>{% tp r.kind r.get_kind_display %} <small>{{ r.get_action_display }}</small></td><td><small>{{ r.what }}</small></td>
+    <td>{% st r.run r.get_run_display %}{% if r.error %}<br><small style="color:var(--bad)">{{ r.error|truncatechars:200 }}</small>{% endif %}</td>
+    <td class="row-actions">{% if net_can_decide %}<form class="inline" method="post" action="{% url 'tenant_network_retry' tenant.pk r.pk %}">{% csrf_token %}<button class="btn small">{% trans "Retry" %}</button></form>{% endif %}</td></tr>{% endfor %}
+</table></div><p class="muted"><small>{% trans "The steps of every change are in Tasks." %}</small></p>{% endif %}
+</section>
+
+{% if net_can_request %}
+<dialog id="dlg-net-inet" class="card" style="max-width:480px;width:92%"><h2>{% trans "Public network" %}</h2>
+  <p class="muted">{% trans "An additional public subnet routed to the igw. The main network stays as it is." %}</p>
+  <form method="post" action="{% url 'tenant_network_request' tenant.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="kind" value="inet">
+    <div class="field"><label>{% trans "Prefix length" %}</label><select name="prefix_len">{% for n in net_prefixes %}<option value="{{ n }}" {% if n == 29 %}selected{% endif %}>/{{ n }}</option>{% endfor %}</select></div>
+    <div class="field"><label>{% trans "Comment" %}</label><textarea name="note" rows="2"></textarea></div>
+    <div class="actions"><button class="btn">{% trans "Send for approval" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for p in net_public %}{% if p.kind == 'inet_main' %}{% else %}<dialog id="dlg-net-del-{{ p.pk }}" class="card" style="max-width:480px;width:92%"><h2>{% trans "Delete the public network" %}</h2>
+  <p class="muted">{% blocktrans with c=p.cidr %}After approval {{ c }} is removed from the egw and the igw, NICs of all VMs on it are detached, the network is deleted and the subnet is returned.{% endblocktrans %}</p>
+  <form method="post" action="{% url 'tenant_network_request' tenant.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="kind" value="inet"><input type="hidden" name="action" value="delete"><input type="hidden" name="target" value="{{ p.cidr }}">
+    <div class="field"><label>{% trans "Comment" %}</label><textarea name="note" rows="2"></textarea></div>
+    <div class="actions"><button class="btn danger">{% trans "Send for approval" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}{% endfor %}
+{% for p in net_corp %}<dialog id="dlg-net-del-{{ p.pk }}" class="card" style="max-width:480px;width:92%"><h2>{% trans "Delete the corporate network" %}</h2>
+  <p class="muted">{% blocktrans with c=p.cidr %}After approval {{ c }} is removed from the cgw, NICs of all VMs on it are detached, the network is deleted and the subnet is returned.{% endblocktrans %}</p>
+  <form method="post" action="{% url 'tenant_network_request' tenant.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="kind" value="corpnet"><input type="hidden" name="action" value="delete"><input type="hidden" name="target" value="{{ p.cidr }}">
+    <div class="field"><label>{% trans "Comment" %}</label><textarea name="note" rows="2"></textarea></div>
+    <div class="actions"><button class="btn danger">{% trans "Send for approval" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% if net_corp_allowed %}<dialog id="dlg-net-corpnet" class="card" style="max-width:480px;width:92%"><h2>{% trans "Corporate network" %}</h2>
+  <p class="muted">{% trans "A subnet of the corporate network behind the project's cgw." %}</p>
+  <form method="post" action="{% url 'tenant_network_request' tenant.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="kind" value="corpnet">
+    <div class="field"><label>{% trans "Prefix length" %}</label><select name="prefix_len">{% for n in net_prefixes %}<option value="{{ n }}" {% if n == 28 %}selected{% endif %}>/{{ n }}</option>{% endfor %}</select></div>
+    <div class="field"><label>{% trans "Comment" %}</label><textarea name="note" rows="2"></textarea></div>
+    <div class="actions"><button class="btn">{% trans "Send for approval" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% if net_can_request %}<dialog id="dlg-l2-add" class="card" style="max-width:600px;width:92%"><h2>{% trans "L2 channel" %}</h2>
+  <p class="muted"><small>{% trans "Bridges one of the project's subnets to an external VLAN, or to another of the project's subnets on a different site. The first is approved by a resource manager (support sets the VLAN); the second needs no approval and spans two resource pools on two sites." %}</small></p>
+  <form method="post" action="{% url 'tenant_l2_add' tenant.pk %}" class="stack" id="l2-add-form">{% csrf_token %}
+    <div class="field"><label>{% trans "Name" %}</label><input name="name" value="external" maxlength="64"></div>
+    <fieldset class="stack" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px">
+      <legend><small class="muted">{% trans "Endpoint 1 — a project subnet" %}</small></legend>
+      <div class="grid two">
+        <div class="field"><label>{% trans "Site (resource pool)" %}</label><select name="site_a" id="l2-site-a">{% for p in net_l2_pools %}<option value="{{ p.site }}">{{ p.site }}</option>{% endfor %}</select></div>
+        <div class="field"><label>{% trans "Subnet" %}</label><select name="network_a" id="l2-net-a"></select><input name="network_a_text" id="l2-net-a-text" maxlength="128" placeholder="{% trans 'network name (or later)' %}" style="display:none"></div>
+      </div>
+      <div class="help">{% trans "The project's network to extend (not the main one); it can be chosen or changed later." %}</div>
+    </fieldset>
+    <div class="field"><label>{% trans "Endpoint 2" %}</label>
+      <label style="display:block;font-weight:400"><input type="radio" name="ep2" value="vlan" checked> {% trans "An external VLAN" %}</label>
+      {% if net_l2_sites|length > 1 %}<label style="display:block;font-weight:400"><input type="radio" name="ep2" value="subnet"> {% trans "A project subnet on another site" %}</label>{% endif %}
+    </div>
+    <fieldset class="stack" id="l2-ep2-subnet" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:none">
+      <legend><small class="muted">{% trans "Endpoint 2 — a project subnet on another site" %}</small></legend>
+      <div class="grid two">
+        <div class="field"><label>{% trans "Site (resource pool)" %}</label><select name="site_b" id="l2-site-b"></select></div>
+        <div class="field"><label>{% trans "Subnet" %}</label><select name="network_b" id="l2-net-b"></select><input name="network_b_text" id="l2-net-b-text" maxlength="128" placeholder="{% trans 'network name (or later)' %}" style="display:none"></div>
+      </div>
+      <div class="help">{% trans "The two subnets must sit on two different sites." %}</div>
+    </fieldset>
+    <div class="field" id="l2-ep2-vlan"><label>{% trans "Comment" %}</label><textarea name="note" rows="2" placeholder="{% trans 'Where the other side is, contact, dates' %}"></textarea></div>
+    <div class="actions"><button class="btn" id="l2-add-submit">{% trans "Send for approval" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div>
+  </form>
+  <script type="application/json" id="l2-pools-data">{{ net_l2_pools_json|safe }}</script>
+  <script>(function(){
+    var dlg=document.getElementById('dlg-l2-add'); if(!dlg) return;
+    var pools=[]; try{ pools=JSON.parse(document.getElementById('l2-pools-data').textContent||'[]'); }catch(e){}
+    var bysite={}; pools.forEach(function(p){ bysite[p.site]=p.networks||[]; });
+    var LATER='{% trans "later" %}';
+    function fillNets(sel,txt,site){
+      var nets=bysite[site]||[]; sel.innerHTML='';
+      nets.forEach(function(n){ var o=document.createElement('option'); o.value=n.name; o.textContent=n.name+(n.address?(' · '+n.address):''); sel.appendChild(o); });
+      var l=document.createElement('option'); l.value=''; l.textContent=LATER; sel.appendChild(l);
+      if(nets.length){ sel.style.display=''; sel.disabled=false; txt.style.display='none'; }
+      else { sel.style.display='none'; sel.disabled=true; txt.style.display=''; }
+    }
+    var siteA=dlg.querySelector('#l2-site-a'),netA=dlg.querySelector('#l2-net-a'),netAt=dlg.querySelector('#l2-net-a-text');
+    var siteB=dlg.querySelector('#l2-site-b'),netB=dlg.querySelector('#l2-net-b'),netBt=dlg.querySelector('#l2-net-b-text');
+    function syncB(){
+      var cur=siteB.value; siteB.innerHTML='';
+      pools.forEach(function(p){ if(p.site!==siteA.value){ var o=document.createElement('option'); o.value=p.site; o.textContent=p.site; siteB.appendChild(o); } });
+      if(cur){ for(var i=0;i<siteB.options.length;i++){ if(siteB.options[i].value===cur){ siteB.value=cur; break; } } }
+      fillNets(netB,netBt,siteB.value);
+    }
+    siteA.addEventListener('change',function(){ fillNets(netA,netAt,siteA.value); syncB(); });
+    siteB.addEventListener('change',function(){ fillNets(netB,netBt,siteB.value); });
+    var ep2sub=dlg.querySelector('#l2-ep2-subnet'),ep2vlan=dlg.querySelector('#l2-ep2-vlan'),submit=dlg.querySelector('#l2-add-submit');
+    function onType(){
+      var r=dlg.querySelector('input[name=ep2]:checked'), v=r?r.value:'vlan';
+      if(v==='subnet'){ ep2sub.style.display=''; ep2vlan.style.display='none'; submit.textContent='{% trans "Add" %}'; syncB(); }
+      else { ep2sub.style.display='none'; ep2vlan.style.display=''; submit.textContent='{% trans "Send for approval" %}'; }
+    }
+    Array.prototype.forEach.call(dlg.querySelectorAll('input[name=ep2]'),function(r){ r.addEventListener('change',onType); });
+    fillNets(netA,netAt,siteA.value); onType();
+  })();</script></dialog>{% endif %}
+{% for ch in net_l2 %}<dialog id="dlg-l2-net-{{ ch.pk }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Subnet of the L2 channel" %} <small class="muted">{{ ch.name }}</small></h2>
+  {% if ch.state == 'active' %}<p class="msg warning">{% trans "The channel's gateway on the project side is made again on the chosen network: the channel is down for a few minutes. No approval is needed." %}</p>{% endif %}
+  <form method="post" action="{% url 'tenant_l2_network' tenant.pk ch.pk %}" class="stack">{% csrf_token %}
+    <div class="field"><label>{% trans "Subnet" %}</label>{% if net_tenant_networks %}<select name="tenant_network" required>{% for n in net_tenant_networks %}<option value="{{ n.name }}" {% if n.name == ch.tenant_network %}selected{% endif %}>{{ n.name }}{% if n.address %} · {{ n.address }}{% endif %}</option>{% endfor %}</select>
+      {% else %}<input name="tenant_network" value="{{ ch.tenant_network }}" required>{% endif %}</div>
+    <div class="actions"><button class="btn">{% trans "Apply" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endif %}
+{% if net_can_set_vlan %}{% for ch in net_l2 %}{% if ch.state == 'planned' %}<dialog id="dlg-l2-vlan-{{ ch.pk }}" class="card" style="max-width:480px;width:92%"><h2>{% trans "VLAN of the L2 channel" %} <small class="muted">{{ ch.name }}</small></h2>
+  <p class="muted"><small>{% trans "On the site's management platform the VLAN network and the src gateway are created; on the project's platform an ethernet address range on the project network and the dst gateway. The VLAN number is the VXLAN VNI too when it is free. The channel is made as soon as its subnet is set too." %}</small></p>
+  <form method="post" action="{% url 'tenant_l2_vlan' tenant.pk ch.pk %}" class="stack">{% csrf_token %}
+    <div class="field"><label>{% trans "VLAN number" %}</label><input name="vlan" type="number" min="1" max="4094" value="{{ ch.vlan|default_if_none:'' }}" required></div>
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}{% endfor %}{% endif %}

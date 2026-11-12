@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{{ name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'portal_settings' %}?tab=mail#mail-templates">← {% trans "Settings" %} · {% trans "Mail" %}</a></p>
+<h1><span class="code">{{ name }}</span></h1>
+<p class="muted">{{ what }}{% if edited %} · {% st "warn" _("edited") %} {{ edited.updated_at|date:"d.m.Y H:i" }}{% endif %}</p>
+<section class="card" style="max-width:960px">
+  <form method="post" class="stack">{% csrf_token %}
+    <textarea name="body" rows="22" class="mono" spellcheck="false" style="width:100%">{{ text }}</textarea>
+    <div class="help">{% trans "A Django template: variables are written {{ name }}, as in the portal's own text. Every e-mail is sent in HTML in the provider's frame; a text template is turned into HTML (lists, links)." %}</div>
+    <div class="actions"><button class="btn">{% trans "Save" %}</button>
+      {% if edited %}<button class="btn ghost" name="reset" value="1" onclick="return confirm('{% trans "Back to the portal's own text?" %}')">{% trans "Reset" %}</button>{% endif %}
+      <a class="btn ghost" href="{% url 'portal_settings' %}?tab=mail#mail-templates">{% trans "Cancel" %}</a></div>
+  </form>
+  {% if edited %}<details style="margin-top:12px"><summary>{% trans "The portal's own text" %}</summary><pre class="mono" style="white-space:pre-wrap">{{ default }}</pre></details>{% endif %}
+</section>
+{% endblock %}
