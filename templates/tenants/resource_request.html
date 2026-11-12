@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Change resources" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Change resources" %}</h1>
+<div class="actions" style="margin-bottom:16px">
+  <button class="btn" form="rc">{% trans "Send for approval" %}</button>
+  <a class="btn ghost" href="{{ next }}">{% trans "Cancel" %}</a>
+</div>
+<form method="post" class="stack" id="rc">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><input type="hidden" name="site" value="{{ rec.site }}"><input type="hidden" name="cluster" value="{{ rec.cluster }}">
+<section class="card compact">
+  <p class="ctxline"><strong>{{ tenant.one_group_name|default:tenant.name }}</strong>{% if tenant.organization %} · {{ tenant.organization.name }}{% endif %} · {% trans "change resources" %}</p>
+  <fieldset><legend>{% trans "Resources" %}</legend>
+    <p class="fnote">{{ rec.site }} / {{ rec.cluster|cluster_name:rec.site }} · {% trans "now" %}: {{ rec.cpu }} vCPU · {{ rec.ram_gb|gb }} GB RAM{% if rec.gpu %} · {{ rec.gpu }} GPU{% endif %} · {{ rec.disk_gb }} GB {% trans "storage" %} ({% trans "images" %} {{ images }} GB, {% trans "files" %} {{ files }} GB)</p>
+    <div class="frow">
+      {% if pool.gpu %}<div class="field" style="max-width:130px"><label>{% trans "GPU bundles" %}</label>{{ form.gpu }}</div>
+      {% else %}<div class="field" style="max-width:110px"><label>vCPU</label>{{ form.cpu }}</div>
+      <div class="field" style="max-width:120px"><label>{% trans "RAM, GB" %}</label>{{ form.ram_gb }}</div>{% endif %}
+      <div class="field" style="max-width:130px"><label>{% trans "Storage, GB" %}</label>{{ form.disk_gb }}</div>
+    </div>
+    {{ form.gpu.errors }}{{ form.cpu.errors }}{{ form.ram_gb.errors }}{{ form.disk_gb.errors }}
+    <p class="fnote" id="split"></p>
+  </fieldset>
+  <fieldset><legend>{% trans "Comment" %}</legend>{{ form.note }}{{ form.note.errors }}</fieldset>
+</section>
+</form>
+<script>
+(function () {
+  var f = document.getElementById('rc'), disk = f.querySelector('[name="disk_gb"]');
+  var gpu = f.querySelector('[name="gpu"]'), out = document.getElementById('split');
+  var g = {% if pool.gpu %}{cores: {{ pool.gpu.cores }}, ram: {{ pool.gpu.ram_gb|gb }}, model: "{{ pool.gpu.model|escapejs }}"}{% else %}null{% endif %};
+  function show() {
+    var d = parseInt(disk.value || '0', 10), img = {{ images }}, fil = {{ files }};
+    if (img + fil > d) { img = d > 100 ? 20 : 0; fil = d > 100 ? 1 : 0; }
+    var txt = '{% trans "VM disks" %} ' + (d - img - fil) + ' GB · {% trans "images" %} ' + img + ' GB · {% trans "files" %} ' + fil + ' GB';
+    if (g && gpu) { var n = parseInt(gpu.value || '0', 10); txt = n + ' × ' + g.model + ' = ' + (n * g.cores) + ' vCPU + ' + (n * g.ram) + ' GB RAM · ' + txt; }
+    out.textContent = txt;
+  }
+  [disk, gpu].forEach(function (el) { if (el) el.addEventListener('input', show); });
+  show();
+})();
+</script>
+{% endblock %}

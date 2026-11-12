@@ -1,0 +1,76 @@
+{% load i18n %}<section class="card olist" data-key="site-networks-{{ site.code }}">
+  {% trans "Add network" as add_label %}{% if can_edit_networks %}{% include "ui/bar.html" with add_dialog="dlg-net-new" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Type" %}</th><th>{% trans "Name" %}</th><th class="num">VLAN</th><th class="num">MTU</th><th>{% trans "Subnet" %}</th><th>{% trans "Gateway" %}</th><th>{% trans "State" %}</th>{% if can_edit_networks %}<th></th>{% endif %}</tr></thead><tbody>
+  {% for n in nets %}<tr class="orow" data-id="n-{{ n.name }}"><td>{% tp n.kind %}</td><td><span class="code">{{ n.name }}</span></td><td class="num">{{ n.vlan }}</td><td class="num">{{ n.mtu }}</td>
+    <td><span class="code">{{ n.subnet }}/{{ n.prefix }}</span></td><td>{{ n.gateway|default:"—" }}</td>
+    <td>{% st n.state n.get_state_display %}{% if n.missing %} <span title="{{ n.missing|join:'; ' }}">{% st "warn" _("BGP incomplete") %}</span>{% endif %}</td>
+    {% if can_edit_networks %}<td class="row-actions"><span class="stack-right"><button class="btn ghost small" type="button" data-open="dlg-nw-{{ n.pk }}">{% trans "Edit" %}</button>
+      {% if n.has_bgp %}<button class="btn ghost small" type="button" data-open="dlg-bgp-{{ n.pk }}">BGP</button>{% endif %}
+      {% if not n.platforms %}<form class="inline" method="post" action="{% url 'inv_net_delete' site.code n.pk %}" onsubmit="return confirm('{% trans "Delete this network?" %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% trans "Delete" %}</button></form>{% endif %}</span></td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="8" class="muted">{% trans "No networks." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for n in nets %}<div class="odetail card" data-for="n-{{ n.name }}" hidden><h3><span class="code">{{ n.name }}_{{ site.code }}</span> {% tp n.kind %}</h3>
+    <div class="grid two"><dl class="facts">
+      <dt>{% trans "Interface" %}</dt><dd>{{ n.interface }}{% if n.extra.bridge %} · {% trans "bridge" %} {{ n.extra.bridge }}{% endif %}</dd>
+      <dt>VLAN · MTU</dt><dd>{{ n.vlan }} · {{ n.mtu }}</dd>
+      <dt>{% trans "Subnet" %}</dt><dd><span class="code">{{ n.cidr }}</span></dd>
+      <dt>{% trans "Gateway" %}</dt><dd>{{ n.gateway|default:"—" }}</dd>
+      <dt>{% trans "Platforms" %}</dt><dd>{{ n.platforms|join:", "|default:"—" }}</dd>
+      <dt>{% trans "Routes" %}</dt><dd>{% if n.routes %}<table class="mini"><thead><tr><th>{% trans "Subnet" %}</th><th>{% trans "Next hop" %}</th><th>{% trans "Metric" %}</th></tr></thead>{% for r in n.routes %}<tr><td><span class="code">{{ r.network }}</span></td><td><span class="code">{{ r.gw }}</span></td><td>{{ r.metric|default:"—" }}</td></tr>{% endfor %}</table>{% else %}—{% endif %}</dd>
+    </dl>
+    {% if n.has_bgp %}<dl class="facts">
+      <dt>{% trans "Local AS" %}</dt><dd>{{ n.local_asn|default:"—" }}</dd>
+      {% if n.kind == 'ix' %}<dt>{% trans "Delegated subnets" %}</dt><dd>{% for x in n.announced %}<span class="code">{{ x }}</span><br>{% empty %}—{% endfor %}</dd>{% endif %}
+      {% for sec in n.sections %}<dt>{{ sec.key }}</dt><dd>{% if sec.key == 'egw' %}{% trans "remote AS" %} {{ n.remote_asn|default:"—" }}<br>{% endif %}{% if sec.cidrs %}<small class="code">{{ sec.cidrs|join:" " }}</small>{% else %}{% st "missing" _("no hosts") %}{% endif %}
+        <br>{% trans "password" %} {% if sec.g.password_defined %}{% st "defined" _("defined") %}{% else %}{% st "missing" _("missing") %}{% endif %}</dd>{% endfor %}
+      {% for g in n.other_groups %}<dt>{{ g.session }} · {{ g.name }}</dt><dd><small class="code">{{ g.cidrs|join:" " }}</small></dd>{% endfor %}
+      {% if n.missing %}<dt>{% trans "Missing" %}</dt><dd><small style="color:var(--bad)">{{ n.missing|join:"; " }}</small></dd>{% endif %}
+    </dl>{% endif %}</div>
+    <h4 style="margin:12px 0 4px">{% trans "Ranges" %}</h4>
+    <div class="table-wrap"><table><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Start" %}</th><th class="num">{% trans "Length" %}</th><th>{% trans "Last" %}</th><th>{% trans "Used by" %}</th>{% if can_edit_networks %}<th></th>{% endif %}</tr></thead>
+    {% for r in n.range_list %}<tr><td><span class="code">{{ r.name }}</span></td><td>{{ r.start }}</td><td class="num">{{ r.length }}</td><td>{{ r.last }}</td><td><small>{% include "ui/usedby.html" with items=r.users %}</small></td>
+      {% if can_edit_networks %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-rg-{{ r.pk }}">{% trans "Edit" %}</button>
+        <form class="inline" method="post" action="{% url 'inv_range_delete' site.code n.pk r.pk %}" onsubmit="return confirm('{% trans "Delete this range?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form></td>{% endif %}</tr>
+    {% empty %}<tr><td colspan="6" class="muted">{% trans "No ranges." %}</td></tr>{% endfor %}</table></div>
+    {% if can_edit_networks %}<p class="actions to-bar" style="margin-top:8px"><button class="btn small" type="button" data-open="dlg-rg-new-{{ n.pk }}">+ {% trans "Range" %}</button></p>{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit_networks %}
+<dialog id="dlg-net-new" class="card" style="max-width:560px;width:92%"><h2>{% trans "Add a network" %}</h2>
+  <p class="muted"><small>{% trans "Type by the name when none is chosen: cloud-ix, portal-ix, corpnet-ix are exchanges (ix); cloud-vxlan, portal-vxlan are EVPN; cloud-services, cloud-core, cloud-vyos, cloud-s2s, one-core are core-services, core-cloud, core-vyos, core-s2s, core-kvm (one of each per site); data-nfs and data-iscsi are nfs and iscsi; others are core. Exchanges get the ranges ext-gws (…0/30) and rrs (…240/30), EVPN networks the range rrs (…240/30)." %}</small></p>
+  <form method="post" action="{% url 'inv_net_new' site.code %}" class="stack">{% csrf_token %}{% for f in net_form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add network" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for n in nets %}<dialog id="dlg-nw-{{ n.pk }}" class="card" style="max-width:560px;width:92%"><h2>{% trans "Edit" %} <span class="code">{{ n.name }}</span></h2>
+  <form method="post" action="{% url 'inv_net_save' site.code n.pk %}" class="stack">{% csrf_token %}{% for f in n.form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+<dialog id="dlg-rg-new-{{ n.pk }}" class="card" style="max-width:480px;width:92%"><h2>{% trans "Add a range" %} <small class="code">{{ n.name }}</small></h2>
+  <p class="muted"><small>{% blocktrans with c=n.cidr %}Inside {{ c }}, not crossing other ranges; the name is unique in the network.{% endblocktrans %}</small></p>
+  <form method="post" action="{% url 'inv_range_new' site.code n.pk %}" class="stack">{% csrf_token %}{% for f in range_form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for r in n.range_list %}<dialog id="dlg-rg-{{ r.pk }}" class="card" style="max-width:480px;width:92%"><h2>{% trans "Range" %} <span class="code">{{ r.name }}</span></h2>
+  <form method="post" action="{% url 'inv_range_save' site.code n.pk r.pk %}" class="stack">{% csrf_token %}
+    <div class="field"><label>{% trans "Name" %}</label><input name="name" value="{{ r.name }}" required></div>
+    <div class="field"><label>{% trans "Start address" %}</label><input name="start" value="{{ r.start }}" required></div>
+    <div class="field"><label>{% trans "Length" %}</label><input name="length" type="number" min="1" value="{{ r.length }}" required></div>
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% if n.has_bgp %}<dialog id="dlg-bgp-{{ n.pk }}" class="card" style="max-width:640px;width:94%"><h2>BGP <span class="code">{{ n.name }}</span></h2>
+  <form method="post" action="{% url 'inv_net_bgp' site.code n.pk %}" class="stack">{% csrf_token %}{% url 'inv_net_bgp_values' site.code n.pk as values_url %}{% include "ui/show_values.html" with url=values_url %}
+    <div class="field"><label>{% trans "Local AS" %}</label><input name="local_asn" value="{{ n.local_asn|default:'' }}" inputmode="numeric" required>
+      <div class="help">{% trans "4 200 000 000 – 4 294 967 294 is the range of private AS numbers." %}</div></div>
+    {% if n.kind == 'ix' %}<div class="field"><label>{% trans "Delegated subnets" %}</label>
+      <div class="help" style="margin-bottom:6px">{% trans "Connect the site's IP subnets of this exchange's type (define them on the IP Subnets tab). A subnet belongs to only one exchange; projects get their addresses from these." %}</div>
+      {% for s in n.subnet_choices %}<label class="check" style="display:block;margin:2px 0"><input type="checkbox" name="ip_subnets" value="{{ s.pk }}"{% if s.connected %} checked{% endif %}> <span class="code">{{ s.cidr }}</span> <small class="muted">· max /{{ s.max_prefix }} · {{ s.get_routing_display }}</small></label>
+      {% empty %}<p class="muted"><small>{% trans "No IP subnets of this exchange's type on the site yet — add them on the IP Subnets tab." %}</small></p>{% endfor %}</div>{% endif %}
+    {% for sec in n.sections %}<fieldset style="border:1px solid var(--line);border-radius:8px;padding:8px 12px"><legend>{{ sec.title }}</legend>
+      {% if sec.key == 'egw' %}<div class="field"><label>{% trans "Remote AS" %}</label><input name="remote_asn" value="{{ n.remote_asn|default:'' }}" inputmode="numeric" required></div>{% endif %}
+      <div class="field"><label>{% trans "Range" %}</label><select name="range_{{ sec.key }}" data-fill="bgp-{{ n.pk }}-{{ sec.key }}"><option value="">—</option>{% for r in n.range_list %}<option value="{{ r.pk }}" data-items="{% if sec.ip_only %}{{ r.ips }}{% else %}{{ r.nets }}{% endif %}" {% if sec.g.range_id == r.pk %}selected{% endif %}>{{ r.name }} · {{ r.start }} + {{ r.length }}</option>{% endfor %}</select>
+        <div class="help">{% trans "Choosing a range fills the list below; edit it as needed." %}</div></div>
+      <div class="field"><label>{% trans "Hosts" %}</label><textarea id="bgp-{{ n.pk }}-{{ sec.key }}" name="hosts_{{ sec.key }}" rows="4" class="mono" required data-rows='[{"n": "x", "l": "{% if sec.ip_only %}{% trans "Address" %}{% else %}{% trans "Address or network" %}{% endif %}"}]' data-add-label="{% trans "Host" %}">{{ sec.hosts_text }}</textarea>
+        <div class="help">{% if sec.ip_only %}{% trans "One address per line; no networks." %}{% else %}{% trans "One address or network per line." %}{% endif %}</div></div>
+      <div class="field"><label>{% trans "Password" %}</label><input name="password_{{ sec.key }}" type="password" autocomplete="new-password" class="pw-check" {% if sec.g.password_defined %}placeholder="{% trans '●●●●●●●● set — empty keeps it' %}" data-secret="set"{% else %}placeholder="{% trans 'not set' %}" required{% endif %}>
+        <div class="help">{% trans "Kept encrypted in Secrets." %}</div></div></fieldset>{% endfor %}
+    {{ policy_list }}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% endfor %}
+{% endif %}

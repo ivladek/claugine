@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Sites" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Sites" %}</h1>
+<p class="muted">{% trans "Physical locations. Each site has its own page in the menu with its platforms, clusters, IP subnets, hosts, storage and networks." %}</p>
+<section class="card olist" data-key="sites" data-autoselect>
+  {% trans "Add site" as add_label %}{% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-site-new" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Site" %}</th><th class="num">{% trans "Code" %}</th><th>{% trans "Location" %}</th><th>{% trans "State" %}</th><th class="num">{% trans "Hosts" %}</th><th>{% trans "Platforms" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead><tbody>
+  {% for r in rows %}<tr class="orow" data-id="s-{{ r.site.code }}"><td><a href="{% url 'infra_site' r.site.code %}"><span class="code">{{ r.site.code }}</span></a></td><td class="num">{{ r.site.number|default:"—" }}</td><td>{{ r.site.city }} · {{ r.site.country }} · DC {{ r.site.dc }}</td>
+    <td>{% st r.state %}</td><td class="num">{{ r.hosts|length }}</td><td><div class="tags">{% for p in r.platforms %}{% tp p.kind p.name %}{% empty %}—{% endfor %}</div></td>
+    {% if can_edit %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-site-{{ r.site.code }}">{% trans "Edit" %}</button>
+      {% if r.empty %}<form class="inline" method="post" action="{% url 'inv_site_delete' r.site.code %}" onsubmit="return confirm('{% trans "Delete this site?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}</td>{% endif %}</tr>
+  {% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for r in rows %}<div class="odetail card" data-for="s-{{ r.site.code }}" hidden><h3><a href="{% url 'infra_site' r.site.code %}"><span class="code">{{ r.site.code }}</span></a> {{ r.site.city }}</h3>
+    {% include "inventory/_site_view.html" with s=r.site utc_offset=r.utc_offset ssh_rows=r.ssh_rows log_rows=r.log_rows hosts=r.hosts networks=r.networks storages=r.storages platforms=r.platforms %}
+    </div>{% endfor %}</div>
+</section>
+{% if can_edit %}
+<dialog id="dlg-site-new" class="card site-dialog"><h2>{% trans "Add a site" %}</h2>
+  <form method="post" action="{% url 'inv_site_save' %}" class="stack">{% csrf_token %}<input type="hidden" name="new" value="1">
+    {% include "inventory/_site_form.html" with form=site_form new=True %}
+    <div class="actions"><button class="btn">{% trans "Add site" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for r in rows %}<dialog id="dlg-site-{{ r.site.code }}" class="card site-dialog"><h2>{% trans "Edit site" %} <span class="code">{{ r.site.code }}</span></h2>
+  <form method="post" action="{% url 'inv_site_save' %}" class="stack">{% csrf_token %}<input type="hidden" name="code" value="{{ r.site.code }}">
+    {% include "inventory/_site_form.html" with form=r.form %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endif %}
+{% endblock %}
