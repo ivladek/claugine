@@ -1,0 +1,31 @@
+{% load i18n %}{% autoescape off %}{% include "emails/_report_head.txt" %}
+{% if scoped %}{% trans "Your organizations only." %}
+{% endif %}
+{% trans "Totals" %} ({% trans "+new · updated · −archived in the period" %}):
+{% for t in tiles %}  {{ t.label }}: {{ t.total }} (+{{ t.new }} · {{ t.updated }} · −{{ t.gone }})
+{% endfor %}{% if usage %}
+{% if all_clusters %}{% trans "Clusters" %}{% else %}{% trans "Shared clusters" %}{% endif %} ({% trans "allocated of available" %}):
+{% for u in usage %}  {{ u.site }} {{ u.cluster }}: {{ u.projects }} {% trans "projects" %}, vCPU {{ u.vcpu }}/{{ u.vcpu_cap }}, RAM {{ u.ram }}/{{ u.ram_cap }} GB{% if u.gpu_cap %}, GPU {{ u.gpu }}/{{ u.gpu_cap }}{% endif %}
+{% endfor %}{% endif %}{% if subnets %}
+{% trans "IP subnets" %}:
+{% for s in subnets %}  {{ s.subnet }} ({{ s.site }}, {{ s.purpose }}): {{ s.used }}/{{ s.total }} ({{ s.pct }}%)
+{% endfor %}{% endif %}{% if per_cluster %}
+{% trans "Projects per cluster" %}:
+{% for g in per_cluster %}  {{ g.site }} {{ g.cluster }}: vCPU {{ g.totals.cpu }}, RAM {{ g.totals.ram }} GB, GPU {{ g.totals.gpu }}, {% trans "disk" %} {{ g.totals.disk }} GB
+{% for p in g.projects %}    {{ p.name }} ({{ p.org }}): vCPU {{ p.cpu }}, RAM {{ p.ram }}, GPU {{ p.gpu }}, {% trans "disk" %} {{ p.disk }}
+{% endfor %}{% endfor %}{% endif %}{% if near is not None %}
+{% trans "Projects near their review date" %}:
+{% for t in near %}  {{ t.review|date:"d.m.Y" }}{% if t.alert == 'due' %} !{% endif %} {{ t.name }} ({{ t.org }}, {{ t.stage }})
+{% empty %}  {% trans "None." %}
+{% endfor %}{% endif %}{% if backups %}
+{% trans "Backups" %}:
+{% for b in backups.values %}  {{ b.label }}: {{ b.ok }} {% trans "made" %}, {{ b.failed|length }} {% trans "failed" %}, {% trans "last" %} {{ b.last_bytes|filesizeformat }}
+{% for f in b.failed %}    {{ f.at|date:"d.m.Y H:i" }}: {{ f.result }}
+{% endfor %}{% endfor %}{% endif %}{% if portal %}
+{% trans "Portal" %}: {{ portal.current }}; {% trans "releases in the period" %}: {% for r in portal.releases %}{{ r.version }}{% if not forloop.last %} → {% endif %}{% empty %}—{% endfor %}
+{% trans "Update stream" %}: {{ portal.stream }}, {% trans "automatic updates" %} {% if portal.auto_update %}{% trans "on" %}{% else %}{% trans "off" %}{% endif %}{% if portal.failed_tag %} ({{ portal.failed_tag }} {% trans "failed" %}){% endif %}
+{% trans "Switches active / standby" %}: {{ portal.switches }}
+{% for f in portal.failures %}  {{ f.at|date:"d.m.Y H:i" }} {{ f.operation }}: {{ f.error }}
+{% endfor %}{% endif %}
+{{ link }}
+{% endautoescape %}

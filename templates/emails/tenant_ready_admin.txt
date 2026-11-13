@@ -1,0 +1,34 @@
+{% autoescape off %}Hello {{ you.full_name|default:you.email }},
+
+Your project {{ tenant.name|default:tenant.title }} of {{ org.name }} is ready on Example Cloud ({{ platforms }}).
+You are its project admin.
+{% for p in pools %}
+Resource pool — {{ p.site }} / {{ p.cluster }}
+  Resources:  {{ p.cpu }} vCPU, {{ p.ram_gb }} GB RAM{% if p.gpu_text %}, GPU {{ p.gpu_text }}{% endif %}
+  Storage:    {{ p.disk_gb }} GB — VMs {{ p.vms_gb }} / images {{ p.images_gb }} / files {{ p.files_gb }}
+  Backups:    {% if p.backups_gb %}{{ p.backups_gb }} GB{% else %}not ordered{% endif %}
+  Web UI:     {{ p.web_ui|default:"—" }}
+  Login:      user {{ admin_user }}, password {{ admin_password }}{% if p.endpoints %}
+  API:{% for k, v in p.endpoints %}
+    {{ k }}: {{ v }}{% endfor %}{% endif %}
+{% endfor %}{% for c in conns %}{% if c.kind == 'inet' %}
+Internet — {{ c.site }}
+  Speed:        {{ c.mbps|default:"—" }} Mbps
+  Main subnet:  {{ c.main|default:"—" }} — free IPs: {{ c.vm_ips }}{% if c.vm_range %} ({{ c.vm_range }}){% endif %}; {{ c.egw }} (egw), {{ c.igw }} (igw){% if c.extra %}
+  More subnets: {{ c.extra|join:", " }} (routed to the igw){% endif %}
+  Gateway:      {{ c.igw_label }}{% if c.igw_type == 'vyos' %}, {{ c.igw }} — fully managed by you
+  Gateway ssh:  ssh {{ c.ssh_user }}@{{ c.ssh_host }} -p {{ c.ssh_port }}
+                {% if c.ssh_keys %}key: {{ c.ssh_keys|join:", " }} (password login is off){% else %}password {{ c.ssh_password }}{% endif %}{% elif c.igw_type == 'onevr' %}, {{ c.igw }} — managed in the web UI (Virtual Router), no ssh login{% else %} — no VM is made: give your own VM {{ c.igw }} with the default gateway {{ c.egw }}{% endif %}
+{% elif c.kind == 'corpnet' %}
+Corporate network — {{ c.site }}
+  Subnets:  {{ c.subnets|join:", "|default:"—" }}
+{% elif c.kind == 'l2' %}
+L2 channel — {{ c.site }}
+  {{ c.name|default:"channel" }}: VLAN {{ c.vlan|default:"—" }}{% if c.vni %} · VNI {{ c.vni }}{% endif %} · {{ c.state }}
+{% endif %}{% endfor %}
+Provisioned on {{ at|date:"d.m.Y H:i" }}.
+{% if contacts %}
+Your contacts{% for role, u in contacts %}
+  {{ role }}: {% if u.full_name %}{{ u.full_name }} <{{ u.email }}>{% else %}{{ u.email }}{% endif %}{% endfor %}
+{% endif %}
+{% endautoescape %}

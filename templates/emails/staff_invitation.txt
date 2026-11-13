@@ -1,0 +1,8 @@
+{% load i18n %}{% autoescape off %}{% blocktrans %}You are invited to the Example Cloud portal as {{ role }}.{% endblocktrans %}
+
+{% trans "Create your account here:" %}
+
+{{ link }}
+
+{% blocktrans %}The link works once and is valid for {{ hours }} hours. You will need an authenticator app for two-factor authentication.{% endblocktrans %}
+{% endautoescape %}

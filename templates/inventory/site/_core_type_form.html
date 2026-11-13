@@ -1,0 +1,9 @@
+{% load i18n %}{# A core service of a type: f — its form (only what cannot be calculated); calc — the calculated definition. #}
+<div class="cs-form" data-cs-type="{{ f.stype }}">
+  <input type="hidden" name="stype" value="{{ f.stype }}">
+  <div class="cs-grid cs-res1">{% for x in f.size_fields %}<div class="cs-sub"><label for="{{ x.id_for_label }}">{{ x.label }}</label>{{ x }}{{ x.errors }}</div>{% endfor %}</div>
+  <div style="height:10px"></div>
+  {% for x in f %}{% if x.name not in f.SIZE_FIELDS %}{% with f=x %}{% include "includes/field.html" %}{% endwith %}{% endif %}{% endfor %}
+  {% if calc or calc_error %}<details class="field" open><summary>{% trans "Calculated" %} <small class="muted">{% trans "from the site's settings, networks, storage and platforms (saved values)" %}</small></summary>
+    {% include "inventory/site/_core_calc.html" %}</details>{% endif %}
+</div>

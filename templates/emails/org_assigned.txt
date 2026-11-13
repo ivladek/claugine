@@ -1,0 +1,4 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with org=org.name %}You are now the sales rep for {{ org }} and all its projects.{% endblocktrans %}
+
+{{ link }}
+{% endautoescape %}

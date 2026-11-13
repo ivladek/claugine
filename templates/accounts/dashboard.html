@@ -1,0 +1,122 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Dashboard" %}{% endblock %}
+{% block content %}
+<div class="dash-head">
+  <div>
+    <h1>{% blocktrans with n=user.full_name|default:user.email %}Hello, {{ n }}{% endblocktrans %}</h1>
+    <p class="muted">{{ user.role_display }}</p>
+  </div>
+  {% if can_act_as %}
+  <form method="post" action="{% url 'act_as' %}" class="act-as">{% csrf_token %}
+    <label class="inline"><small class="muted">{% trans "Act as" %}</small>
+      <select name="user" onchange="this.form.submit()" style="width:auto">
+        <option value="0" {% if not act_as_current %}selected{% endif %}>{% trans "— yourself —" %}</option>
+        {% for p in act_as_people %}<option value="{{ p.pk }}" {% if p.pk == act_as_current %}selected{% endif %}>{{ p.full_name|default:p.email }}{% if p.email and p.full_name %} · {{ p.email }}{% endif %}</option>{% endfor %}
+      </select></label>
+  </form>{% endif %}
+</div>
+
+<div class="tiles square">
+  <a class="tile" href="{% url 'approvals' %}"><div class="tile-label">{% trans "Approval requests" %}</div>
+    <div class="tile-value">{{ approvals.total }}</div><div class="tile-sub">{% blocktrans with n=approvals.mine %}{{ n }} for me{% endblocktrans %}</div></a>
+  {% if board == 'super' or board == 'support' %}
+  <a class="tile" href="{% url 'inventory' %}"><div class="tile-label">{% trans "Platforms" %}</div>
+    <div class="tile-value">{{ platforms }}</div><div class="tile-sub">{% blocktrans with n=platforms_shared %}{{ n }} shared{% endblocktrans %}</div></a>
+  {% endif %}
+  {% if board == 'super' or board == 'support' or board == 'rm' or board == 'sales' or board == 'kam' %}
+  <div class="tile"><div class="tile-label">{% if board == 'super' or board == 'support' %}{% trans "Clusters" %}{% else %}{% trans "Shared clusters" %}{% endif %}</div>
+    <div class="tile-value">{{ clusters }}</div><div class="tile-sub">{% if board == 'super' or board == 'support' %}{% blocktrans with n=clusters_shared %}{{ n }} shared{% endblocktrans %}{% else %}&nbsp;{% endif %}</div></div>
+  <div class="tile"><div class="tile-label">{% if board == 'super' or board == 'support' %}{% trans "Datastores" %}{% else %}{% trans "Shared datastores" %}{% endif %}</div>
+    <div class="tile-value">{{ datastores_tb }} <small>TB</small></div><div class="tile-sub">{% blocktrans count n=datastores %}{{ n }} datastore{% plural %}{{ n }} datastores{% endblocktrans %}</div></div>
+  <div class="tile"><div class="tile-label">{% trans "VMs" %}</div>
+    {% if collected %}<div class="tile-value">{{ vms.running|default:0 }} <small>/ {{ vms.total|default:0 }}</small></div><div class="tile-sub">{% trans "running / total" %}</div>
+    {% else %}<div class="tile-value">—</div><div class="tile-sub">{% trans "not collected yet" %}</div>{% endif %}</div>
+  {% endif %}
+  <a class="tile" href="{% url 'org_list' %}"><div class="tile-label">{% trans "Organizations" %}</div>
+    <div class="tile-value">{{ organizations }}</div><div class="tile-sub">&nbsp;</div></a>
+  <a class="tile" href="{% url 'tenant_list' %}"><div class="tile-label">{% trans "Projects" %}</div>
+    <div class="tile-value">{{ tenants }}</div><div class="tile-sub">{% blocktrans with n=tenants_pending %}{{ n }} waiting{% endblocktrans %}</div></a>
+</div>
+
+{% if capacity is not None %}
+{% if refreshed %}<p class="muted" style="margin:0 0 8px"><small>{# owner 2026-10-29 21:10 #}{% blocktrans with m=refreshed.minutes %}Clusters, storage and VMs are read from the platforms by the Platforms timer, every {{ m }} minutes{% endblocktrans %}{% if refreshed.at %} · {% trans "last" %} {{ refreshed.at|date:"d.m.Y H:i" }}{% endif %}{% if refreshed.state == 'error' %} · <span style="color:var(--bad)">{% trans "with errors" %}</span>{% elif refreshed.state == 'running' %} · {% trans "running now" %}{% endif %}{% if user.is_super_admin %} · <a href="{% url 'portal_settings' %}?tab=data#timers">{% trans "Timers" %}</a>{% endif %}</small></p>{% endif %}
+<section class="card" data-view-of="clusters"><div class="olist-bar"><h2>{% trans "Clusters" %}</h2>
+  {% if views|length > 1 %}<div class="olist-tools"><button type="button" class="btn small" data-view-btn="logical">{% trans "Logical" %}</button><button type="button" class="btn ghost small" data-view-btn="physical">{% trans "Physical" %}</button></div>{% endif %}</div>
+  <p class="muted" data-view="logical"><small>{% trans "What projects can get: hosts minus the spare ones (N+X), minus the reserve, CPU times the vCores per pCore ratio; projects' quotas against it." %}</small></p>
+  <p class="muted" data-view="physical"><small>{% trans "The hardware: physical cores (no hyperthreads), RAM and GPUs of the active hosts; spare hosts and the reserve are marked; projects' vCPU shown as the physical cores they take (vCPU ÷ ratio)." %}</small></p>
+  {% if capacity %}<div class="table-wrap"><table class="usage"><thead><tr><th>{% trans "Cluster" %}</th><th>CPU</th><th>RAM</th><th>GPU</th></tr></thead><tbody>
+  {% for r in capacity %}<tr>
+    <td><span class="code">{{ r.cluster.name }}</span> {% tp r.kind r.kind %}<br><small class="muted">{{ r.platform }} · {% blocktrans count n=r.hosts %}{{ n }} host{% plural %}{{ n }} hosts{% endblocktrans %} · {{ r.alloc.tenants }} {% trans "projects" %}</small>
+      <br><small class="muted">{% blocktrans with x=r.ratio|floatformat:"-2" s=r.cluster.spare_hosts %}{{ x }} vCores/pCore · N+{{ s }}{% endblocktrans %}{% if r.oversubscription is not None %} · {% blocktrans with x=r.oversubscription %}oversubscription {{ x }}×{% endblocktrans %}{% endif %}</small></td>
+    <td class="meter-cell">
+      <div data-view="logical">{% with l=r.logical %}<div class="num-line">{{ l.used_vcpu }} / {{ l.vcpu }} vCPU · {{ l.cpu_pct|default:0 }}% · {{ l.used_ghz }} / {{ l.ghz }} GHz</div>
+        <div class="meter {% if l.over.cpu %}bad{% elif l.cpu_pct > 85 %}warn{% endif %}"><span style="width:{% if l.cpu_pct > 100 %}100{% else %}{{ l.cpu_pct|default:0 }}{% endif %}%"></span></div>{% endwith %}</div>
+      <div data-view="physical">{% with p=r.physical %}<div class="num-line">{{ p.used_cores }} / {{ p.cores }} {% trans "cores" %} · {{ p.used_ghz }} / {{ p.ghz }} GHz</div>
+        <div class="segbar" title="{% trans 'used' %} {{ p.cpu_bar.used }}% · {% trans 'spare' %} {{ p.cpu_bar.spare }}% · {% trans 'reserved' %} {{ p.cpu_bar.reserved }}%"><span class="u {% if p.cpu_bar.over %}over{% endif %}" style="width:{{ p.cpu_bar.used }}%"></span><span class="r" style="width:{{ p.cpu_bar.reserved }}%"></span><span class="s" style="width:{{ p.cpu_bar.spare }}%"></span></div>{% endwith %}</div></td>
+    <td class="meter-cell">
+      <div data-view="logical">{% with l=r.logical %}<div class="num-line">{{ l.used_ram|gb }} / {{ l.ram_gb|gb }} GB · {{ l.ram_pct|default:0 }}%</div>
+        <div class="meter {% if l.over.ram %}bad{% elif l.ram_pct > 85 %}warn{% endif %}"><span style="width:{% if l.ram_pct > 100 %}100{% else %}{{ l.ram_pct|default:0 }}{% endif %}%"></span></div>{% endwith %}</div>
+      <div data-view="physical">{% with p=r.physical %}<div class="num-line">{{ p.used_ram|gb }} / {{ p.ram_gb|gb }} GB</div>
+        <div class="segbar"><span class="u {% if p.ram_bar.over %}over{% endif %}" style="width:{{ p.ram_bar.used }}%"></span><span class="r" style="width:{{ p.ram_bar.reserved }}%"></span><span class="s" style="width:{{ p.ram_bar.spare }}%"></span></div>{% endwith %}</div></td>
+    <td class="meter-cell">{% if r.gpu %}
+      <div data-view="logical"><div class="num-line">{{ r.logical.used_gpus }} / {{ r.logical.gpus }} {% trans "slots" %}</div>
+        <div class="meter {% if r.logical.over.gpu %}bad{% endif %}"><span style="width:{% if r.logical.gpu_pct > 100 %}100{% else %}{{ r.logical.gpu_pct|default:0 }}{% endif %}%"></span></div></div>
+      <div data-view="physical"><div class="num-line">{{ r.physical.used_gpus }} / {{ r.physical.gpus }} GPU</div>
+        <div class="segbar"><span class="u {% if r.physical.gpu_bar.over %}over{% endif %}" style="width:{{ r.physical.gpu_bar.used }}%"></span><span class="s" style="width:{{ r.physical.gpu_bar.spare }}%"></span></div></div>
+      {% else %}<span class="muted">—</span>{% endif %}</td>
+  </tr>{% endfor %}</tbody></table></div>
+  <div class="seg-legend" data-view="physical"><span><i class="u"></i>{% trans "used by projects" %}</span><span><i class="r"></i>{% trans "reserved" %}</span><span><i class="s"></i>{% trans "spare hosts" %}</span></div>
+  {% else %}<p class="muted">{% trans "No clusters." %}</p>{% endif %}
+</section>
+
+<section class="card" data-view-of="storage"><div class="olist-bar"><h2>{% trans "Storage" %}</h2>
+  {% if views|length > 1 %}<div class="olist-tools"><button type="button" class="btn small" data-view-btn="logical">{% trans "Logical" %}</button><button type="button" class="btn ghost small" data-view-btn="physical">{% trans "Physical" %}</button></div>{% endif %}</div>
+  <p class="muted" data-view="logical"><small>{% trans "The volume's size minus the reserve, against the projects' quotas on the clusters that use the datastore." %}</small></p>
+  <p class="muted" data-view="physical"><small>{% trans "What OpenNebula reports for the datastore at the last collection." %}</small></p>
+  {% if storage %}<div class="table-wrap"><table class="usage"><thead><tr><th>{% trans "Datastore" %}</th><th>{% trans "Usage" %}</th></tr></thead><tbody>
+  {% for d in storage %}<tr><td><span class="code">{{ d.ds.name }}</span> {% tp d.kind d.kind %}<br><small class="muted">{{ d.platform }}{% if d.ds.volume %} · {{ d.ds.volume }}{% endif %} · {% blocktrans with p=d.reserved_pct %}{{ p }}% reserved{% endblocktrans %}</small>
+    {% if d.drift %}<br><small style="color:var(--bad)">{% blocktrans with a=d.drift.portal|join:", " b=d.drift.one|join:", " %}Clusters differ: here {{ a }}; in OpenNebula {{ b }}.{% endblocktrans %}</small>{% endif %}</td>
+    <td class="meter-cell">
+      <div data-view="logical"><div class="num-line">{{ d.used_gb }} / {{ d.cap_gb }} GB · {{ d.pct|default:0 }}%</div>
+        <div class="meter {% if d.over %}bad{% elif d.pct > 85 %}warn{% endif %}"><span style="width:{% if d.pct > 100 %}100{% else %}{{ d.pct|default:0 }}{% endif %}%"></span></div></div>
+      <div data-view="physical">{% if d.live %}<div class="num-line">{{ d.live.used_gb }} / {{ d.live.total_gb }} GB · {{ d.live.pct|default:0 }}%</div>
+        <div class="meter {% if d.live.pct > 90 %}bad{% elif d.live.pct > 80 %}warn{% endif %}"><span style="width:{{ d.live.pct|default:0 }}%"></span></div>{% else %}<small class="muted">{% trans "not collected yet" %}</small>{% endif %}</div></td></tr>{% endfor %}
+  </tbody></table></div>{% else %}<p class="muted">{% trans "No datastores." %}</p>{% endif %}
+</section>
+
+<section class="card"><h2>{% trans "Network pools" %}</h2>
+  {% if pools %}<div class="table-wrap"><table class="usage"><thead><tr><th>{% trans "Pool" %}</th><th>{% trans "Used" %}</th></tr></thead><tbody>
+  {% for a in pools %}<tr><td><span class="code">{{ a.cidr }}</span> {% tp a.purpose a.purpose %}<br><small class="muted">{{ a.platform }} · {{ a.segment }}</small></td>
+    <td class="meter-cell"><div class="num-line">{{ a.used }} / {{ a.total }} · {{ a.pct|default:"0" }}%</div><div class="meter {% if a.pct > 90 %}bad{% elif a.pct > 75 %}warn{% endif %}"><span style="width:{{ a.pct|default:0 }}%"></span></div></td></tr>{% endfor %}
+  </tbody></table></div>{% else %}<p class="muted">{% trans "No delegated subnets." %}</p>{% endif %}
+</section>
+{% endif %}
+
+{% if org_list is not None %}
+<section class="card"><h2>{% trans "My organizations" %}</h2>{% include "tenants/_orgs.html" with orgs=org_list list_key="dash-orgs" %}</section>
+{% endif %}
+{% if tenant_list is not None %}
+<section class="card"><h2>{% trans "My projects" %}</h2>{% include "tenants/_table.html" with tenants=tenant_list list_key="dash-tenants" %}</section>
+{% endif %}
+
+{% if join_requests %}
+<section class="card"><h2>{% trans "Open join requests (existing tax ID)" %}</h2>
+  <div class="table-wrap"><table><tr><th>{% trans "Applicant" %}</th><th>{% trans "Organization" %}</th><th>{% trans "Since" %}</th></tr>
+  {% for j in join_requests %}<tr><td>{{ j.user.full_name }}<br><small>{{ j.user.email }}</small></td><td>{{ j.organization.name }}<br><small>{{ j.organization.tax_id }}</small></td><td>{{ j.created_at|date:"d.m.Y H:i" }}</td></tr>{% endfor %}
+  </table></div></section>
+{% endif %}
+<script>
+(function () {
+  function set(box, v) {
+    box.querySelectorAll("[data-view]").forEach(function (e) { e.classList.toggle("on-view", e.dataset.view === v); });
+    box.querySelectorAll("[data-view-btn]").forEach(function (b) { b.classList.toggle("ghost", b.dataset.viewBtn !== v); });
+    try { localStorage.setItem("dash-view:" + box.dataset.viewOf, v); } catch (e) {}
+  }
+  document.querySelectorAll("[data-view-of]").forEach(function (box) {
+    var v = "logical"; try { v = localStorage.getItem("dash-view:" + box.dataset.viewOf) || v; } catch (e) {}
+    if (!box.querySelector("[data-view-btn]")) v = "logical";
+    set(box, v);
+    box.addEventListener("click", function (e) { var b = e.target.closest("[data-view-btn]"); if (b) set(box, b.dataset.viewBtn); });
+  });
+})();
+</script>
+{% endblock %}

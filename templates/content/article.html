@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block title %}{{ article.title }}{% endblock %}
+{% block content %}<article class="card narrow" style="max-width:760px"><small>{{ article.get_kind_display }} · {{ article.published_at|date:"d.m.Y H:i" }}</small><h1>{{ article.title }}</h1>{{ article.body|linebreaks }}</article>{% endblock %}
