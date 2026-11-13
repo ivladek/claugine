@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{{ node.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'infra_site' site.code %}?tab=core&sel=cs-{{ svc.pk }}">← {% trans "Core services" %} · {{ site.code }}</a></p>
+<h1>{% trans "Redeploy" %} <span class="code">{{ node.name }}</span> <small class="muted">{{ svc.name }}</small></h1>
+<section class="card">
+  <p class="muted"><small>{% trans "The new VM takes the old one's place: the name from the service's definition (its host name is exactly that name), the same platform, the same address on the service's network, built the current way — eth0 on the management network (cloud-vyos, VRF MGMT), the service's network on eth1, the configuration from the template applied on its first boot. The old VM is powered off and kept as <new name>-old (or removed once the new one works, if you choose so below); if the new one does not answer on its management address or its BGP peers do not come up, everything is rolled back by itself." %}</small></p>
+  {% if error %}<p style="color:var(--bad)">{{ error }}</p>
+  {% else %}
+  <dl class="facts">
+    <dt>{% trans "Platform" %}</dt><dd>{{ plan.platform }} · {% trans "cluster" %} {{ plan.cluster }} #{{ plan.cluster_id }}</dd>
+    <dt>{% trans "Old VM" %}</dt><dd>{% if plan.old_id %}{% if plan.old_name %}<span class="code">{{ plan.old_name }}</span> {% endif %}#{{ plan.old_id }} {% st plan.old_state %} · {% for n in plan.old_nics %}{{ n.net }} <span class="code">{{ n.ip|default:"—" }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}<span class="muted">{% trans "none on the platform" %}</span>{% endif %}</dd>
+    <dt>{% trans "Name" %}</dt><dd><span class="code">{{ plan.new_name }}</span> · {% trans "host name" %} <span class="code">{{ plan.new_hostname }}</span></dd>
+    <dt>{% trans "New VM" %}</dt><dd>{{ plan.vcpu }} vCPU · {{ plan.ram_mb }} MB · {{ plan.image }} #{{ plan.image_id }}<br>
+      {% if plan.gateway %}{% for n in plan.new_nics %}eth{{ forloop.counter0 }} {{ n.net }} <span class="code">{{ n.ip|default:"—" }}</span>{% if forloop.first %} (VRF MGMT){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}{% if plan.aliases %}<br>{% trans "aliases on core-services" %} {% for a in plan.aliases %}<span class="code">{{ a }}</span> {% endfor %}{% endif %}
+      {% else %}eth0 {{ plan.mgmt_net }} <span class="code">{{ plan.mgmt_ip }}</span> (VRF MGMT) · eth1 {{ plan.ix.net }} <span class="code">{{ plan.ix.ip }}</span>{% endif %}</dd>
+    {% if plan.gateway %}<dt>{% trans "The old VM gives up" %}</dt><dd>{% for n in plan.kept %}{{ n.net }} <span class="code">{{ n.ip }}</span>{% if n.alias %} <small class="muted">{% trans "alias" %}</small>{% endif %}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">{% trans "nothing" %}</span>{% endfor %}</dd>{% endif %}
+    <dt>{% trans "Configuration" %}</dt><dd>{% if plan.complete %}{% st "ok" _("complete") %}{% else %}{% st "bad" _("values missing") %}{% endif %}</dd>
+    <dt>{% trans "Definition" %}</dt><dd>{% if plan.definition_ok %}{% st "ok" _("fits") %}{% else %}{% st "bad" _("does not fit") %}{% endif %}</dd>
+  </dl>
+  {% include "inventory/_core_checks.html" with checks=plan.checks %}
+  <details><summary>{% trans "Configuration (passwords hidden)" %}</summary><pre class="code" style="max-height:420px;overflow:auto;font-size:12px">{{ plan.config }}</pre></details>
+  {% if plan.old_exists %}<p style="color:var(--bad)">{% trans "The old VM of an earlier redeploy is still kept: finish or roll back that one first." %}</p>
+  {% elif running %}<p>{% st "running" _("running") %} <a href="{% url 'tasks' %}">{% trans "Tasks" %}</a></p>
+  {% elif plan.complete %}
+  <form method="post" action="{% url 'core_redeploy' site.code svc.pk node.pk %}" class="stack" style="max-width:520px;margin-top:12px">{% csrf_token %}
+    {% if not plan.gateway %}<div class="field"><label for="exp">{% trans "BGP peers expected at least" %}</label><input id="exp" name="expected" inputmode="numeric" placeholder="25">
+      <div class="help">{% trans "The new VM counts as ready when this many peers are established (empty: all its peers, at least one)." %}</div></div>{% else %}<p class="muted"><small>{% trans "Ready when it answers ssh on its management address (the egw: and its BGP peers are established). Until then the core services have no gateway through it." %}</small></p>{% endif %}
+    {% if not plan.definition_ok %}<div class="field"><label class="inline"><input type="checkbox" name="force" value="1" required> {% trans "Redeploy even though the definition does not fit (forced)" %}</label>
+      <div class="help" style="color:var(--bad)">{% trans "The checks marked ✗ above failed: the new VM is made from the definition as it is. The task and the log record that it was forced." %}</div></div>{% endif %}
+    <div class="field"><label class="inline"><input type="checkbox" name="keep_old" value="1"> {% trans "Keep the old VM (powered off, as -old)" %}</label>
+      <div class="help">{% trans "Kept: you remove it (or roll back to it) later from the VMs table. Not kept: it is removed by itself as soon as the new VM has passed its checks; there is then nothing to roll back to." %}</div></div>
+    <div class="field"><label for="cf">{% trans "Type the VM's name to confirm" %}</label><input id="cf" name="confirm" autocomplete="off" placeholder="{{ node.name }}"></div>
+    <div><button class="btn danger">{% trans "Redeploy" %}</button></div>
+  </form>{% endif %}
+  {% endif %}
+</section>
+{% endblock %}

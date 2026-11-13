@@ -1,0 +1,5 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with org=org.name %}The registration of {{ org }} on the Example Cloud portal is approved.{% endblocktrans %}
+
+{% trans "You can sign in now and order resources:" %}
+{{ link }}
+{% endautoescape %}

@@ -1,0 +1,26 @@
+{% load i18n ui %}<div class="olist" data-key="orgs-{{ list_key|default:request.resolver_match.url_name }}">
+  {% if not list_filters %}{% include "ui/bar.html" with title=list_title add_url=list_add_url add_label=list_add_label %}{% endif %}
+  <div class="table-wrap"><table class="olist-table nowrap"><thead><tr>
+    <th aria-label="{% trans "Country" %}"></th><th>{% trans "Tax ID" %}</th><th>{% trans "Organization" %}</th>
+    {% if list_filters %}<th class="th-filter"><select name="kind" form="{{ filter_form }}" onchange="this.form.submit()"><option value="">{% trans "Type" %}</option>{% for v, l in kinds %}<option value="{{ v }}" {% if v == kind %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></th>{% else %}<th>{% trans "Type" %}</th>{% endif %}
+    <th class="num">{% trans "Users" %}</th><th class="num">{% trans "Projects" %}</th><th class="num">{% trans "Approvals" %}</th>
+    {% if list_filters %}<th class="th-filter"><select name="manager" form="{{ filter_form }}" onchange="this.form.submit()"><option value="">{% trans "Manager" %}</option>{% for u in managers %}<option value="{{ u.pk }}" {% if u.pk|stringformat:'s' == manager %}selected{% endif %}>{{ u.full_name|default:u.email }}</option>{% endfor %}</select></th>
+    <th class="th-filter"><select name="kam" form="{{ filter_form }}" onchange="this.form.submit()"><option value="">{% trans "KAM" %}</option>{% for u in kams %}<option value="{{ u.pk }}" {% if u.pk|stringformat:'s' == kam %}selected{% endif %}>{{ u.full_name|default:u.email }}</option>{% endfor %}</select></th>
+    {% else %}<th>{% trans "Manager" %}</th><th>{% trans "KAM" %}</th>{% endif %}
+  </tr></thead><tbody>
+  {% for o in orgs %}<tr class="orow" data-id="o-{{ o.pk }}">
+    <td title="{{ o.country_name }}">{{ o.country }}</td>
+    <td><span class="code" title="{{ o.get_tax_id_type_display }}">{{ o.tax_id|default:"—" }}</span></td>
+    <td style="max-width:280px"><span title="{{ o.name }}" style="display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ o.name }}{% if o.archived_at %} <span class="pill muted">{% trans "archived" %}</span>{% endif %}{% if o.registration == 'pending' %} {% st "pending" _("registration waiting") %}{% endif %}</span></td>
+    <td>{% tp o.kind o.kind %}</td>
+    <td class="num">{{ o.n_users|default:0 }}</td>
+    <td class="num">{{ o.n_tenants|default:0 }}{% if show_archived and o.n_archived %} <small class="muted">+{{ o.n_archived }}</small>{% endif %}</td>
+    <td class="num">{% if o.n_pending %}{% st "pending" o.n_pending %}{% else %}<span class="muted">0</span>{% endif %}</td>
+    <td><small>{% if o.kind == 'corp' %}{{ o.resource_manager|default:"—" }}{% else %}{{ o.sales_rep|default:"—" }}{% endif %}</small></td>
+    <td><small>{% if o.kind == 'corp' %}—{% else %}{{ o.kam|default:"—" }}{% endif %}</small></td>
+  </tr>{% empty %}<tr><td colspan="9" class="muted">{% trans "No organizations." %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for o in orgs %}<div class="odetail" data-for="o-{{ o.pk }}" data-src="{% url 'org_detail' o.pk %}?partial=1{% if show_archived %}&amp;archived=1{% endif %}" hidden></div>{% endfor %}</div>
+</div>
