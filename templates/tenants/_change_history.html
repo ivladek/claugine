@@ -1,0 +1,41 @@
+{% load i18n ui %}{# u09: resource change history — same view on the project and the organization page (show_project) #}
+<section class="card"{% if show_project %} id="resources"{% endif %}>
+  <div class="olist-bar"><h2 style="margin:0">{% trans "Resource change history" %}</h2>
+    <div class="olist-tools"><input type="search" placeholder="{% trans 'Filter' %}" data-hist-search aria-label="{% trans 'Filter' %}"></div></div>
+  <div class="table-wrap"><table class="olist-table hist" data-hist><thead><tr>
+    <th>{% trans "Date" %}</th>
+    <th class="th-filter"><select data-hist-col="1"><option value="">{% trans "Action" %}</option><option value="create">{% trans "create" %}</option><option value="update">{% trans "update" %}</option><option value="delete">{% trans "delete" %}</option></select></th>
+    {% if show_project %}<th class="th-filter"><select data-hist-col="2"><option value="">{% trans "Project" %}</option>{% for p in history_projects %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></th>{% endif %}
+    <th>{% trans "Values" %}</th><th>{% trans "Valid" %}</th>
+    <th class="th-filter"><select data-hist-col="{% if show_project %}5{% else %}4{% endif %}"><option value="">{% trans "Status" %}</option><option value="applied">{% trans "applied" %}</option></select></th>
+  </tr></thead><tbody>
+  {% for r in rows %}<tr>
+    <td class="nowrap">{{ r.date|date:"d.m.Y H:i" }}</td>
+    <td>{% if r.action == 'create' %}<span class="tp c-green">{% trans "create" %}</span>{% elif r.action == 'delete' %}<span class="tp c-pink">{% trans "delete" %}</span>{% else %}<span class="tp c-blue">{% trans "update" %}</span>{% endif %}</td>
+    {% if show_project %}<td class="nowrap"><span class="code">{{ r.tenant.name|default:r.tenant.title }}</span></td>{% endif %}
+    <td>{% if r.action == 'delete' %}<span class="muted">{% trans "removed" %}</span>{% else %}{{ r.cpu }} vCPU · {{ r.ram_gb }} {% trans "GB RAM" %}{% if r.gpu %} · {{ r.gpu }} {% trans "GPU" %}{% endif %} · {{ r.disk_gb }} {% trans "GB storage" %} · {{ r.backups_gb }} {% trans "GB backups" %}{% if r.public_ips %} · {{ r.public_ips }} {% trans "IP" %}{% endif %}{% if r.inet_mbps %} · {{ r.inet_mbps }} {% trans "Mbps" %}{% endif %}{% if r.l2 %} · {% trans "L2" %} {{ r.l2 }}{% endif %}{% endif %}</td>
+    <td{% if r.current %} class="valid-now"{% endif %}>{% if r.action == 'delete' %}<span class="muted">—</span>{% else %}{{ r.days }} {% trans "days" %}{% if r.current %} · {% trans "now" %}{% endif %}{% endif %}</td>
+    <td>{% st "ok" _("applied") %}</td>
+  </tr>{% empty %}<tr><td colspan="{% if show_project %}6{% else %}5{% endif %}" class="muted">{% trans "No resource changes yet." %}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<script>(function () {
+  var s = document.currentScript, box = s && s.closest("section"); if (!box) return;
+  var t = box.querySelector("table[data-hist]"); if (!t || t.dataset.histReady) return; t.dataset.histReady = "1";
+  var search = box.querySelector("[data-hist-search]"), sels = box.querySelectorAll("select[data-hist-col]");
+  var rows = Array.prototype.slice.call(t.tBodies[0].rows);
+  function apply() {
+    var q = ((search && search.value) || "").trim().toLowerCase();
+    rows.forEach(function (r) {
+      var show = !q || r.textContent.toLowerCase().indexOf(q) >= 0;
+      sels.forEach(function (sel) {
+        if (!show || !sel.value) return;
+        var c = r.cells[+sel.dataset.histCol];
+        if (!c || c.textContent.toLowerCase().indexOf(sel.value.toLowerCase()) < 0) show = false;
+      });
+      r.hidden = !show;
+    });
+  }
+  if (search) search.addEventListener("input", apply);
+  sels.forEach(function (sel) { sel.addEventListener("change", apply); });
+})();</script>

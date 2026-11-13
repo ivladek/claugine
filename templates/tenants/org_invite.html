@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Invite an organization" %}{% endblock %}
+{% block content %}
+<p><a href="{% url 'org_list' %}">← {% trans "Organizations" %}</a></p>
+<h1>{% trans "Invite an organization" %}</h1>
+<div class="grid two">
+<section class="card"><h2>{% trans "Invitation" %}</h2>
+  <p class="muted">{% blocktrans %}The user gets a link to the registration form with the email filled in. They enter the organization's details and become its admin; no email confirmation is needed. Corporate organizations may order corporate projects and the corporate network.{% endblocktrans %}</p>
+  <form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn">{% trans "Send invitation" %}</button></form>
+</section>
+<section class="card"><h2>{% trans "Sent invitations" %}</h2>
+  <div class="table-wrap"><table><tr><th>{% trans "Email" %}</th><th>{% trans "Type" %}</th><th>{% trans "By" %}</th><th>{% trans "State" %}</th></tr>
+  {% for i in invitations %}<tr><td>{{ i.email }}</td><td>{{ i.summary }}</td><td><small>{{ i.invited_by|default:"—" }}</small></td><td><span class="pill {{ i.state }}">{{ i.state }}</span>{% if i.is_usable and is_super or i.is_usable and i.invited_by_id == user.pk %}<form class="inline" method="post" action="{% url 'revoke_invitation' i.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'org_invite' %}"><button class="btn danger small">{% trans "Revoke" %}</button></form>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="4" class="muted">{% trans "No invitations yet." %}</td></tr>{% endfor %}</table></div>
+</section>
+</div>
+{% endblock %}
