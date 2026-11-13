@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="max-width:640px"><h1>{{ person.full_name|default:person.email }}</h1><p class="muted">{{ person.email }}</p>
+<form method="post" class="stack">{% csrf_token %}
+  <div class="field check"><input type="checkbox" name="org_admin" id="oa" {% if person.is_org_admin %}checked{% endif %} {% if is_self %}disabled{% endif %}> <label for="oa">{% trans "Organization admin" %}</label><div class="help">{% trans "Manages people and requests projects; full access to every project." %}</div></div>
+  {% for t, role in rows %}<div class="field"><label>{{ t }}</label><select name="tenant_{{ t.pk }}" {% if is_self %}disabled{% endif %}><option value="">{% trans "no access" %}</option>{% for v, l in roles %}<option value="{{ v }}" {% if v == role %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>{% endfor %}
+  {% if not is_self %}<div class="actions"><button class="btn">{% trans "Save" %}</button><a href="{% url 'org_users' %}">{% trans "Cancel" %}</a></div>{% endif %}
+</form>
+{% if not is_self %}<form method="post" action="{% url 'remove_person' person.pk %}" style="margin-top:18px">{% csrf_token %}<button class="btn danger small">{% trans "Remove" %}</button></form>{% endif %}
+</div>
+{% endblock %}

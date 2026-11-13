@@ -1,0 +1,4 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with org=org_name %}The registration of {{ org }} on the Example Cloud portal was not approved.{% endblocktrans %}
+{% if reason %}
+{% trans "Reason" %}: {{ reason }}{% endif %}
+{% endautoescape %}

@@ -1,0 +1,17 @@
+{% load i18n %}{% autoescape off %}{% include "emails/_report_head.txt" %}
+{% include "emails/_report_pstats.txt" %}
+{% trans "Organizations" %}: {{ stats.orgs }} ({% blocktrans with c=stats.orgs_cloud k=stats.orgs_corp %}cloud {{ c }}, corporate {{ k }}{% endblocktrans %}); {% trans "new" %} {{ stats.orgs_new }}, {% trans "waiting for approval" %} {{ stats.orgs_waiting }}
+{% trans "Waiting for approval" %}: {% blocktrans with p=stats.requests_waiting r=stats.changes_waiting n=stats.network_waiting %}projects {{ p }}, resource changes {{ r }}, network changes {{ n }}{% endblocktrans %}
+{% trans "Failed in the period" %}: {% blocktrans with d=stats.deploy_failed t=stats.tasks_failed %}deployments {{ d }}, tasks {{ t }}{% endblocktrans %}; {% trans "sign-ins" %} {{ stats.logins }}
+
+{% trans "Projects by type and stage" %}: {% for k, s, n in stats.by %}{{ k }}/{{ s }} {{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}
+{% trans "Projects by status" %}: {% for s, n in stats.statuses %}{{ s }} {{ n }}{% if not forloop.last %}, {% endif %}{% endfor %}
+{% if stats.reviews %}
+{% trans "Review dates come or close" %}:
+{% trans "Organization" %} | {% trans "Type" %} | {% trans "Project" %} | {% trans "Stage" %} | {% trans "Review" %}
+{% for t in stats.reviews %}  {{ t.org }} | {{ t.kind }} | {{ t.name }} | {{ t.stage }} | {{ t.review|date:"d.m.Y" }}{% if t.alert == 'due' %} !!{% else %} !{% endif %}
+{% endfor %}{% endif %}{% include "emails/_report_usage.txt" %}{% include "emails/_report_changes.txt" %}
+{% trans "Platform and portal health" %}: {% trans "release" %} {{ health.version|default:stats.version|default:"—" }}, {% trans "HA" %} {{ health.role|default:"—" }}{% if health.has_peer is not None %} ({% if health.has_peer %}{% trans "peer present" %}{% else %}{% trans "no peer" %}{% endif %}){% endif %}, {% trans "platforms" %} {{ health.platforms|default:"—" }}, {% trans "sign-ins" %} {{ stats.logins }}
+{% trans "Backups" %}: {% trans "portal" %} {{ backups.portal_at|date:"d.m.Y H:i"|default:"—" }} {{ backups.portal_result }}; {% trans "front ends" %} {{ backups.fe_at|date:"d.m.Y H:i"|default:"—" }} {{ backups.fe_result }}
+{{ link }}
+{% endautoescape %}

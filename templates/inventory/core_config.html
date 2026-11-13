@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{{ node.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'infra_site' site.code %}?tab=core&sel=cs-{{ svc.pk }}">← {% trans "Core services" %} · {{ site.code }}</a></p>
+<h1>{% trans "Configuration" %} <span class="code">{{ node.name }}</span> <small class="muted">{{ svc.name }}</small></h1>
+<section class="card">
+  <p class="muted"><small>{% trans "What a new VM of it gets: the template with the site's context, then the service's differences from it (set lines added, delete lines removing parts of the template). Passwords hidden; the management address shows as «…» until a VM is made." %}</small></p>
+  <dl class="facts">
+    <dt>{% trans "Template" %}</dt><dd>{{ svc.template.name|default:"—" }}</dd>
+    <dt>{% trans "Differences from the template" %}</dt><dd>{% blocktrans count n=diff_count %}{{ n }} line{% plural %}{{ n }} lines{% endblocktrans %}</dd>
+  </dl>
+  {% if error %}<p style="color:var(--bad)">{{ error }}</p>{% else %}
+  <pre class="code" style="max-height:640px;overflow:auto;font-size:12px">{{ config }}</pre>{% endif %}
+  {% if diff %}<details><summary>{% trans "Differences from the template" %}</summary><pre class="code" style="max-height:420px;overflow:auto;font-size:12px">{{ diff|join:"
+" }}</pre></details>{% endif %}
+</section>
+{% endblock %}
