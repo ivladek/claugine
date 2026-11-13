@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load i18n %}
+{% block content %}
+<h1>{% trans "News & status" %}</h1>
+<section class="card olist" data-key="components">
+  {% trans "Public service status" as title %}{% trans "Add service" as add_label %}{% include "ui/bar.html" with add_dialog="dlg-comp-new" %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Service" %}</th><th>{% trans "State" %}</th><th>{% trans "Note" %}</th><th>{% trans "Uptime, 30 days" %}</th><th></th></tr></thead><tbody>
+    {% for c, form in components %}<tr class="orow" data-id="c-{{ c.pk }}"><td>{{ c.name }}</td><td><span class="pill {{ c.state }}">{{ c.get_state_display }}</span></td><td>{{ c.note|truncatechars:60 }}</td><td>{{ c.uptime|default_if_none:"—" }}{% if c.uptime is not None %}%{% endif %}</td>
+      <td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-comp-{{ c.pk }}">{% trans "Edit" %}</button><form class="inline" method="post" action="{% url 'content_delete' 'service' c.pk %}" onsubmit="return confirm('{% trans "Delete this service and its history?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form></td></tr>
+    {% empty %}<tr><td colspan="5" class="muted">{% trans "No services yet." %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for c, form in components %}<div class="odetail card" data-for="c-{{ c.pk }}" hidden><h3>{{ c.name }}</h3>
+    <dl class="facts"><dt>{% trans "State" %}</dt><dd>{{ c.get_state_display }}</dd><dt>{% trans "Note" %}</dt><dd>{{ c.note|default:"—" }}</dd>
+      <dt>{% trans "Uptime, 30 days" %}</dt><dd>{{ c.uptime|default_if_none:"—" }}{% if c.uptime is not None %}%{% endif %}</dd></dl></div>{% endfor %}</div>
+</section>
+<section class="card olist" data-key="articles">
+  {% trans "Articles" as title %}{% trans "New article" as add_label %}{% include "ui/bar.html" with add_dialog="dlg-art-new" %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Title" %}</th><th>{% trans "Kind" %}</th><th>{% trans "Published" %}</th><th>{% trans "Show until" %}</th><th>{% trans "Author" %}</th><th></th></tr></thead><tbody>
+    {% for a, form in articles %}<tr class="orow" data-id="a-{{ a.pk }}"><td>{{ a.title }}</td><td>{{ a.get_kind_display }}</td><td>{% if a.is_published %}{{ a.published_at|date:"d.m.Y H:i" }}{% else %}<span class="pill muted">{% trans "draft" %}</span>{% endif %}</td><td>{{ a.show_until|date:"d.m.Y H:i"|default:"—" }}</td><td>{{ a.author|default:"—" }}</td>
+      <td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-art-{{ a.pk }}">{% trans "Edit" %}</button><form class="inline" method="post" action="{% url 'content_delete' 'article' a.pk %}" onsubmit="return confirm('{% trans "Delete this article?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form></td></tr>
+    {% empty %}<tr><td colspan="6" class="muted">{% trans "Nothing published yet." %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for a, form in articles %}<div class="odetail card" data-for="a-{{ a.pk }}" hidden><h3>{{ a.title }}</h3>
+    <dl class="facts"><dt>{% trans "Kind" %}</dt><dd>{{ a.get_kind_display }}</dd><dt>{% trans "Published" %}</dt><dd>{% if a.is_published %}{{ a.published_at|date:"d.m.Y H:i" }}{% else %}{% trans "draft" %}{% endif %}</dd>
+      <dt>{% trans "Show until" %}</dt><dd>{{ a.show_until|date:"d.m.Y H:i"|default:"—" }}</dd><dt>{% trans "Author" %}</dt><dd>{{ a.author|default:"—" }}</dd></dl>
+    <div style="white-space:pre-wrap">{{ a.body }}</div></div>{% endfor %}</div>
+</section>
+<dialog id="dlg-comp-new" class="card" style="max-width:560px;width:92%"><h2>{% trans "Add service" %}</h2>
+  <form method="post" action="{% url 'component_new' %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=component_form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for c, form in components %}<dialog id="dlg-comp-{{ c.pk }}" class="card" style="max-width:560px;width:92%"><h2>{{ c.name }}</h2>
+  <form method="post" action="{% url 'component_edit' c.pk %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+<dialog id="dlg-art-new" class="card" style="max-width:720px;width:94%"><h2>{% trans "New article" %}</h2>
+  <form method="post" action="{% url 'article_new' %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=article_form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for a, form in articles %}<dialog id="dlg-art-{{ a.pk }}" class="card" style="max-width:720px;width:94%"><h2>{{ a.title }}</h2>
+  <form method="post" action="{% url 'article_edit' a.pk %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endblock %}
