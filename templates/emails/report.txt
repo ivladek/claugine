@@ -1,0 +1,31 @@
+{% load i18n %}{% autoescape off %}{% include "emails/_report_head.txt" %}
+{% if scoped %}{% trans "Your organizations only." %}
+{% endif %}
+{% trans "Totals" %} ({% trans "+new · updated · −archived in the period" %}):
+{% for t in tiles %}  {{ t.label }}: {{ t.total }} (+{{ t.new }} · {{ t.updated }} · −{{ t.gone }})
+{% endfor %}{% if usage %}
+{% if all_clusters %}{% trans "Clusters" %}{% else %}{% trans "Shared clusters" %}{% endif %} ({% trans "allocated of available" %}):
+{% for u in usage %}  {{ u.site }} {{ u.cluster }}: vCPU {{ u.vcpu }}/{{ u.vcpu_cap }}, RAM {{ u.ram }}/{{ u.ram_cap }} GB{% if u.gpu_cap %}, GPU {{ u.gpu }}/{{ u.gpu_cap }}{% endif %}
+{% endfor %}{% endif %}{% if datastores %}
+{% trans "Datastores" %}:
+{% for d in datastores %}  {{ d.name }} ({{ d.kind }}, {{ d.platform }}): {{ d.used }}/{{ d.cap }} GB ({{ d.pct }}%){% if d.live_total is not None %}; OpenNebula {{ d.live_used }}/{{ d.live_total }} GB{% endif %}
+{% endfor %}{% endif %}{% if subnets %}
+{% trans "IP subnets" %}:
+{% for s in subnets %}  {{ s.subnet }} ({{ s.site }}, {{ s.purpose }}): {{ s.used }}/{{ s.total }} ({{ s.pct }}%)
+{% endfor %}{% endif %}{% if projects is not None %}
+{% trans "Projects" %}{% if projects_mode == 'usage' %} ({% trans "quota / in use" %}){% endif %}:
+{% for p in projects %}  {{ p.org }} · {{ p.name }}{% if projects_mode == 'dates' %} · {{ p.start|date:"d.m.Y"|default:"—" }} – {{ p.review|date:"d.m.Y"|default:"—" }}{% if p.alert %} !{% endif %}{% endif %}: vCPU {{ p.quota.cpu }}{% if p.used %}/{{ p.used.cpu }}{% endif %}, RAM {{ p.quota.ram_gb }}{% if p.used %}/{{ p.used.ram_gb }}{% endif %}, GPU {{ p.quota.gpu }}{% if p.used %}/{{ p.used.gpu }}{% endif %}, {% trans "storage" %} {{ p.quota.disk_gb }}{% if p.used %}/{{ p.used.disk_gb }}{% endif %}, {% trans "backups" %} {{ p.quota.backups_gb }}{% if p.used %}/{{ p.used.backups_gb }}{% endif %}
+{% empty %}  {% trans "None." %}
+{% endfor %}{% endif %}{% if near is not None %}
+{% trans "Projects near their review date" %}:
+{% for t in near %}  {{ t.review|date:"d.m.Y" }}{% if t.alert == 'due' %} !{% endif %} {{ t.name }} ({{ t.org }}, {{ t.stage }})
+{% empty %}  {% trans "None." %}
+{% endfor %}{% endif %}{% if backup_runs is not None %}
+{% trans "Backups" %}:
+{% for b in backup_runs %}  {{ b.at|date:"d.m.Y H:i" }} {{ b.type }}: {% if b.ok %}{% trans "ok" %}{% else %}{% trans "failed" %} - {{ b.result }}{% endif %}, {{ b.size_bytes|filesizeformat }}
+{% empty %}  {% trans "None." %}
+{% endfor %}{% endif %}{% if portal %}
+{% trans "Portal updates" %} ({% blocktrans with v=portal.current|default:"—" s=portal.stream %}now {{ v }} · stream {{ s }}{% endblocktrans %}; {% trans "switches active / standby" %}: {{ portal.switches }}):
+{% for u in updates %}  {{ u.at|date:"d.m.Y H:i" }} {{ u.version|default:"—" }}: {% trans "standby" %} {{ u.standby|default:"—" }}, {% trans "active" %} {{ u.active|default:"—" }}{% if u.error %} - {{ u.error }}{% endif %}
+{% empty %}  {% trans "No updates in the period." %}
+{% endfor %}{% endif %}{% endautoescape %}

@@ -1,0 +1,242 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "New project" %}{% endblock %}
+{% block content %}
+<h1>{% if staff %}{% trans "New project" %}{% else %}{% trans "Order a project" %}{% endif %}</h1>
+{% if staff %}
+<form method="get" class="fld-inline" style="margin-bottom:12px"><label for="id_org_pick">{% trans "Organization" %}</label>
+  <select id="id_org_pick" name="org" onchange="this.form.submit()" style="width:360px"><option value="">—</option>{% for o in orgs %}<option value="{{ o.pk }}" {% if org and o.pk == org.pk %}selected{% endif %}>{{ o.name }}{% if o.tax_id %} · {{ o.tax_id }}{% endif %}</option>{% endfor %}</select>
+  <noscript><button class="btn ghost small">{% trans "Choose" %}</button></noscript></form>
+{% endif %}
+{% if org %}
+{{ people_meta|json_script:"people-meta" }}
+<div class="actions" style="margin-bottom:16px">
+  <button class="btn" form="order">{% if staff %}{% trans "Create" %}{% else %}{% trans "Send the order" %}{% endif %}</button>
+  <a class="btn ghost" href="{% if staff %}{% url 'tenant_list' %}{% else %}{% url 'my_org' %}{% endif %}">{% trans "Cancel" %}</a>
+</div>
+<form method="post" class="stack" id="order">{% csrf_token %}{% if staff %}<input type="hidden" name="org" value="{{ org.pk }}">{% endif %}
+  {% if form.non_field_errors %}<ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  <section class="card compact">
+    <p class="ctxline"><strong>{{ org.name }}</strong>{% if org.tax_id %} <small class="muted">{{ org.tax_id }}</small>{% endif %} · {{ org.get_kind_display }}</p>
+
+    <fieldset>
+      <div class="fld-inline" data-field="name"><label for="{{ form.name.id_for_label }}">{% trans "Short name" %}</label><span class="code" style="color:var(--ink-2)">_{{ org.short_name }}_</span>{{ form.name }}<span class="fnote">{{ form.name.help_text }}</span></div>
+      {{ form.name.errors }}
+      <div class="grid four" style="align-items:start">
+        <div class="field"><label>{% trans "Type" %}</label>{% if corporate_allowed %}{{ form.kind }}{% else %}<p class="ro">{% trans "Cloud" %}</p>{% endif %}</div>
+        <div class="field"><label>{% trans "Stage" %}</label>{{ form.stage }}</div>
+        <div class="field"><label>{% trans "Review date" %}</label>{{ form.date_review }}</div>
+      </div>
+      {{ form.kind.errors }}{{ form.stage.errors }}{{ form.date_review.errors }}
+    </fieldset>
+
+    <fieldset><legend>{% trans "Team" %}</legend>
+      <table class="ptable">
+        <thead><tr><th>{% trans "Role" %}</th><th>{% trans "Full name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Mobile" %}</th><th>{% trans "City" %}</th></tr></thead>
+        <tbody>
+          <tr data-person><td class="role">{% trans "Project admin" %}</td><td>{{ form.tenant_admin }}</td>
+            <td class="auto" data-cell="e">—</td><td class="auto" data-cell="p">—</td><td class="auto" data-cell="c">—</td></tr>
+          <tr><td class="role">{% trans "Support engineer" %}</td><td colspan="4"><span class="muted">{% trans "assigned by the resource manager after approval" %}</span></td></tr>
+        </tbody>
+      </table>
+      {{ form.tenant_admin.errors }}
+      {% if form.fields.tenant_admin.choices|length < 2 %}<div class="help">{% if staff %}{% trans "The organization has no users yet: add one on the organization's page first." %}{% else %}{% trans "Your organization has no users yet." %}{% endif %}</div>{% endif %}
+    </fieldset>
+
+    <fieldset><legend>{% trans "Resources" %}</legend>
+      {% if not form.fields.pool.choices %}<div class="help">{% trans "No resource pool can be ordered right now. Please contact us." %}</div>{% endif %}
+      <div class="grid four" style="align-items:start">
+        <div class="field"><label>{% trans "Site" %}</label>{{ form.site }}</div>
+        <div class="field"><label>{% trans "Cluster" %}</label>{{ form.pool }}</div>
+        <div class="field" data-pool="gpu"><label>{% trans "GPU bundles" %}</label>{{ form.gpu }}</div>
+        <div class="field" data-pool="cpu"><label>{% trans "vCPU" %}</label>{{ form.cpu }}</div>
+        <div class="field" data-pool="cpu"><label>{% trans "RAM, GB" %}</label>{{ form.ram_gb }}</div>
+        <div class="field"><label>{% trans "Storage, GB" %}</label>{{ form.disk_gb }}</div>
+        <div class="field"><label>{% trans "Backups, GB" %}</label>{{ form.backups_gb }}</div>
+      </div>
+      {{ form.site.errors }}{{ form.pool.errors }}{{ form.gpu.errors }}{{ form.cpu.errors }}{{ form.ram_gb.errors }}{{ form.disk_gb.errors }}{{ form.backups_gb.errors }}
+      <p class="fnote" id="bunch" style="margin:4px 0 0"></p>
+    </fieldset>
+
+    <fieldset><legend>{% trans "Connectivity" %}</legend>
+      {{ form.connections }}{{ form.connections.errors }}
+      <div data-show="inet" style="margin-top:8px">
+        <h3 style="margin:0 0 6px">{% trans "Internet" %}</h3>
+        <div class="frow">
+          <div class="field" style="max-width:140px"><label>{% trans "Speed, Mbps" %}</label>{{ form.inet_mbps }}</div>
+          <div class="field" style="max-width:260px"><label>{% trans "Internet gateway" %}</label>{{ form.igw_type }}</div>
+          <div class="field pfield"><label>{% trans "Prefixes" %}</label>
+            <div class="plist pflow" id="inet-plist" data-kind="inet">
+              <div class="prow"><span class="ptag">{% trans "main" %}</span>{{ form.inet_main_pool }}{{ form.inet_main_prefix }}</div>
+              <button type="button" class="btn ghost small addpfx" onclick="addPrefix(this)">+ {% trans "prefix" %}</button>
+              <template class="ptpl"><div class="prow"><select class="pbsel"><option value="">{% trans "auto" %}</option>{% for c, label in base_choices %}<option value="{{ c }}">{{ label }}</option>{% endfor %}</select><select class="pxsel">{% for n in prefix_lengths %}<option value="{{ n }}">/{{ n }}</option>{% endfor %}</select><button type="button" class="pm" onclick="rmPrefix(this)">−</button></div></template>
+            </div>
+          </div>
+        </div>
+        {{ form.inet_extra_prefixes.as_hidden }}{{ form.inet_extra_pools }}
+        {{ form.inet_mbps.errors }}{{ form.igw_type.errors }}{{ form.inet_main_prefix.errors }}{{ form.inet_main_pool.errors }}{{ form.inet_extra_prefixes.errors }}
+      </div>
+      <div data-show="corpnet" style="margin-top:8px">
+        <h3 style="margin:0 0 6px">{% trans "Corporate network" %}</h3>
+        <div class="frow">
+          <div class="field pfield"><label>{% trans "Prefixes" %}</label>
+            <div class="plist pflow" id="corpnet-plist" data-kind="corpnet">
+              <div class="prow"><span class="ptag">{% trans "main" %}</span>{{ form.corpnet_main_pool }}{{ form.corpnet_main_prefix }}</div>
+              <button type="button" class="btn ghost small addpfx" onclick="addPrefix(this)">+ {% trans "prefix" %}</button>
+              <template class="ptpl"><div class="prow"><select class="pbsel"><option value="">{% trans "auto" %}</option>{% for c, label in corpnet_base_choices %}<option value="{{ c }}">{{ label }}</option>{% endfor %}</select><select class="pxsel">{% for n in corpnet_prefix_lengths %}<option value="{{ n }}">/{{ n }}</option>{% endfor %}</select><button type="button" class="pm" onclick="rmPrefix(this)">−</button></div></template>
+            </div>
+          </div>
+        </div>
+        {{ form.corpnet_extra_prefixes.as_hidden }}{{ form.corpnet_extra_pools }}
+        {{ form.corpnet_main_prefix.errors }}{{ form.corpnet_main_pool.errors }}{{ form.corpnet_extra_prefixes.errors }}
+      </div>
+      <div data-show="l2" style="margin-top:8px"><h3 style="margin:0 0 6px">{% trans "External L2 channel" %}</h3><p class="help" style="margin:0">{% trans "Ordered now, set up after the project is created: the resource manager approves it, the support engineer assigns the VLAN, and you choose the project subnet to extend on the project's Connectivity page. A subnet-to-subnet (internal) L2 channel between two sites is added there too, once the project has resources on two sites." %}</p></div>
+    </fieldset>
+
+    <fieldset><legend>{% trans "Notes" %}</legend>{{ form.note }}{{ form.note.errors }}</fieldset>
+  </section>
+</form>
+{{ pools|json_script:"pools" }}
+{{ base_subnets|json_script:"base-subnets" }}
+{{ base_choices|json_script:"base-choices" }}
+{{ corpnet_base_subnets|json_script:"corp-base-subnets" }}
+{{ corpnet_base_choices|json_script:"corp-base-choices" }}
+<script>
+(function () {
+  var form = document.getElementById('order');
+  var pools = JSON.parse(document.getElementById('pools').textContent);
+  var baseSubnets = JSON.parse(document.getElementById('base-subnets').textContent);
+  var baseChoices = JSON.parse(document.getElementById('base-choices').textContent);
+  var corpBaseSubnets = JSON.parse(document.getElementById('corp-base-subnets').textContent);
+  var corpBaseChoices = JSON.parse(document.getElementById('corp-base-choices').textContent);
+  var baseData = { inet: {choices: baseChoices, subnets: baseSubnets}, corpnet: {choices: corpBaseChoices, subnets: corpBaseSubnets} };
+  var AUTO = '{% trans "auto" %}';
+  var site = form.querySelector('[name="site"]'), pool = form.querySelector('[name="pool"]'), gpu = form.querySelector('[name="gpu"]');
+  // u11: a base-subnet <select> lists only the IX subnets the chosen cluster's platform reaches, with "auto" first.
+  // Options are REBUILT (not hidden) — native <select> on macOS ignores `hidden` on <option>.
+  function platformKey() { return pool && pool.value ? pool.value.split('/')[0] : ''; }
+  function plistKind(el) { var pl = el.closest('.plist'); return pl ? pl.getAttribute('data-kind') : 'inet'; }
+  function fillBase(sel) {
+    var data = baseData[plistKind(sel)] || baseData.inet;
+    var pk = platformKey(), keep = sel.value, html = '<option value="">' + AUTO + '</option>';
+    data.choices.forEach(function (c) {
+      var m = data.subnets[c[0]];
+      if (m && (!pk || m.platforms.indexOf(pk) >= 0)) html += '<option value="' + c[0] + '">' + c[1] + '</option>';
+    });
+    sel.innerHTML = html;
+    sel.value = keep;
+    if (sel.value !== keep) sel.value = '';  // chosen subnet not on this platform → back to auto
+  }
+  function fillAllBase() { form.querySelectorAll('.plist .pbsel, .plist [name$="_main_pool"]').forEach(fillBase); }
+  if (site && pool) {
+    var all = Array.prototype.map.call(pool.options, function (o) { return {value: o.value, text: o.text}; });
+    function fillPools() {
+      var keep = pool.value;
+      pool.innerHTML = '';
+      all.forEach(function (o) {
+        var p = pools[o.value];
+        if (p && p.site === site.value) { var el = document.createElement('option'); el.value = o.value; el.text = o.text; pool.appendChild(el); }
+      });
+      if (Array.prototype.some.call(pool.options, function (o) { return o.value === keep; })) pool.value = keep;
+      syncPool();
+    }
+    function syncPool() {
+      var p = pools[pool.value], isGpu = !!(p && p.gpu);
+      form.querySelectorAll('[data-pool]').forEach(function (el) {
+        el.style.display = (el.getAttribute('data-pool') === 'gpu') === isGpu ? '' : 'none';
+      });
+      var b = document.getElementById('bunch');
+      if (isGpu && gpu) {
+        var n = Math.max(1, parseInt(gpu.value || '1', 10));
+        b.textContent = n + ' × (' + p.gpu.model + ' ' + p.gpu.vram_gb + ' GB + ' + p.gpu.cores + ' vCPU + ' + p.gpu.ram_gb + ' GB RAM) = ' + n + ' GPU + ' + (n * p.gpu.cores) + ' vCPU + ' + (n * p.gpu.ram_gb) + ' GB RAM';
+      } else { b.textContent = ''; }
+      fillAllBase();
+    }
+    site.addEventListener('change', fillPools);
+    pool.addEventListener('change', syncPool);
+    if (gpu) gpu.addEventListener('input', syncPool);
+    fillPools();
+  }
+  function checked() {
+    return Array.prototype.map.call(form.querySelectorAll('input[name="connections"]:checked'), function (i) { return i.value; });
+  }
+  function sync() {
+    var on = checked();
+    form.querySelectorAll('[data-show]').forEach(function (el) {
+      el.style.display = on.indexOf(el.getAttribute('data-show')) >= 0 ? '' : 'none';
+    });
+  }
+  // owner 2026-11-04: the internet and the corporate network cannot be combined — checking one clears the other
+  form.querySelectorAll('input[name="connections"]').forEach(function (i) {
+    i.addEventListener('change', function () {
+      if (i.checked && (i.value === 'inet' || i.value === 'corpnet')) {
+        var other = i.value === 'inet' ? 'corpnet' : 'inet';
+        form.querySelectorAll('input[name="connections"]').forEach(function (j) { if (j.value === other) j.checked = false; });
+      }
+      sync();
+    });
+  });
+  sync();
+  var meta = {}; try { meta = JSON.parse(document.getElementById('people-meta').textContent) || {}; } catch (e) {}
+  var PH = {p: '—', c: '—'};
+  var ta = form.querySelector('[name="tenant_admin"]');
+  if (ta) {
+    var tr = ta.closest('tr');
+    function fillTA() {
+      var m = meta[ta.value] || {};
+      tr.querySelector('[data-cell=e]').textContent = m.e || '—';
+      tr.querySelector('[data-cell=p]').textContent = m.p || PH.p;
+      tr.querySelector('[data-cell=c]').textContent = m.c || PH.c;
+    }
+    ta.addEventListener('change', fillTA); fillTA();
+  }
+  // u11 + owner 2026-11-05: additional prefixes as a +/- chain per plist (inet, corpnet), serialized into that
+  // plist's hidden <kind>_extra_prefixes / <kind>_extra_pools. The main prefix and its base are their own form fields.
+  function serializePlist(plist) {
+    var kind = plist.getAttribute('data-kind');
+    var extra = form.querySelector('[name="' + kind + '_extra_prefixes"]');
+    if (!extra) return;
+    var extraPools = form.querySelector('[name="' + kind + '_extra_pools"]');
+    var lens = [], bases = [];
+    plist.querySelectorAll('.prow .pxsel').forEach(function (s) {
+      if (!s.value) return;
+      lens.push(s.value);
+      var b = s.closest('.prow').querySelector('.pbsel'); bases.push((b && b.value) ? b.value : 'auto');
+    });
+    extra.value = lens.join(' ');
+    if (extraPools) extraPools.value = bases.join(' ');
+  }
+  function syncAll() { form.querySelectorAll('.plist').forEach(serializePlist); }
+  window.addPrefix = function (btn) {
+    var plist = btn.closest('.plist'), tpl = plist.querySelector('template.ptpl');
+    var row = tpl.content.firstElementChild.cloneNode(true);
+    plist.insertBefore(row, btn);
+    row.querySelector('.pxsel').addEventListener('change', syncAll);
+    var pb = row.querySelector('.pbsel'); if (pb) pb.addEventListener('change', syncAll);
+    fillAllBase();
+    syncAll();
+  };
+  window.rmPrefix = function (btn) { btn.closest('.prow').remove(); syncAll(); };
+  form.querySelectorAll('.plist').forEach(function (plist) {
+    var kind = plist.getAttribute('data-kind');
+    var extra = form.querySelector('[name="' + kind + '_extra_prefixes"]');
+    if (!extra) return;
+    var extraPools = form.querySelector('[name="' + kind + '_extra_pools"]');
+    var tpl = plist.querySelector('template.ptpl'), addbtn = plist.querySelector('.addpfx');
+    var lens0 = (extra.value || '').split(/\s+/).filter(Boolean);
+    var bases0 = (extraPools && extraPools.value || '').split(/\s+/).filter(Boolean);
+    lens0.forEach(function (len, i) {
+      var row = tpl.content.firstElementChild.cloneNode(true), s = row.querySelector('.pxsel');
+      s.value = len;
+      if (s.value !== len) { var o = document.createElement('option'); o.value = len; o.text = '/' + len; s.appendChild(o); s.value = len; }
+      var pb = row.querySelector('.pbsel'), want = bases0[i] || 'auto';
+      if (pb && want !== 'auto') { pb.value = want; }
+      plist.insertBefore(row, addbtn);
+      s.addEventListener('change', syncAll);
+      if (pb) pb.addEventListener('change', syncAll);
+    });
+  });
+  fillAllBase();
+  syncAll();
+})();
+</script>
+{% endif %}
+{% endblock %}
