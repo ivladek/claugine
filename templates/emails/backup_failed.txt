@@ -1,0 +1,6 @@
+{% load i18n %}{% autoescape off %}{{ subject }}
+
+{{ text }}
+
+{% trans "Settings → Backups shows the latest result and the schedule." %}
+{% endautoescape %}

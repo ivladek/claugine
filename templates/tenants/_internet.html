@@ -1,0 +1,195 @@
+{% load i18n ui %}{# correction 14: the Internet table — one row per site (owner 2026-10-29 20:47: no VM and IP columns; they are in the igw details) (a tenant has one connection per site; its resource pools can be on several sites) #}
+<div class="olist-bar" style="margin-top:18px"><h3 style="margin:0">{% trans "Internet" %}</h3><div class="olist-tools"></div></div>
+<div class="table-wrap"><table class="inet">
+  <thead><tr><th>{% trans "Site" %}</th><th>{% trans "Speed" %}</th><th>{% trans "igw type" %}</th><th>{% trans "Subnets" %}</th><th></th></tr></thead>
+  {% for r in inet_rows %}<tr>
+    <td>{{ r.site }}</td>
+    <td class="nowrap">{% if r.c.inet_mbps %}{{ r.c.inet_mbps }} Mbps{% else %}—{% endif %}{% if r.pending_mbps %}<br><small class="muted">→ {{ r.pending_mbps.mbps }} Mbps · {% trans "waiting" %}</small>{% endif %}</td>
+    <td>{% if r.c.igw_type %}{% tp r.c.igw_type r.c.get_igw_type_display %}{% else %}—{% endif %}</td>
+    <td class="subnet-list">{% for p in r.main %}<div><span class="code">{{ p.cidr }}</span> <small class="muted">{% trans "main" %}</small>{% if p.busy %} <small class="muted">· {% trans "change pending" %}</small>{% endif %}</div>{% endfor %}
+      {% for p in r.next %}<div><small class="muted">{% trans "next main" %}:</small> <span class="code">{{ p.cidr }}</span></div>{% endfor %}
+      {% for p in r.extra %}<div><span class="code">{{ p.cidr }}</span>{% if p.busy %} <small class="muted">· {% trans "change pending" %}</small>{% endif %}</div>{% endfor %}
+      {% for q in r.pending_add %}<div><span class="code">/{{ q.prefix_len }}</span> {% st "pending" _("waiting for approval") %}
+        {% if net_can_decide %}<form class="inline" method="post" action="{% url 'tenant_network_decide' tenant.pk q.pk 'approve' %}">{% csrf_token %}<button class="btn small">{% trans "Approve" %}</button></form>
+        <form class="inline" method="post" action="{% url 'tenant_network_decide' tenant.pk q.pk 'reject' %}" onsubmit="var x=prompt('{% trans "Reason" %}'); if(x===null) return false; this.reason.value=x;">{% csrf_token %}<input type="hidden" name="reason"><button class="btn danger small">{% trans "Reject" %}</button></form>{% endif %}
+        {% if net_can_request %}<form class="inline" method="post" action="{% url 'tenant_network_decide' tenant.pk q.pk 'cancel' %}">{% csrf_token %}<button class="btn ghost small">{% trans "Cancel" %}</button></form>{% endif %}</div>{% endfor %}</td>
+    <td class="row-actions">{% if net_can_request %}{# u09: Speed, Type, Main, + Subnet, − Subnet #}
+      <button class="btn ghost small" type="button" data-open="dlg-speed-{{ r.site }}">{% trans "Speed" %}</button>
+      {% if 'inet' in r.c.types %}<button class="btn ghost small" type="button" data-open="dlg-igw-type">{% trans "Type" %}</button>{% endif %}
+      {% if r.main %}<button class="btn ghost small" type="button" data-open="dlg-main-{{ r.site }}">{% trans "Main" %}</button>{% endif %}
+      {% if 'inet' in r.c.types %}<button class="btn ghost small" type="button" data-open="dlg-subadd-{{ r.site }}">+ {% trans "Subnet" %}</button>{% endif %}
+      {% if r.extra %}<button class="btn ghost small" type="button" data-open="dlg-subdel-{{ r.site }}">− {% trans "Subnet" %}</button>{% endif %}{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="5" class="muted">{% trans "No internet connection." %}</td></tr>{% endfor %}
+</table></div>
+{% for q in net_pending_other.inet %}{% if q.action == 'delete' %}<div class="table-wrap"><table class="mini">{% include "tenants/_net_request_row.html" with r=q %}</table></div>{% endif %}{% endfor %}
+
+{% if net_can_request %}{% for r in inet_rows %}
+<dialog id="dlg-speed-{{ r.site }}" class="card" style="max-width:480px;width:92%"><h2>{% trans "Speed" %} · {{ r.site }}</h2>
+  <p>{% trans "Now" %}: <strong>{{ r.c.inet_mbps|default:"—" }} Mbps</strong>{% if r.pending_mbps %} → <strong>{{ r.pending_mbps.mbps }} Mbps</strong> <small class="muted">{% trans "waiting for approval" %}</small>{% endif %}</p>
+  {% if r.pending_mbps %}<div class="actions"><button class="btn ghost" type="button" data-close>{% trans "Close" %}</button></div>
+  {% else %}<form method="post" action="{% url 'tenant_network_request' tenant.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="kind" value="inet"><input type="hidden" name="action" value="bandwidth"><input type="hidden" name="site" value="{{ r.site }}">
+    <div class="field"><label>{% trans "New speed" %}, Mbps</label><input type="number" name="mbps" min="10" max="1000" step="1" value="{{ r.c.inet_mbps|default:100 }}" required style="max-width:140px"></div>
+    <div class="field"><label>{% trans "Comment" %}</label><textarea name="note" rows="2"></textarea></div>
+    <div class="actions"><button class="btn">{% trans "Send for approval" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form>{% endif %}</dialog>
+
+{% if r.main %}<dialog id="dlg-main-{{ r.site }}" class="card" style="max-width:640px;width:94%"><h2>{% trans "Main subnet" %} · {{ r.site }}</h2>
+  <p>{% for p in r.main %}<span class="code">{{ p.cidr }}</span>{% endfor %}{% if r.pending_replace %} → <strong>/{{ r.pending_replace.prefix_len }}</strong> <small class="muted">{% trans "requested" %} {{ r.pending_replace.created_at|date:"d.m.Y" }}</small>{% endif %}{% for p in r.next %} → <span class="code">{{ p.cidr }}</span> <small class="muted">{% trans "next main" %}</small>{% endfor %}</p>
+  {% if not r.pending_replace and not r.next %}{% for p in r.main %}{% if p.busy %}<p class="muted">{% trans "change pending" %}</p>{% else %}
+    <p><strong>{% trans "What happens after approval" %}</strong></p>
+    <ol class="plan"><li>{% trans "the egw is deleted" %}</li>
+      <li>{% blocktrans with c=p.cidr %}every VM is disconnected from {{ c }} (the igw too){% endblocktrans %}</li>
+      <li>{% blocktrans with c=p.cidr %}the network of {{ c }} is deleted and the subnet released{% endblocktrans %}</li>
+      <li>{% trans "the new main network is created with one address range: from the address after the egw to the last one" %}</li>
+      <li>{% trans "a new egw is created on the first address" %}</li>
+      <li>{% trans "the igw is connected again, with the address after the egw (its own configuration of that interface is yours to change)" %}</li>
+      <li>{% trans "all other VMs stay disconnected: connect them to the new network yourself" %}</li></ol>
+    <form method="post" action="{% url 'tenant_network_request' tenant.pk %}" class="stack" onsubmit="return confirm('{% trans "Send the replacement of the main subnet for approval?" %}')">{% csrf_token %}<input type="hidden" name="kind" value="inet"><input type="hidden" name="action" value="replace"><input type="hidden" name="target" value="{{ p.cidr }}"><input type="hidden" name="site" value="{{ r.site }}">
+      <div class="field"><label>{% trans "New prefix length" %}</label><select name="prefix_len" style="max-width:120px">{% for n in net_prefixes %}{% if n < 32 %}<option value="{{ n }}" {% if n == 31 %}selected{% endif %}>/{{ n }}</option>{% endif %}{% endfor %}</select></div>
+      {% if net_base_subnets %}<div class="field"><label>{% trans "Base subnet" %}</label><select name="pool" style="max-width:260px"><option value="">{% trans "auto" %}</option>{% for c, label in net_base_subnets %}<option value="{{ c }}">{{ label }}</option>{% endfor %}</select></div>{% endif %}
+      <div class="actions"><button class="btn danger">{% trans "Send for approval" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form>{% endif %}{% endfor %}
+  {% else %}<div class="actions"><button class="btn ghost" type="button" data-close>{% trans "Close" %}</button></div>{% endif %}</dialog>{% endif %}
+
+{% if 'inet' in r.c.types %}<dialog id="dlg-subadd-{{ r.site }}" class="card" style="max-width:480px;width:92%"><h2>+ {% trans "Subnet" %} · {{ r.site }}</h2>
+  <p class="muted">{% trans "An additional public subnet routed to the igw. The main network stays as it is." %}</p>
+  <form method="post" action="{% url 'tenant_network_request' tenant.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="kind" value="inet"><input type="hidden" name="site" value="{{ r.site }}">
+    <div class="field"><label>{% trans "Prefix length" %}</label><select name="prefix_len" style="max-width:120px">{% for n in net_prefixes %}<option value="{{ n }}" {% if n == 29 %}selected{% endif %}>/{{ n }}</option>{% endfor %}</select></div>
+    {% if net_base_subnets %}<div class="field"><label>{% trans "Base subnet" %}</label><select name="pool" style="max-width:260px"><option value="">{% trans "auto" %}</option>{% for c, label in net_base_subnets %}<option value="{{ c }}">{{ label }}</option>{% endfor %}</select></div>{% endif %}
+    <div class="field"><label>{% trans "Comment" %}</label><textarea name="note" rows="2"></textarea></div>
+    <div class="actions"><button class="btn">{% trans "Send for approval" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+
+{% if r.extra %}<dialog id="dlg-subdel-{{ r.site }}" class="card" style="max-width:560px;width:92%"><h2>− {% trans "Subnet" %} · {{ r.site }}</h2>
+  <p class="muted">{% trans "After approval the subnet is removed from the egw and the igw, NICs of all VMs on it are detached, the network is deleted and the subnet is returned." %}</p>
+  <div class="table-wrap"><table class="mini">{% for p in r.extra %}<tr><td><span class="code">{{ p.cidr }}</span></td>
+    <td class="row-actions">{% if p.busy %}<small class="muted">{% trans "change pending" %}</small>{% else %}<form class="inline" method="post" action="{% url 'tenant_network_request' tenant.pk %}" onsubmit="return confirm('{% blocktrans with c=p.cidr %}Send the removal of {{ c }} for approval?{% endblocktrans %}')">{% csrf_token %}<input type="hidden" name="kind" value="inet"><input type="hidden" name="action" value="delete"><input type="hidden" name="target" value="{{ p.cidr }}"><input type="hidden" name="site" value="{{ r.site }}"><button class="btn danger small">{% trans "Remove" %}</button></form>{% endif %}</td></tr>{% endfor %}</table></div>
+  <div class="actions"><button class="btn ghost" type="button" data-close>{% trans "Close" %}</button></div></dialog>{% endif %}
+{% endfor %}{% endif %}
+
+{% if igw_vyos and can_edit_igw %}<dialog id="dlg-igw-configs" class="card" style="max-width:980px;width:96%" data-ajax data-self="{% url 'tenant_detail' tenant.pk %}?igw=configs&amp;partial=1"{% if igw_open == 'configs' %} data-autoopen{% endif %}><h2>{% trans "igw configurations" %}</h2>
+  {% if igw_waiting %}<div class="msg warning">{% blocktrans with t=igw_waiting.deadline|time:"H:i:s" %}A change is applied and waits for your confirmation before {{ t }}; otherwise the igw goes back by itself.{% endblocktrans %}
+    <strong data-countdown="{{ igw_waiting.seconds_left }}">{{ igw_waiting.seconds_left }}</strong> {% trans "s left" %}
+    <form class="inline" method="post" action="{% url 'tenant_igw' tenant.pk %}">{% csrf_token %}<input type="hidden" name="action" value="confirm"><input type="hidden" name="apply" value="{{ igw_waiting.pk }}"><button class="btn small">{% trans "Confirm: keep it" %}</button></form></div>{% endif %}
+  {% if can_size_igw %}{% with v=tenant.igw_vm %}<div class="actions" style="margin:0 0 12px;flex-wrap:wrap;gap:6px 12px">{# owner 2026-10-29 20:10 #}
+    <strong>{% trans "Size" %}</strong> <small class="muted">{% if v.cpu %}{% trans "now" %} {{ v.cpu }} vCPU · {{ v.ram_gb|gb }} GB RAM{% else %}{% trans "planned" %} {{ tenant.igw_cpu }} vCPU · {{ tenant.igw_ram_gb|gb }} GB RAM{% endif %}</small>
+    <form class="inline" method="post" action="{% url 'tenant_igw' tenant.pk %}" onsubmit="return confirm('{% trans "The igw VM is powered off, resized and started again: the project's internet stops for about a minute. Go on?" %}')">{% csrf_token %}<input type="hidden" name="action" value="size"><input type="hidden" name="restart" value="on"><input type="hidden" name="dialog" value="configs">
+      <label class="inline">vCPU <input type="number" name="cpu" min="1" max="16" value="{{ v.cpu|default:tenant.igw_cpu }}" style="width:4.5em"></label>
+      <label class="inline">RAM, GB <input type="number" name="ram_gb" min="1" max="64" value="{{ v.ram_gb|gb|default:tenant.igw_ram_gb }}" style="width:4.5em"></label>
+      <button class="btn small">{% trans "Apply" %}</button></form>
+    <small class="muted">{% trans "Applying reboots the igw VM." %}</small></div>{% endwith %}{% endif %}
+  <div class="grid two" style="align-items:start">
+  <section><div class="olist-bar"><h3 style="margin:0">{% trans "Current configuration" %}</h3><div class="olist-tools">
+      <form class="inline" method="post" action="{% url 'tenant_igw' tenant.pk %}">{% csrf_token %}<input type="hidden" name="action" value="read_current"><button class="btn ghost small">{% if igw_current %}{% trans "Read again" %}{% else %}{% trans "Read from the igw" %}{% endif %}</button></form></div></div>
+    {% if igw_current %}<p class="muted"><small>{% trans "read" %} {{ igw_current.created_at|date:"d.m.Y H:i" }} · {{ igw_current.lines }} {% trans "lines" %}</small></p>{% endif %}
+    <form method="post" action="{% url 'tenant_igw' tenant.pk %}" class="stack" id="igw-editor">{% csrf_token %}<input type="hidden" name="action" value="save_config"><input type="hidden" name="based_on" value="{{ igw_current.pk|default:'' }}">
+      <textarea name="text" rows="14" class="mono" spellcheck="false" placeholder="{% trans 'Read the current configuration, or copy a stored one to edit it' %}">{{ igw_current_text|default:"" }}</textarea>
+      <div class="actions"><input name="name" placeholder="{% trans 'Name' %}" maxlength="120" style="max-width:240px">
+        <button class="btn small" {% if igw_full %}disabled title="{% blocktrans %}{{ igw_max }} configurations are stored: delete one first{% endblocktrans %}"{% endif %}>{% trans "Save to the list" %}</button></div>
+      {% if igw_full %}<p class="msg warning"><small>{% blocktrans %}{{ igw_max }} configurations are stored: delete one of them to save another.{% endblocktrans %}</small></p>{% endif %}</form>
+  </section>
+  <section><h3>{% trans "Execute commands" %}</h3>
+    <form method="post" action="{% url 'tenant_igw' tenant.pk %}" class="stack" onsubmit="return confirm('{% trans "Run these commands on the igw?" %}')">{% csrf_token %}<input type="hidden" name="action" value="commands">
+      <textarea name="commands" rows="8" class="mono" spellcheck="false" placeholder="set firewall …&#10;delete …">{{ igw_last_commands }}</textarea>
+      <label class="check"><input type="checkbox" name="rollback" checked> {% trans "commit-confirm: roll back unless confirmed within" %} <input type="number" name="timeout_s" value="60" min="60" max="3600" style="width:90px"> {% trans "seconds" %}</label>
+      <div><button class="btn small">{% trans "Run" %}</button> <small class="muted">{% trans "The last commands stay here to run them again." %}</small></div></form>
+  </section></div>
+  <h3 style="margin-top:14px">{% blocktrans with n=igw_stored|length %}Stored configurations ({{ n }} of {{ igw_max }}){% endblocktrans %}</h3>
+  <div class="table-wrap"><table class="mini"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "State" %}</th><th>{% trans "Created" %}</th><th>{% trans "Applied" %}</th><th></th></tr></thead>
+  {% for c in igw_stored %}<tr><td>{{ c.name }}<br><small class="muted">{{ c.get_source_display }} · {{ c.lines }} {% trans "lines" %}</small></td>
+    <td>{% if c.acting %}{% st "ok" _("acting") %}{% else %}{% st "muted" _("stored") %}{% endif %}</td>
+    <td><small>{{ c.created_at|date:"d.m.Y H:i" }}</small></td><td><small>{{ c.applied_at|date:"d.m.Y H:i"|default:"—" }}</small></td>
+    <td class="row-actions"><span class="stack-right">
+      <button class="btn ghost small" type="button" data-dlg-src="{% url 'tenant_igw_config' tenant.pk c.pk %}">{% trans "Show" %}</button>
+      <button class="btn ghost small" type="button" data-copy-src="{% url 'tenant_igw_config' tenant.pk c.pk %}" data-copy-id="{{ c.pk }}">{% trans "Copy to edit" %}</button>
+      <form class="inline" method="post" action="{% url 'tenant_igw' tenant.pk %}" onsubmit="var s=prompt('{% trans "Roll back unless confirmed within, seconds" %}', '60'); if(s===null) return false; this.timeout_s.value=s; return true;">{% csrf_token %}<input type="hidden" name="action" value="apply"><input type="hidden" name="config" value="{{ c.pk }}"><input type="hidden" name="timeout_s" value="60"><button class="btn small" {% if igw_full %}disabled title="{% trans 'The current configuration is stored before: delete one first' %}"{% endif %}>{% trans "Apply" %}</button></form>
+      <form class="inline" method="post" action="{% url 'tenant_igw' tenant.pk %}" onsubmit="return confirm('{% trans "Delete this stored configuration?" %}')">{% csrf_token %}<input type="hidden" name="action" value="delete_config"><input type="hidden" name="config" value="{{ c.pk }}"><button class="btn danger small">{% trans "Delete" %}</button></form></span></td></tr>
+  {% empty %}<tr><td colspan="5" class="muted">{% trans "Nothing stored yet." %}</td></tr>{% endfor %}</table></div>
+  {% if igw_nets or igw_nets_error %}<h3 style="margin-top:14px">{% trans "Networks of the igw" %}</h3>
+  {% if igw_nets_error %}<p class="msg error">{{ igw_nets_error }}</p>{% else %}
+  <form method="post" action="{% url 'tenant_igw' tenant.pk %}" class="stack" onsubmit="return confirm('{% trans "Change the networks of the igw now?" %}')">{% csrf_token %}<input type="hidden" name="action" value="networks">
+    <div class="table-wrap"><table class="mini">{% for n in igw_nets.networks %}<tr><td><input type="checkbox" name="net" value="{{ n.id }}" {% if n.connected %}checked{% endif %} {% if n.main %}disabled{% endif %}></td>
+      <td><span class="code">{{ n.name }}</span>{% if n.main %} <small class="muted">{% trans "main network" %}</small>{% endif %}</td><td><small class="code">{{ n.cidr|default:"—" }}</small></td><td><span class="code">{{ n.ip|default:"—" }}</span></td></tr>{% endfor %}</table></div>
+    <div><button class="btn small">{% trans "Save the networks" %}</button></div></form>{% endif %}{% endif %}
+  {% if igw_applies %}<h3 style="margin-top:14px">{% trans "Recent changes" %}</h3>
+  <div class="table-wrap"><table class="mini">{% for a in igw_applies %}<tr><td><small>{{ a.created_at|date:"d.m.Y H:i" }}</small></td><td><small>{% if a.config %}{{ a.config.name }}{% else %}{{ a.get_method_display }}{% endif %}</small></td>
+    <td>{% if a.state == 'confirmed' or a.state == 'done' %}{% st "ok" a.get_state_display %}{% elif a.state == 'failed' %}{% st "bad" a.get_state_display %}{% elif a.state == 'rolled_back' %}{% st "warn" a.get_state_display %}{% else %}{% st "running" a.get_state_display %}{% endif %}</td><td><small>{{ a.result|truncatechars:160 }}</small></td></tr>{% endfor %}</table></div>{% endif %}
+  <div class="actions" style="margin-top:10px"><button class="btn ghost" type="button" data-close>{% trans "Close" %}</button></div>
+</dialog>{% endif %}
+
+{% for r in inet_rows %}{% if forloop.first and net_can_request %}<dialog id="dlg-igw-type" class="card" style="max-width:560px;width:92%"{% if igw_open == 'type' %} data-autoopen{% endif %}><h2>{% trans "igw type" %}</h2>
+  <p class="msg warning">{% trans "Changing the type replaces the igw: the current igw VM is removed and its whole configuration is lost, and so is the history of its stored configurations. Advanced and native igws are created again; a custom igw is your own VM. The igw keeps its address (right after the egw)." %}</p>
+  {% if r.c.igw_type == 'vyos' and igw_vyos %}<p><a class="btn ghost small" href="{% url 'tenant_igw_download' tenant.pk %}">{% trans "Download the current configuration first" %}</a></p>{% endif %}
+  <form method="post" action="{% url 'tenant_network_request' tenant.pk %}" class="stack" onsubmit="return confirm('{% trans "Replace the igw? Its configuration and the stored ones will be lost." %}')">{% csrf_token %}<input type="hidden" name="kind" value="igw"><input type="hidden" name="action" value="replace">
+    <div class="field radios"><ul>{% for v, l in igw_types %}<li><label><input type="radio" name="igw_type" value="{{ v }}" {% if v == r.c.igw_type %}checked{% endif %}> {{ l }}{% if v == r.c.igw_type %} <strong>({% trans "current" %})</strong>{% endif %}</label></li>{% endfor %}</ul></div>
+    <div class="actions"><button class="btn danger">{% trans "Replace the igw" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}{% endfor %}
+
+<dialog id="dlg-remote" class="card" style="max-width:860px;width:94%"><div class="remote-body"></div>
+  <div class="actions"><button class="btn ghost" type="button" data-close>{% trans "Close" %}</button></div></dialog>
+<script>
+(function () {
+  // Owner 2026-10-29: the igw dialogs stay open — their forms are sent in the background and the dialog is redrawn
+  // from the tenant page the action returns to (with its messages), no page reload.
+  function load(url) { return fetch(url, {credentials: "same-origin", headers: {"X-Partial": "1"}}).then(function (r) { return r.text(); }); }
+  function scopeOf(el) { return el.closest(".odetail") || document; }
+  function countdowns(root) {
+    root.querySelectorAll("[data-countdown]:not([data-ticking])").forEach(function (el) { var n = +el.dataset.countdown; el.dataset.ticking = "1";
+      var t = setInterval(function () { n = Math.max(n - 1, 0); el.textContent = n;
+        if (!n) { clearInterval(t); var d = el.closest("dialog"); setTimeout(function () { if (d) refresh(d); else location.reload(); }, 1500); } }, 1000); });
+  }
+  function redraw(dlg, html) {
+    var doc = new DOMParser().parseFromString(html, "text/html"), fresh = doc.getElementById(dlg.id);
+    if (!fresh) { location.reload(); return; }
+    var msgs = Array.prototype.slice.call(doc.querySelectorAll("[data-flash]"));
+    dlg.innerHTML = fresh.innerHTML;
+    if (msgs.length) { var box = document.createElement("div"); box.className = "dlg-msgs";
+      msgs.forEach(function (m) { box.appendChild(m); }); var h = dlg.querySelector("h2"); if (h) h.after(box); else dlg.prepend(box); }
+    countdowns(dlg);
+    if (!dlg.open && dlg.showModal) dlg.showModal();
+  }
+  function refresh(dlg) {
+    var u = dlg.dataset.self; if (!u) { location.reload(); return; }
+    load(u).then(function (html) { redraw(dlg, html); });
+  }
+  if (!window.__igwDialogs) {
+    window.__igwDialogs = true;
+    document.addEventListener("submit", function (e) {
+      var f = e.target, dlg = f.closest && f.closest("dialog[data-ajax]");
+      if (!dlg || e.defaultPrevented) return;
+      e.preventDefault();
+      var fd = new FormData(f); fd.delete("back");
+      if (e.submitter && e.submitter.name) fd.append(e.submitter.name, e.submitter.value);
+      dlg.classList.add("busy"); dlg.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+      fetch(f.getAttribute("action") || location.href, {method: "POST", body: fd, credentials: "same-origin", headers: {"X-Partial": "1"}})
+        .then(function (r) { return r.text(); })
+        .then(function (html) { dlg.classList.remove("busy"); redraw(dlg, html); })
+        .catch(function () { location.reload(); });
+    });
+    document.addEventListener("click", function (e) {  // a value edited by clicking it: its form shows in place
+      var t = e.target.closest && e.target.closest("[data-click-edit]");
+      if (!t) return;
+      var scope = t.closest("dialog") || document, f = scope.querySelector("#" + t.getAttribute("data-click-edit"));
+      if (f) { f.hidden = !f.hidden; var i = !f.hidden && f.querySelector("input:not([type=hidden]), select"); if (i) i.focus(); }
+    });
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-dlg-src], [data-copy-src]");
+      if (!b) return;
+      if (b.hasAttribute("data-dlg-src")) {
+        var d = scopeOf(b).querySelector("#dlg-remote") || document.getElementById("dlg-remote");
+        load(b.getAttribute("data-dlg-src")).then(function (html) { d.querySelector(".remote-body").innerHTML = html; d.showModal(); });
+        return;
+      }
+      var dl = b.closest("dialog");
+      load(b.getAttribute("data-copy-src")).then(function (html) {
+        var doc = new DOMParser().parseFromString(html, "text/html"), ta = doc.querySelector("textarea");
+        var f = dl && dl.querySelector("#igw-editor");
+        if (!ta || !f) return;
+        f.text.value = ta.value; f.based_on.value = b.getAttribute("data-copy-id");
+        var nm = doc.querySelector("[data-name]");
+        f.name.value = nm && nm.textContent ? nm.textContent + " (copy)" : "";
+        f.text.focus();
+      });
+    });
+  }
+  document.querySelectorAll("dialog[data-autoopen]").forEach(function (d) { if (d.showModal && !d.open) d.showModal(); });
+  countdowns(document);
+})();
+</script>
