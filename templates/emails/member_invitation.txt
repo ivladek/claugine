@@ -1,0 +1,8 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with who=inviter.full_name org=org.name %}{{ who }} invites you to manage cloud resources of {{ org }} on the Example Cloud portal.{% endblocktrans %}
+
+{% trans "Create your account here:" %}
+
+{{ link }}
+
+{% blocktrans %}The link works once and is valid for {{ hours }} hours.{% endblocktrans %}
+{% endautoescape %}

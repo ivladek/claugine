@@ -1,0 +1,5 @@
+{% load i18n ui %}<tr style="background:color-mix(in srgb, var(--warn) 8%, var(--surface))"><td>{{ r.site }}</td>
+  <td>{% st "pending" r.get_state_display %} <small class="muted">{{ r.requested_by|default:"—" }} · {{ r.created_at|date:"d.m.Y H:i" }}</small>{% if r.note %}<br><small>{{ r.note }}</small>{% endif %}</td>
+  <td class="row-actions">{% if net_can_decide %}<form class="inline" method="post" action="{% url 'tenant_network_decide' tenant.pk r.pk 'approve' %}">{% csrf_token %}<button class="btn small">{% trans "Approve" %}</button></form>
+    <form class="inline" method="post" action="{% url 'tenant_network_decide' tenant.pk r.pk 'reject' %}" onsubmit="var x=prompt('{% trans "Reason" %}'); if(x===null) return false; this.reason.value=x;">{% csrf_token %}<input type="hidden" name="reason"><button class="btn danger small">{% trans "Reject" %}</button></form>{% endif %}
+    {% if net_can_request %}<form class="inline" method="post" action="{% url 'tenant_network_decide' tenant.pk r.pk 'cancel' %}">{% csrf_token %}<button class="btn ghost small">{% trans "Cancel" %}</button></form>{% endif %}</td></tr>

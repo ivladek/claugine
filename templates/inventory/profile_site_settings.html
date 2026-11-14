@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Site settings" %} · {{ profile.code }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'infra_profiles' %}?sel=pr-{{ profile.code }}">← {% trans "Server profiles" %}</a></p>
+<h1>{% trans "Site settings on the servers" %} <span class="code">{{ profile.code }}</span></h1>
+<p class="muted">{% trans "Every server must have its site's NTP and DNS servers, the IPMI log collector and the time zone on its IPMI (iLO). This is what would change; nothing is changed until you apply it. The iLO sends logs over UDP." %}</p>
+<form method="post" class="card">{% csrf_token %}
+  <div class="table-wrap"><table><thead><tr><th></th><th>{% trans "Host" %}</th><th>{% trans "Site" %}</th><th>{% trans "Setting" %}</th><th>{% trans "Now" %}</th><th>{% trans "Planned" %}</th></tr></thead><tbody>
+  {% for r in rows %}
+    {% if r.error %}<tr><td></td><td><span class="code">{{ r.host.name }}</span></td><td>{{ r.host.site.code }}</td><td colspan="3">{% st "bad" _("not read") %} <small class="muted">{{ r.error }}</small></td></tr>
+    {% elif r.changes %}{% for what, now, planned in r.changes %}<tr>
+      {% if forloop.first %}<td rowspan="{{ r.changes|length }}">{% if can_apply %}<input type="checkbox" name="hosts" value="{{ r.host.name }}" checked aria-label="{{ r.host.name }}">{% endif %}</td>
+      <td rowspan="{{ r.changes|length }}"><span class="code">{{ r.host.name }}</span></td><td rowspan="{{ r.changes|length }}">{{ r.host.site.code }}</td>{% endif %}
+      <td>{{ what }}</td><td><small class="mono">{{ now }}</small></td><td><small class="mono">{{ planned }}</small></td></tr>{% endfor %}
+    {% else %}<tr><td></td><td><span class="code">{{ r.host.name }}</span></td><td>{{ r.host.site.code }}</td><td colspan="3">{% st "ok" _("as the site wants") %}</td></tr>{% endif %}
+  {% empty %}<tr><td colspan="6" class="muted">{% trans "The profile has no hosts." %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if can_apply %}<div class="actions" style="margin-top:10px"><button class="btn">{% trans "Apply to the checked hosts" %}</button>
+    <a class="btn ghost" href="{% url 'infra_profiles' %}?sel=pr-{{ profile.code }}">{% trans "Cancel" %}</a></div>{% endif %}
+</form>
+{% endblock %}

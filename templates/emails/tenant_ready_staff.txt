@@ -1,0 +1,24 @@
+{% autoescape off %}Hello {{ you.full_name|default:you.email }},
+
+Project {{ tenant.name|default:tenant.title }} of {{ org.name }} has been provisioned on {{ platforms }}.
+You are its {{ role|lower }}.
+
+{% if admin_person %}The credentials were sent to the project admin: {{ admin_person.full_name|default:admin_person.email }} <{{ admin_person.email }}>.{% else %}The project has no project admin: nobody got the credentials.{% endif %}
+{% for p in pools %}
+Resource pool — {{ p.site }} / {{ p.cluster }}
+  Resources:  {{ p.cpu }} vCPU, {{ p.ram_gb }} GB RAM{% if p.gpu_text %}, GPU {{ p.gpu_text }}{% endif %}
+  Storage:    {{ p.disk_gb }} GB — VMs {{ p.vms_gb }} / images {{ p.images_gb }} / files {{ p.files_gb }}
+  Backups:    {% if p.backups_gb %}{{ p.backups_gb }} GB{% else %}not ordered{% endif %}
+{% endfor %}{% for c in conns %}{% if c.kind == 'inet' %}
+Internet — {{ c.site }}: {{ c.mbps|default:"—" }} Mbps, main subnet {{ c.main|default:"—" }} ({{ c.vm_ips }} free IPs){% if c.extra %}, more {{ c.extra|join:", " }}{% endif %}
+{% elif c.kind == 'corpnet' %}
+Corporate network — {{ c.site }}: {{ c.subnets|join:", "|default:"—" }}
+{% elif c.kind == 'l2' %}
+L2 channel — {{ c.site }}: {{ c.name|default:"channel" }}, VLAN {{ c.vlan|default:"—" }}{% if c.vni %}, VNI {{ c.vni }}{% endif %}
+{% endif %}{% endfor %}
+Provisioned on {{ at|date:"d.m.Y H:i" }}.
+{% if contacts %}
+Contacts{% for role, u in contacts %}
+  {{ role }}: {% if u.full_name %}{{ u.full_name }} <{{ u.email }}>{% else %}{{ u.email }}{% endif %}{% endfor %}
+{% endif %}
+{% endautoescape %}

@@ -1,0 +1,4 @@
+{% load i18n %}{% autoescape off %}{% blocktrans with t=tenant.name|default:tenant.title frm=move.from_org.name|default:"—" to=move.to_org.name who=move.requested_by.full_name|default:move.requested_by.email %}{{ who }} asks to move project {{ t }} from {{ frm }} to {{ to }}. It waits for your approval.{% endblocktrans %}
+
+{{ link }}
+{% endautoescape %}
