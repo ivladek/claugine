@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{{ site.code }}{% endblock %}
+{% block content %}
+<h1><span class="code">{{ site.code }}</span>{% if site.number %} <span class="tp c-0">{{ site.number }}</span>{% endif %} <small class="muted">{{ site.city }} · {{ site.country }} · DC {{ site.dc }}</small><span class="head-actions">{% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-site">{% trans "Edit site" %}</button>{% endif %}</span></h1>
+<div class="subnav">
+  {% for t, label in tab_labels %}<a class="btn {% if tab != t %}ghost{% endif %} small" href="?tab={{ t }}">{{ label }}</a>{% endfor %}
+  {% if can_read_core %}<form class="inline" style="margin-left:auto" method="post" action="{% url 'core_refresh' site.code %}" data-core-refresh data-seconds="{% if task_running %}{{ refresh_while_running }}{% else %}0{% endif %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><button class="btn ghost small" title="{% trans 'Read the VMs of the platforms again: status, host, NICs (quick, reads only)' %}">↻ {% trans "Refresh status" %}</button>{% if task_running %} <small class="muted">{% blocktrans with n=refresh_while_running %}a task is running: refreshed every {{ n }} s{% endblocktrans %}</small>{% endif %}</form>{% endif %}
+</div>
+
+{% if tab == 'platforms' %}{% include "inventory/site/platforms.html" %}{% endif %}
+
+{% if tab == 'clusters' %}{% include "inventory/site/clusters.html" %}{% endif %}
+
+{% if tab == 'subnets' %}{% include "inventory/site/subnets.html" %}{% endif %}
+
+{% if tab == 'hosts' %}{% include "inventory/site/hosts.html" %}{% endif %}
+
+{% if tab == 'storage' %}{% include "inventory/site/storage.html" %}{% endif %}
+
+{% if tab == 'networks' %}{% include "inventory/site/networks.html" %}{% endif %}
+
+{% if tab == 'core' %}{% include "inventory/site/core.html" %}{% endif %}
+
+{% if can_edit %}<dialog id="dlg-site" class="card site-dialog"><h2>{% trans "Edit site" %} <span class="code">{{ site.code }}</span></h2>
+  <form method="post" action="{% url 'inv_site_save' %}" class="stack">{% csrf_token %}<input type="hidden" name="code" value="{{ site.code }}"><input type="hidden" name="back" value="site">
+    {% include "inventory/_site_form.html" with form=site_form %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% if can_read_core %}<script>
+(function () {
+  var f = document.querySelector("[data-core-refresh]");
+  if (!f) return;
+  // owner 2026-10-29 18:38: refreshed only while a task of the site runs (the page reloads; when the task is over
+  // the reloaded page has no task and stops)
+  var secs = parseInt(f.dataset.seconds || "0", 10);
+  function idle() {  // never under someone's hands: an open dialog, a field in use, a hidden tab
+    var a = document.activeElement;
+    return !document.hidden && !document.querySelector("dialog[open]") &&
+      !(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName));
+  }
+  if (secs > 0) setInterval(function () {
+    if (!idle()) return;
+    fetch(f.action, { method: "POST", credentials: "same-origin", body: new FormData(f), headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { if (r.ok && idle()) location.reload(); });
+  }, secs * 1000);
+})();
+</script>{% endif %}
+{% endblock %}

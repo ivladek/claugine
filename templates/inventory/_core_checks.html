@@ -1,0 +1,3 @@
+{% load i18n %}<div class="table-wrap"><table class="mini"><thead><tr><th></th><th>{% trans "Check of the definition" %}</th><th>{% trans "Detail" %}</th></tr></thead>
+{% for c in checks %}<tr><td>{% if c.ok %}✓{% elif c.must %}<span style="color:var(--bad)">✗</span>{% else %}<span style="color:var(--warn)">!</span>{% endif %}</td><td>{{ c.check }}</td><td><small class="code">{{ c.detail }}</small></td></tr>{% endfor %}</table></div>
+<p class="muted" style="margin:4px 0 0"><small>✓ {% trans "fits" %} · <span style="color:var(--bad)">✗</span> {% trans "does not fit: stops the redeploy (unless forced)" %} · <span style="color:var(--warn)">!</span> {% trans "a note: does not stop it" %}</small></p>

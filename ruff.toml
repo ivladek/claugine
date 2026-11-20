@@ -1,0 +1,13 @@
+# ruff (lint and format): the same rules in claugine and claugine-web (owner 2026-11-11: "goal - the same tools in
+# both projects"; jobs 2026-11-11_from-claugine-web-common-tools and its reply). Run by deploy/check.sh, which
+# deploy/release.sh runs first. Only extend-exclude differs between the two repos.
+line-length = 120
+target-version = "py313"
+extend-exclude = ["var", "worklog", "jobs", "docs-feed", "static", "templates", "locale", "**/migrations"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ"]
+ignore = ["E501"]  # the formatter wraps code; long strings and comments stay readable as they are
+
+[format]
+quote-style = "double"

@@ -1,0 +1,5 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+{% if join.state == 'accepted' %}<p style="margin:0 0 10px">{% blocktrans with org=org.name %}You now have access to {{ org }} on the Example Cloud portal. Its admin will give you access to its projects.{% endblocktrans %}</p>
+<p style="margin:14px 0"><a class="btn" href="{{ site_url }}/login/" style="display:inline-block;background:#0f6b55;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:8px">Open</a> <span style="color:#6b736e;font-size:12px">{{ site_url }}/login/</span></p>
+{% else %}<p style="margin:0 0 10px">{% blocktrans with org=org.name %}The admin of {{ org }} declined your request to join.{% endblocktrans %}</p>{% endif %}
+{% endblock %}

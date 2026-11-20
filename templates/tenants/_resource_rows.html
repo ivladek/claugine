@@ -1,0 +1,13 @@
+{% load i18n ui %}  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Project" %}</th><th>{% trans "Action" %}</th><th>{% trans "Date" %}</th><th class="num">{% trans "Days alive" %}</th>
+    <th class="num">vCPU</th><th class="num">{% trans "RAM, GB" %}</th><th class="num">{% trans "Storage, GB" %}</th><th class="num">{% trans "Backups, GB" %}</th>
+    <th class="num">{% trans "Public IPs" %}</th><th class="num">{% trans "Internet, Mbps" %}</th><th class="num">L2</th></tr></thead><tbody>
+  {% for r in rows %}<tr class="orow" data-id="r-{{ forloop.counter }}"><td style="white-space:nowrap"><a href="{% url 'tenant_detail' r.tenant.pk %}"><span class="code">{{ r.tenant.name|default:r.tenant.title }}</span></a></td>
+    <td>{% if r.action == 'create' %}{% st "ok" _("create") %}{% elif r.action == 'delete' %}{% st "bad" _("delete") %}{% else %}{% st "info" _("update") %}{% endif %}</td>
+    <td style="white-space:nowrap">{{ r.date|date:"d.m.Y H:i" }}</td>
+    <td class="num">{{ r.days|default_if_none:"—" }}</td>
+    <td class="num">{{ r.cpu }}{% if r.gpu %} <small class="muted">({{ r.gpu }})</small>{% endif %}</td>
+    <td class="num">{{ r.ram_gb|gb }}{% if r.gpu %} <small class="muted">({{ r.gpu }})</small>{% endif %}</td>
+    <td class="num">{{ r.disk_gb }}</td><td class="num">{{ r.backups_gb }}</td>
+    <td class="num">{{ r.public_ips }}</td><td class="num">{{ r.inet_mbps|default:"—" }}</td><td class="num">{{ r.l2 }}</td></tr>
+  {% empty %}<tr><td colspan="11" class="muted">{% trans "No resources recorded yet." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
