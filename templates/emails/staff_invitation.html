@@ -1,0 +1,6 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{% blocktrans %}You are invited to the Example Cloud portal as {{ role }}.{% endblocktrans %}</p>
+<p style="margin:0 0 10px">{% trans "Create your account here:" %}</p>
+<p style="margin:14px 0"><a class="btn" href="{{ link }}" style="display:inline-block;background:#0f6b55;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:8px">Open</a> <span style="color:#6b736e;font-size:12px">{{ link }}</span></p>
+<p style="margin:0 0 10px">{% blocktrans %}The link works once and is valid for {{ hours }} hours. You will need an authenticator app for two-factor authentication.{% endblocktrans %}</p>
+{% endblock %}

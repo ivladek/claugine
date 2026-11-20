@@ -1,0 +1,3 @@
+{% load i18n %}{# owner 2026-11-19: "rename old section Server Profiles to Hardware Profiles / make two tabs - Servers, Boot storage" #}
+<h1>{% trans "Hardware profiles" %}</h1>
+<div class="subnav"><a class="btn {% if hw_tab != 'servers' %}ghost{% endif %} small" href="{% url 'infra_profiles' %}">{% trans "Servers" %}</a><a class="btn {% if hw_tab != 'boot' %}ghost{% endif %} small" href="{% url 'infra_layouts' %}">{% trans "Boot storage" %}</a></div>

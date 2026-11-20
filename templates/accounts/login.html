@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Sign in" %}{% endblock %}
+{% block content %}
+<div class="card narrow" style="margin:0 auto">
+  <h1>{% trans "Sign in" %}</h1>
+  <form method="post" class="stack">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">{% include "includes/form.html" %}
+    <div class="actions"><button class="btn">{% trans "Sign in" %}</button><a href="{% url 'password_reset' %}">{% trans "Forgot password?" %}</a></div>
+  </form>
+  <p style="margin-top:18px" class="muted">{% trans "New customer?" %} <a href="{% url 'register' %}">{% trans "Register" %}</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,4 @@
+{% load i18n %}<h2 data-name>{{ config.name }}</h2>
+<p class="muted"><small>{{ config.get_source_display }} · {{ config.lines }} {% trans "lines" %} · {{ config.created_at|date:"d.m.Y H:i" }} · {{ config.created_by|default:"—" }}{% if config.applied_at %} · {% trans "applied" %} {{ config.applied_at|date:"d.m.Y H:i" }}{% endif %}</small></p>
+<textarea rows="22" class="mono" readonly style="width:100%">{{ text }}</textarea>
+<p class="muted"><small>{% trans "A stored configuration cannot be edited: copy it to edit, and save the copy." %}</small></p>
