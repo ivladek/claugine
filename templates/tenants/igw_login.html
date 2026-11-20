@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "igw login" %}{% endblock %}
+{% block content %}
+<p><a href="{% url 'tenant_detail' tenant.pk %}#access">← {{ tenant.one_group_name|default:tenant.name }}</a></p>
+<div class="card narrow" style="max-width:560px"><h1>{% trans "igw login" %}</h1>
+<p class="muted">{% trans "How the igw is reached over ssh: address, port, user and password. The portal keeps them (the password encrypted) and uses them for the igw's configurations when it has no login of its own there; the igw itself is not changed." %}{% if main_ip %} {% blocktrans %}The igw's main address: {{ main_ip }}.{% endblocktrans %}{% endif %}</p>
+<p><small>{% trans "Password" %}: {% if has_password %}<span class="pill ok">{% trans "kept, encrypted" %}</span>{% else %}<span class="pill warn">{% trans "not kept" %}</span>{% endif %}</small></p>
+<form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn">{% trans "Save" %}</button></form></div>
+{% endblock %}

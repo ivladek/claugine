@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<p><a href="{{ back }}">← {% trans "Back" %}</a></p>
+<div class="actions" style="justify-content:space-between"><h1 style="margin:0"><span class="code">{{ title }}</span></h1>
+{% if can_reveal and not revealed and text %}<form method="post">{% csrf_token %}{% if channel %}<input type="hidden" name="channel" value="{{ channel.pk }}">{% endif %}<button class="btn ghost small">{% trans "Show secrets" %}</button></form>{% endif %}</div>
+{% if error %}<div class="msg warning">{{ error }}</div>{% endif %}
+{% if text %}<section class="card" style="margin-top:12px">
+<p class="muted"><small>{% if revealed %}{% trans "With secrets — this view is recorded in the audit log." %}{% else %}{% trans "Secrets are masked as «secret:…»; values decided at deployment show as «…»." %}{% endif %}</small></p>
+<pre class="config">{{ text }}</pre>
+{% if script %}<details style="margin-top:12px"><summary>{% trans "As the one-time init script (ONE_TIME_INIT_SCRIPT_BASE64)" %}</summary><pre class="config" style="margin-top:8px">{{ script }}</pre></details>{% endif %}</section>{% endif %}
+{% endblock %}

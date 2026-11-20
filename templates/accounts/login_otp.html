@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto">
+  <h1>{% trans "Two-factor code" %}</h1>
+  <p class="muted">{% trans "Enter the 6-digit code from your authenticator app." %}</p>
+  <form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn">{% trans "Continue" %}</button></form>
+  {% if has_passkeys %}
+  <p class="muted" style="margin-top:16px">{% trans "Or confirm with a passkey on this device: Touch ID, Face ID, Windows Hello or a security key." %}</p>
+  <button type="button" class="btn ghost" data-passkey="signin" data-options="{% url 'passkey_auth_options' %}" data-verify="{% url 'passkey_auth_verify' %}" data-out="pk-out"
+    data-unsupported="{% trans 'This browser does not support passkeys.' %}" data-cancelled="{% trans 'The passkey was not used. Try again, or enter the code.' %}">{% trans "Use a passkey" %}</button>
+  <p id="pk-out" class="error" hidden></p>
+  {% endif %}
+</div>
+{% load static %}<script src="{% static 'passkeys.js' %}?v={{ asset_v }}" defer></script>
+{% endblock %}

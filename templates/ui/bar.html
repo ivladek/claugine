@@ -1,0 +1,5 @@
+{% load i18n %}<div class="olist-bar">{% if title %}<h2>{{ title }}</h2>{% endif %}
+  <div class="olist-tools"><input type="search" class="olist-search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter' %}">
+  {% if toggle_url %}<a class="btn ghost small olist-toggle" href="{{ toggle_url }}">{{ toggle_label }}</a>{% endif %}
+  {% if add2_dialog %}<button class="btn ghost small" type="button" data-open="{{ add2_dialog }}">+ {{ add2_label }}</button>{% endif %}
+  {% if add_dialog %}<button class="btn small olist-add" type="button" data-open="{{ add_dialog }}">+ {{ add_label }}</button>{% elif add_url %}<a class="btn small olist-add" href="{{ add_url }}">+ {{ add_label }}</a>{% endif %}</div></div>
