@@ -1,0 +1,6 @@
+{% extends "emails/_base.html" %}{% block body %}
+<p style="margin:0 0 10px">Hello {{ you.full_name|default:you.email }},</p>
+<p style="margin:0 0 6px">Your project <strong>{{ tenant.name|default:tenant.title }}</strong> of <strong>{{ org.name }}</strong> is ready on Example Cloud ({{ platforms }}).</p>
+<p style="margin:0 0 6px">You are its project admin.</p>
+{% include "emails/_pools_conns.html" with show_access=True %}
+{% endblock %}

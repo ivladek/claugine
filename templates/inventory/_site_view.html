@@ -1,0 +1,50 @@
+{% load i18n %}{# the site's details laid out as its edit form (2026-10-28): the same rows, labels and lists, read only #}
+<div class="site-form site-view">
+<div class="grid cols6">
+  <div class="field"><label>{% trans "Country" %}</label><div class="vbox">{{ s.country|default:"—" }}</div></div>
+  <div class="field"><label>{% trans "City" %}</label><div class="vbox">{{ s.city|default:"—" }}</div></div>
+  <div class="field"><label>{% trans "Data center" %}</label><div class="vbox">{{ s.dc|default:"—" }}</div></div>
+  <div class="field"><label>{% trans "Site code" %}</label><div class="vbox">{{ s.number|default:"—" }}</div></div>
+  <div class="field"><label>{% trans "Time zone" %}{% if utc_offset %} <small class="muted">UTC{{ utc_offset }}</small>{% endif %}</label><div class="vbox">{{ s.tz|default:"—" }}</div></div>
+  <div class="field"><label>{% trans "Green-field DNS server" %}</label><div class="vbox mono">{{ s.bootstrap_dns|join:", "|default:"—" }}</div></div>
+</div>
+<div class="grid cols3">
+  <div class="field"><label>{% trans "DNS servers" %}</label><table class="rowlist-table vlist"><thead><tr><th>{% trans "Address or host name" %}</th></tr></thead><tbody>{% for x in s.dns_servers %}<tr><td><div class="vbox mono">{{ x }}</div></td></tr>{% empty %}<tr><td class="muted">—</td></tr>{% endfor %}</tbody></table></div>
+  <div class="field"><label>{% trans "NTP servers" %}</label><table class="rowlist-table vlist"><thead><tr><th>{% trans "Address or host name" %}</th></tr></thead><tbody>{% for x in s.ntp_servers %}<tr><td><div class="vbox mono">{{ x }}</div></td></tr>{% empty %}<tr><td class="muted">—</td></tr>{% endfor %}</tbody></table></div>
+  <div class="field"><label>{% trans "Management hosts" %}</label><table class="rowlist-table vlist"><thead><tr><th>{% trans "Address or network" %}</th></tr></thead><tbody>{% for x in s.management.hosts %}<tr><td><div class="vbox mono">{{ x }}</div></td></tr>{% empty %}<tr><td class="muted">—</td></tr>{% endfor %}</tbody></table></div>
+</div>
+<div class="grid cols1-2">
+  <div class="field"><label>{% trans "SSH ports" %}</label><table class="rowlist-table vlist"><thead><tr><th>{% trans "Purpose" %}</th><th class="w-n">{% trans "Port" %}</th></tr></thead><tbody>{% for p, port in ssh_rows %}<tr><td><div class="vbox">{{ p }}</div></td><td><div class="vbox mono nw">{{ port|default:"—" }}</div></td></tr>{% endfor %}</tbody></table></div>
+  <div class="field"><label>{% trans "Log collectors" %}</label><table class="rowlist-table vlist"><thead><tr><th class="w-p">{% trans "Purpose" %}</th><th>{% trans "IP / host name" %}</th><th class="w-t">{% trans "Protocol" %}</th><th class="w-n">{% trans "Port" %}</th></tr></thead><tbody>{% for p, c in log_rows %}<tr><td><div class="vbox">{{ p }}</div></td>{% if c %}<td><div class="vbox mono">{{ c.host }}</div></td><td><div class="vbox mono nw">{{ c.proto }}</div></td><td><div class="vbox mono nw">{{ c.port|default:"—" }}</div></td>{% else %}<td colspan="3"><div class="vbox muted">{% trans "not set" %}</div></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
+</div>
+<div class="grid cols6">
+  <div class="field span2"><label>IPMI</label><div class="vbox">{% if s.ipmi.user %}{{ s.ipmi.user|secret }}{% else %}—{% endif %}{% if s.ipmi.type %} · {{ s.ipmi.type }}{% endif %}</div></div>
+  <div class="field span2"><label>{% trans "Edge cluster" %}</label><div class="vbox">{% if s.edge_cluster %}<span class="code">{{ s.edge_cluster.name }}</span> <small class="muted">{{ s.edge_cluster.platform.key }}</small>{% else %}<span class="muted">{% trans "none: the management platform carries the route reflectors and VLAN endpoints" %}</span>{% endif %}</div></div>
+</div>
+<h4 style="margin:12px 0 4px">{% trans "Platforms" %}</h4>
+<div class="table-wrap"><table><thead><tr><th>{% trans "Platform" %}</th><th>{% trans "Type" %}</th><th>{% trans "State" %}</th><th>{% trans "FE mode" %}</th><th>{% trans "Gateway cluster" %}</th><th class="num">{% trans "Clusters" %}</th></tr></thead><tbody>
+{% for p in platforms %}<tr><td><a href="{% url 'infra_site' s.code %}?tab=platforms&amp;sel=pl-{{ p.name }}"><span class="code">{{ p.key }}</span></a></td>
+  <td>{% tp p.kind %}</td><td>{% st p.display_state %}</td>
+  <td>{% tp p.fe_mode %}{% if p.fe_primary %} <small class="muted">→ {{ p.fe_primary }}</small>{% endif %}</td>
+  <td>{% if p.gateway_cluster %}<span class="code">{{ p.gateway_cluster.name }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td class="num">{{ p.clusters.count }}</td></tr>
+{% empty %}<tr><td colspan="6" class="muted">{% trans "No platforms yet." %}</td></tr>{% endfor %}</tbody></table></div>
+
+<h4 style="margin:12px 0 4px">{% trans "Hosts" %}</h4>
+<div class="table-wrap"><table><thead><tr><th>{% trans "Host" %}</th><th>IP</th><th>{% trans "Profile" %}</th><th>{% trans "State" %}</th></tr></thead><tbody>
+{% for h in hosts %}<tr><td><a href="{% url 'infra_site' s.code %}?tab=hosts&amp;sel=h-{{ h.name }}"><span class="code">{{ h.name }}</span></a></td>
+  <td><span class="code">{{ h.ip }}</span></td><td>{{ h.profile|default:"—" }}</td><td>{% st h.state %}</td></tr>
+{% empty %}<tr><td colspan="4" class="muted">{% trans "No hosts yet." %}</td></tr>{% endfor %}</tbody></table></div>
+
+<h4 style="margin:12px 0 4px">{% trans "Networks" %}</h4>
+<div class="table-wrap"><table><thead><tr><th>{% trans "Network" %}</th><th>{% trans "Type" %}</th></tr></thead><tbody>
+{% for n in networks %}<tr><td><a href="{% url 'infra_site' s.code %}?tab=networks&amp;sel=n-{{ n.name }}"><span class="code">{{ n.name }}</span></a></td>
+  <td>{% tp n.kind %}</td></tr>
+{% empty %}<tr><td colspan="2" class="muted">{% trans "No networks yet." %}</td></tr>{% endfor %}</tbody></table></div>
+
+<h4 style="margin:12px 0 4px">{% trans "Storage" %}</h4>
+<div class="table-wrap"><table><thead><tr><th>{% trans "Storage" %}</th><th>{% trans "Type" %}</th></tr></thead><tbody>
+{% for x in storages %}<tr><td><a href="{% url 'infra_site' s.code %}?tab=storage&amp;sel=st-{{ x.name }}"><span class="code">{{ x.name }}</span></a></td>
+  <td>{% tp x.kind %}</td></tr>
+{% empty %}<tr><td colspan="2" class="muted">{% trans "No storage yet." %}</td></tr>{% endfor %}</tbody></table></div>
+</div>

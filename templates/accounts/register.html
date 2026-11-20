@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Register" %}{% endblock %}
+{% block content %}
+<div class="card narrow" style="margin:0 auto;max-width:640px">
+  <h1>{% trans "Register as a customer" %}</h1>
+  {% if invitation %}<div class="msg">{% if invitation.grants.org_kind == 'corp' %}{% trans "You were invited to register a corporate (internal) organization." %}{% else %}{% trans "You were invited to register your organization." %}{% endif %}</div>{% endif %}
+  <p class="muted">{% blocktrans %}We create your organization from these details and make you its admin. After you confirm your email you can order projects; nothing is provisioned until a project is approved.{% endblocktrans %}</p>
+  <form method="post" enctype="multipart/form-data" class="stack">{% csrf_token %}{% if invite_token %}<input type="hidden" name="invite" value="{{ invite_token }}">{% endif %}
+    {% if not invitation %}<input type="hidden" name="{{ ts_field }}" value="{{ form_ts }}"><div aria-hidden="true" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden"><label>Website <input type="text" name="{{ honeypot }}" tabindex="-1" autocomplete="off"></label></div>{% endif %}{% include "includes/form.html" %}
+    <button class="btn">{% trans "Register" %}</button>
+  </form>
+  <p class="muted" style="margin-top:16px">{% trans "Staff accounts are created by invitation only." %}</p>
+</div>
+{% endblock %}

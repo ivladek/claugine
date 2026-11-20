@@ -1,0 +1,25 @@
+{% for p in pools %}<h3 style="font-size:15px;margin:18px 0 6px">Resource pool — {{ p.site }} / {{ p.cluster }}</h3>
+<ul style="margin:0 0 8px 18px;padding:0">
+  <li>Resources: <strong>{{ p.cpu }} vCPU</strong>, <strong>{{ p.ram_gb }} GB RAM</strong>{% if p.gpu_text %}, <strong>GPU {{ p.gpu_text }}</strong>{% endif %}</li>
+  <li>Storage: <strong>{{ p.disk_gb }} GB</strong> — VMs {{ p.vms_gb }} / images {{ p.images_gb }} / files {{ p.files_gb }}</li>
+  <li>Backups: {% if p.backups_gb %}<strong>{{ p.backups_gb }} GB</strong>{% else %}not ordered{% endif %}</li>
+  {% if show_access %}<li>Web UI: {% if p.web_ui %}<a href="{{ p.web_ui }}" style="color:#0f6b55">{{ p.web_ui }}</a>{% else %}—{% endif %}</li>
+  <li>Login: user <code style="background:#f1f3f1;padding:1px 5px;border-radius:4px">{{ admin_user }}</code>, password <code style="background:#f1f3f1;padding:1px 5px;border-radius:4px">{{ admin_password }}</code></li>
+  {% if p.endpoints %}<li>API:<ul style="margin:2px 0 0 18px;padding:0">{% for k, v in p.endpoints %}<li>{{ k }}: <a href="{{ v }}" style="color:#0f6b55">{{ v }}</a></li>{% endfor %}</ul></li>{% endif %}{% endif %}
+</ul>{% endfor %}
+{% for c in conns %}{% if c.kind == 'inet' %}<h3 style="font-size:15px;margin:18px 0 6px">Internet — {{ c.site }}</h3>
+<ul style="margin:0 0 8px 18px;padding:0">
+  <li>Speed: <strong>{{ c.mbps|default:"—" }} Mbps</strong></li>
+  <li>Main subnet: <code style="background:#f1f3f1;padding:1px 5px;border-radius:4px">{{ c.main|default:"—" }}</code> — free IPs: <strong>{{ c.vm_ips }}</strong>{% if c.vm_range %} ({{ c.vm_range }}){% endif %}; {{ c.egw }} (egw), {{ c.igw }} (igw)</li>
+  {% if c.extra %}<li>More subnets: {% for x in c.extra %}<code style="background:#f1f3f1;padding:1px 5px;border-radius:4px">{{ x }}</code>{% if not forloop.last %}, {% endif %}{% endfor %} (routed to the igw)</li>{% endif %}
+  {% if show_access %}<li>Gateway: <strong>{{ c.igw_label }}</strong>{% if c.igw_type == 'vyos' %}, {{ c.igw }} — fully managed by you{% elif c.igw_type == 'onevr' %}, {{ c.igw }} — managed in the web UI (Virtual Router), no ssh login{% else %} — no VM is made: give your own VM {{ c.igw }} with the default gateway {{ c.egw }}{% endif %}</li>{% endif %}
+  {% if show_access and c.igw_type == 'vyos' %}<li>Gateway ssh: <code style="background:#f1f3f1;padding:1px 5px;border-radius:4px">ssh {{ c.ssh_user }}@{{ c.ssh_host }} -p {{ c.ssh_port }}</code><br>
+    {% if c.ssh_keys %}key: {{ c.ssh_keys|join:", " }} (password login is off){% else %}password <code style="background:#f1f3f1;padding:1px 5px;border-radius:4px">{{ c.ssh_password }}</code>{% endif %}</li>{% endif %}
+</ul>{% elif c.kind == 'corpnet' %}<h3 style="font-size:15px;margin:18px 0 6px">Corporate network — {{ c.site }}</h3>
+<ul style="margin:0 0 8px 18px;padding:0"><li>Subnets: {% for x in c.subnets %}<code style="background:#f1f3f1;padding:1px 5px;border-radius:4px">{{ x }}</code>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</li></ul>
+{% elif c.kind == 'l2' %}<h3 style="font-size:15px;margin:18px 0 6px">L2 channel — {{ c.site }}</h3>
+<ul style="margin:0 0 8px 18px;padding:0"><li>{{ c.name|default:"channel" }}: VLAN {{ c.vlan|default:"—" }}{% if c.vni %} · VNI {{ c.vni }}{% endif %} · {{ c.state }}</li></ul>
+{% endif %}{% endfor %}
+<p style="margin:16px 0 4px;color:#6b736e">Provisioned on {{ at|date:"d.m.Y H:i" }}.</p>
+{% if contacts %}<h3 style="font-size:15px;margin:18px 0 6px">Contacts</h3>
+<ul style="margin:0 0 8px 18px;padding:0">{% for role, u in contacts %}<li>{{ role }}: <a href="mailto:{{ u.email }}" style="color:#0f6b55">{{ u.full_name|default:u.email }}</a></li>{% endfor %}</ul>{% endif %}
