@@ -1,0 +1,6 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{% blocktrans with name=user.full_name email=user.email org=org.name tax=org.tax_id %}{{ name }} ({{ email }}) registered with the tax ID of {{ org }} ({{ tax }}) and asks to join it.{% endblocktrans %}</p>
+<p style="margin:0 0 10px">{% trans "Accept only if you know this person. Decide here:" %}</p>
+<p style="margin:14px 0"><a class="btn" href="{{ link }}" style="display:inline-block;background:#0f6b55;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:8px">Open</a> <span style="color:#6b736e;font-size:12px">{{ link }}</span></p>
+<p style="margin:0 0 10px">{% trans "Our resource manager and your sales rep have been informed." %}</p>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{{ svc.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'infra_site' site.code %}?tab=core&sel=cs-{{ svc.pk }}">← {% trans "Core services" %} · {{ site.code }}</a></p>
+<h1>{% trans "Check of the definition" %} <span class="code">{{ svc.name }}</span> {% if all_ok %}{% st "ok" _("fits") %}{% else %}{% st "bad" _("does not fit") %}{% endif %}</h1>
+<section class="card">
+  <p class="muted"><small>{% trans "Whether the service's definition describes each VM as it runs and as a redeploy would make it: NICs and addresses, host name, size, image, ssh, login, template. Read only: the platform is read, nothing is changed." %}</small></p>
+  {% for r in rows %}<h3 style="margin:14px 0 4px"><span class="code">{{ r.node.name }}</span> {% if r.ok %}{% st "ok" _("fits") %}{% else %}{% st "bad" _("does not fit") %}{% endif %}{% if not r.complete and not r.error %} {% st "bad" _("configuration incomplete") %}{% endif %}
+    <a class="btn ghost small" href="{% url 'core_plan' site.code svc.pk r.node.pk %}">{% trans "Plan" %}</a></h3>
+    {% if r.error %}<p style="color:var(--bad)">{{ r.error }}</p>{% else %}{% include "inventory/_core_checks.html" with checks=r.checks %}{% endif %}
+  {% endfor %}
+</section>
+{% endblock %}

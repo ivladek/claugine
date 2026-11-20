@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto"><h1>{% trans "Registration sent for approval" %}</h1>
+<p>{% blocktrans with org=org.name %}Your e-mail <strong>{{ email }}</strong> is confirmed and the registration of <strong>{{ org }}</strong> is sent for approval.{% endblocktrans %}</p>
+<p>{% trans "You will get an e-mail when it is approved; then you can sign in and order resources." %}</p></div>
+{% endblock %}

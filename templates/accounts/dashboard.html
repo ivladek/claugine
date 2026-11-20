@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Dashboard" %}{% endblock %}
+{% block content %}
+<div class="dash-head">
+  <div>
+    <h1>{% blocktrans with n=user.full_name|default:user.email %}Hello, {{ n }}{% endblocktrans %}</h1>
+    <p class="muted">{{ user.role_display }}</p>
+  </div>
+  {% if can_act_as %}
+  <form method="post" action="{% url 'act_as' %}" class="act-as">{% csrf_token %}
+    <label class="inline"><small class="muted">{% trans "Act as" %}</small>
+      <select name="user" onchange="this.form.submit()" style="width:auto">
+        <option value="0" {% if not act_as_current %}selected{% endif %}>{% trans "— yourself —" %}</option>
+        {% for p in act_as_people %}<option value="{{ p.pk }}" {% if p.pk == act_as_current %}selected{% endif %}>{{ p.full_name|default:p.email }}{% if p.email and p.full_name %} · {{ p.email }}{% endif %}</option>{% endfor %}
+      </select></label>
+  </form>{% endif %}
+</div>
+
+{% include "accounts/_dashboard_body.html" %}
+{% endblock %}

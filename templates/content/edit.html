@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load i18n %}
+{% block content %}
+<div class="card narrow" style="max-width:720px">
+  <h1>{% if object %}{% trans "Edit" %}{% else %}{% trans "New" %}{% endif %} {{ what }}</h1>
+  <form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><a href="{% url 'manage_articles' %}">{% trans "Cancel" %}</a></div>
+  </form>
+</div>
+{% endblock %}

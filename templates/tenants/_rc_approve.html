@@ -1,0 +1,23 @@
+{% load ui %}{% load i18n %}{# Approve a resource change; the resource manager can change the values first. c: the ResourceChange #}
+<dialog id="dlg-rc-{{ c.pk }}" class="card" style="max-width:520px;width:94%"><h2>{% trans "Approve the resource change" %}</h2>
+  <p class="muted"><small>{% blocktrans with s=c.site k=c.cluster|cluster_name:c.site %}{{ s }} / {{ k }}: what the project asked for. Change the values if needed; the project sees what was approved.{% endblocktrans %}</small></p>
+  <form method="post" action="{% url 'tenant_resource_decide' c.tenant_id c.pk 'approve' %}" class="stack">{% csrf_token %}{% if nxt %}<input type="hidden" name="next" value="{{ nxt }}">{% endif %}
+    <div class="grid two">
+      {% if c.pool.kind == 'backups' %}<div class="field"><label>{% trans "Backups, GB" %}</label><input name="backups_gb" type="number" min="0" max="1048576" value="{{ c.backups_gb }}" required>
+        <div class="help">{% trans "For every resource pool of this site." %}</div></div>
+      {% else %}<div class="field"><label>vCPU</label><input name="cpu" type="number" min="0" max="4096" value="{{ c.cpu }}" required></div>
+      <div class="field"><label>{% trans "RAM, GB" %}</label><input name="ram_gb" type="number" min="0" max="65536" value="{{ c.ram_gb|gb }}" required></div>
+      {% if c.gpu %}<div class="field"><label>{% trans "GPUs" %}</label><input name="gpu" type="number" min="0" max="1000" value="{{ c.gpu }}" required></div>{% endif %}
+      <div class="field"><label>{% trans "Storage, GB" %}</label><input name="disk_gb" type="number" min="0" max="1048576" value="{{ c.disk_gb }}" required>
+        <div class="help">{% trans "VM disks, images and files together; the project's split is kept when it still fits." %}</div></div>
+      {% if c.pool.kind == 'new_site' %}<div class="field"><label>{% trans "Backups, GB" %}</label><input name="backups_gb" type="number" min="0" max="1048576" value="{{ c.backups_gb }}" required>
+        <div class="help">{% trans "A new site: this figure covers every resource pool the project has there." %}</div></div>{% endif %}
+      {% endif %}
+    </div>
+    {% if c.pool.kind == 'new_site' and c.pool.connectivity %}{% with n=c.pool.connectivity %}
+    <div class="field"><label>{% trans "Connectivity ordered for the new site" %}</label>
+      <div class="help">{{ n.types|join:" · "|default:"—" }}{% if n.inet_mbps %} · {{ n.inet_mbps }} Mbps{% endif %}{% if n.igw_type %} · {{ n.igw_type }}{% endif %}{% if n.inet_main_prefix %} · /{{ n.inet_main_prefix }}{% endif %}{% if n.inet_main_pool %} · {{ n.inet_main_pool }}{% else %} · {% trans "auto" %}{% endif %}{% if n.corpnet_prefixes %} · {% trans "corporate" %} {{ n.corpnet_prefixes }}{% endif %}</div>
+    </div>{% endwith %}{% endif %}
+    <div class="field"><label>{% trans "Comment for the project" %}</label><input name="reason" maxlength="2000"></div>
+    <div class="actions"><button class="btn">{% trans "Approve" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div>
+  </form></dialog>
