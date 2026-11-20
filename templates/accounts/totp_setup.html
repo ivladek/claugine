@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto">
+  <h1>{% trans "Set up two-factor authentication" %}</h1>
+  {% if forced %}<p class="msg warning">{% trans "Staff accounts must use two-factor authentication." %}</p>{% endif %}
+  <ol>
+    <li>{% trans "Install an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password and similar)." %}</li>
+    <li>{% trans "Scan this code, or enter the key manually." %}</li>
+  </ol>
+  <img class="qr" src="{{ qr }}" alt="QR">
+  <p><span class="code secret">{{ secret }}</span></p>
+  <form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn">{% trans "Turn on" %}</button></form>
+</div>
+{% endblock %}
