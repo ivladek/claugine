@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto;max-width:640px">
+  <h1>{% trans "Create your account" %}</h1>
+  <p>{% blocktrans with role=invitation.summary %}You are invited as <strong>{{ role }}</strong>.{% endblocktrans %}
+  {% if invitation.organization %}{% blocktrans with t=invitation.organization.name %}Organization: {{ t }}.{% endblocktrans %}{% endif %}</p>
+  <form method="post" enctype="multipart/form-data" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn">{% trans "Create account" %}</button></form>
+</div>
+{% endblock %}

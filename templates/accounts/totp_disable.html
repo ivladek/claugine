@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto"><h1>{% trans "Turn off two-factor authentication" %}</h1>
+<form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" %}<button class="btn danger">{% trans "Turn off" %}</button></form></div>
+{% endblock %}

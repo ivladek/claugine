@@ -1,0 +1,5 @@
+<div class="field {% if f.widget_type == 'checkbox' %}check{% elif f.widget_type == 'radioselect' or f.widget_type == 'checkboxselectmultiple' %}radios{% endif %}" data-field="{{ f.name }}">
+  {% if f.widget_type == 'checkbox' %}{{ f }} {{ f.label_tag }}{% else %}{{ f.label_tag }} {{ f }}{% endif %}
+  {% if f.help_text %}<div class="help">{{ f.help_text }}</div>{% endif %}
+  {{ f.errors }}
+</div>
