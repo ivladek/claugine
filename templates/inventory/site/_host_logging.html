@@ -1,0 +1,19 @@
+{% load ui %}{% load i18n %}{# owner 2026-11-21 09:21-09:34 (T33): the host's logging, at the bottom of its details; nothing above changes.
+   11:58 "service VMs now": the same for a core service VM (node=1); 10:49: the services' config changes #}
+{% if node or h.used and h.state == 'active' %}{% with lg=h.logging %}
+<h4 style="margin:14px 0 4px">{% trans "Logging" %} {% if lg.status == 'compliant' %}{% st "ok" _("compliant") %}{% elif lg.status == 'differs' %}{% st "warn" _("differs") %}{% elif lg.status %}{% st "bad" _("not checked") %}{% endif %}
+  <small class="muted">{% if lg.at %}{% trans "checked" %} {{ lg.at|slice:"0:10" }} {{ lg.at|slice:"11:16" }} · {% endif %}{% trans "once a day, and with Check logging" %}</small></h4>
+{% if not lg %}<p class="muted"><small>{% trans "Not checked yet." %}</small></p>
+{% elif lg.error %}<p><small style="color:var(--bad)">{{ lg.error }}</small></p>
+{% else %}
+<dl class="facts">
+  <dt>{% trans "Services found" %}</dt><dd>{% for k in lg.services %}<a href="{% url 'infra_services' %}?sel=sv-{{ k }}"><span class="code">{{ k }}</span></a>{% if not forloop.last %} · {% endif %}{% empty %}—{% endfor %}</dd>
+  <dt>rsyslog</dt><dd>{% if lg.rsyslog == 'active' %}{% st "ok" _("running") %}{% else %}{% st "bad" lg.rsyslog %}{% endif %}</dd>
+  <dt>{% trans "Last applied" %}</dt><dd>{% if h.logging_applied_at %}{{ h.logging_applied_at|date:"Y-m-d H:i" }}{% else %}<span class="muted">{% trans "never by the portal" %}</span>{% endif %}</dd>
+  {% if lg.units_down %}<dt>{% trans "Units not running" %}</dt><dd>{% for u in lg.units_down %}<span class="code">{{ u }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+</dl>
+<div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "File on the machine" %}</th><th>{% trans "Compared with its services" %}</th></tr></thead><tbody>
+{% for f in lg.files %}{% if f.state != 'same' and f.state != 'config made' %}<tr><td><span class="code">{{ f.path }}</span>{% if f.service %} <small class="muted">{% trans "config change of" %} {{ f.service }}</small>{% endif %}</td><td>{% if f.state == 'not on the machine' %}<small class="muted">{% trans "not on the machine (skipped)" %}</small>{% else %}{% st "warn" f.state %}{% endif %}{% if f.changes %}<br><small class="muted">{% for c in f.changes %}<span class="code">{{ c.find }}</span> × {{ c.places }}{% if not forloop.last %}; {% endif %}{% endfor %}</small>{% endif %}{% if f.diff and not f.service %}<details style="margin-top:4px"><summary><small>diff</small></summary><pre style="max-height:300px;overflow:auto;font-size:12px">{{ f.diff }}</pre></details>{% endif %}</td></tr>{% endif %}{% endfor %}
+<tr><td colspan="2"><small class="muted">{% blocktrans count n=lg.files|length %}{{ n }} file compared{% plural %}{{ n }} files compared{% endblocktrans %}{% if lg.status == 'compliant' %} — {% trans "all the same" %}{% endif %}</small></td></tr>
+</tbody></table></div>
+{% endif %}{% endwith %}{% endif %}

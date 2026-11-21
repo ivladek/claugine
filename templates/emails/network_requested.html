@@ -1,0 +1,6 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{% blocktrans with t=tenant.name|default:tenant.title w=req.get_kind_display %}A network is requested for project {{ t }}: {{ w }}.{% endblocktrans %}<br>
+{{ req.what|linebreaksbr }}{% if req.note %}<br>
+{{ req.note|linebreaksbr }}{% endif %}</p>
+<p style="margin:0 0 10px">{% trans "Approve or reject it on the project page:" %} {{ link }}</p>
+{% endblock %}
