@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Change backups" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Change backups" %}</h1>
+<div class="actions" style="margin-bottom:16px">
+  <button class="btn" form="bc">{% trans "Send for approval" %}</button>
+  <a class="btn ghost" href="{{ next }}">{% trans "Cancel" %}</a>
+</div>
+<form method="post" class="stack" id="bc">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+<input type="hidden" name="site" value="{{ site }}">
+<section class="card compact">
+  <p class="ctxline"><strong>{{ tenant.one_group_name|default:tenant.name }}</strong>{% if tenant.organization %} · {{ tenant.organization.name }}{% endif %} · {% trans "backups" %} · {{ site }}</p>
+  <fieldset><legend>{% trans "Backups" %}</legend>
+    <p class="fnote">{% blocktrans count n=recs|length %}The site has one resource pool; the change applies to it.{% plural %}The site has {{ n }} resource pools; the change applies to all of them.{% endblocktrans %}</p>
+    <div class="frow">
+      <div class="field" style="max-width:150px"><label>{% trans "Backups, GB" %}</label>{{ form.backups_gb }}</div>
+    </div>
+    {{ form.backups_gb.errors }}
+    <div class="help">{% for r in recs %}{{ r.cluster|cluster_name:r.site }}{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+  </fieldset>
+  <fieldset><legend>{% trans "Comment" %}</legend>
+    <div class="field">{{ form.note }}</div>{{ form.note.errors }}
+  </fieldset>
+</section>
+</form>
+{% endblock %}

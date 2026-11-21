@@ -1,0 +1,36 @@
+{% load i18n ui %}{% if overlaps %}<section class="card"><h2 style="color:var(--bad)">{% trans "Overlapping assignments" %}</h2><ul>{% for a, b in overlaps %}<li><span class="code">{{ a.cidr }}</span> ({{ a.tenant|default:a.note }}) ↔ <span class="code">{{ b.cidr }}</span> ({{ b.tenant|default:b.note }})</li>{% endfor %}</ul></section>{% endif %}
+<section class="card olist" data-key="site-subnets-{{ site.code }}">
+  <div class="olist-bar"><h2 style="margin:0">{% trans "IP subnets" %}</h2><div class="olist-tools">
+    {% if can_edit %}<button class="btn small" type="button" data-open="dlg-ipsubnet">+ {% trans "Add subnet" %}</button>
+    <button class="btn ghost small" type="button" data-open="dlg-prefix">{% trans "Record an assignment" %}</button>{% endif %}</div></div>
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Subnet" %}</th><th>{% trans "Type" %}</th><th>{% trans "Max" %}</th><th>{% trans "Routing" %}</th><th>{% trans "Network" %}</th><th>{% trans "Used" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead><tbody>
+  {% for s in ip_subnets %}<tr class="orow" data-id="sn-{{ s.pk }}"><td><span class="code">{{ s.cidr }}</span></td><td>{% tp s.purpose s.get_purpose_display %}</td><td>/{{ s.max_prefix }}</td>
+    <td>{{ s.get_routing_display }}{% if s.routing == 'static' and s.static_gateway %} <small class="muted">{{ s.static_gateway }}</small>{% endif %}</td>
+    <td>{% if s.network %}<span class="code">{{ s.network.name }}</span>{% else %}<span class="muted">{% trans "not connected" %}</span>{% endif %}</td>
+    <td style="min-width:150px"><div class="bar"><span style="width:{{ s.pct }}%"></span></div><small class="muted">{{ s.used }} / {{ s.size }} ({{ s.pct }}%)</small></td>
+    {% if can_edit %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-se-{{ s.pk }}">{% trans "Edit" %}</button> {% if s.in_use %}<span class="muted">{% trans "in use" %}</span>{% else %}<form class="inline" method="post" action="{% url 'ipsubnet_delete' s.pk %}" onsubmit="return confirm('{% trans "Remove this subnet?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}</td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="7" class="muted">{% trans "No IP subnets defined yet." %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a subnet to see its assignments." %}</div>
+  {% for s in ip_subnets %}<div class="odetail card" data-for="sn-{{ s.pk }}" hidden><h3><span class="code">{{ s.cidr }}</span> {% tp s.purpose s.get_purpose_display %}</h3>
+    <p class="muted"><small>{% trans "Max" %} /{{ s.max_prefix }} · {{ s.get_routing_display }}{% if s.network %} · {% trans "network" %} <span class="code">{{ s.network.name }}</span>{% else %} · {% trans "not connected to a network" %}{% endif %} · {{ s.used }} / {{ s.size }} ({{ s.pct }}%)</small></p>
+    <div class="table-wrap"><table>{% for a in s.assignments %}<tr><td><span class="code">{{ a.cidr }}</span></td><td>{% if a.tenant %}<a href="{% url 'tenant_detail' a.tenant.pk %}">{{ a.tenant }}</a>{% else %}{% tp a.kind a.get_kind_display %}{% endif %}</td><td><small>{{ a.get_kind_display }} · {{ a.get_source_display }}{% if a.note %} · {{ a.note }}{% endif %}</small></td>
+    <td class="row-actions">{% if a.source == 'manual' %}<form class="inline" method="post" action="{% url 'prefix_release' a.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn danger small">{% trans "Release" %}</button></form>{% endif %}</td></tr>
+    {% empty %}<tr><td class="muted">{% trans "Nothing assigned." %}</td></tr>{% endfor %}</table></div></div>{% endfor %}
+  </div>
+</section>
+{% if outside %}<section class="card"><h2 style="margin-top:0">{% trans "Assignments outside every subnet" %}</h2>
+  <div class="table-wrap"><table>{% for a in outside %}<tr><td><span class="code">{{ a.cidr }}</span></td><td>{% if a.tenant %}<a href="{% url 'tenant_detail' a.tenant.pk %}">{{ a.tenant }}</a>{% else %}{{ a.note }}{% endif %}</td><td><small>{{ a.get_kind_display }} · {{ a.get_source_display }}</small></td>
+    <td class="row-actions">{% if a.source == 'manual' %}<form class="inline" method="post" action="{% url 'prefix_release' a.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn danger small">{% trans "Release" %}</button></form>{% endif %}</td></tr>{% endfor %}</table></div></section>{% endif %}
+{% if can_edit %}<dialog id="dlg-ipsubnet" class="card" style="max-width:520px;width:92%"><h2>{% trans "Add IP subnet" %}</h2>
+  <p class="muted"><small>{% trans "The type is detected automatically (private → corporate, public → internet). A subnet cannot be edited after it is added, nor deleted while it is in use. Connect it to an exchange network on the Networks tab." %}</small></p>
+  <form method="post" action="{% url 'ipsubnet_add' site.code %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=ip_subnet_form %}
+  <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+<dialog id="dlg-prefix" class="card" style="max-width:560px;width:92%"><h2>{% trans "Record an assignment or reservation" %}</h2>
+  <form method="post" class="stack">{% csrf_token %}{% include "includes/form.html" with form=prefix_form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for s in ip_subnets %}<dialog id="dlg-se-{{ s.pk }}" class="card" style="max-width:520px;width:92%"><h2>{% trans "Edit subnet" %} <span class="code">{{ s.cidr }}</span></h2>
+  <p class="muted"><small>{% trans "The subnet address is fixed. Max allowed prefix = the largest block a project may be given (subnet + 2, never bigger than /24; not smaller than a block already delegated)." %}</small></p>
+  <form method="post" action="{% url 'ipsubnet_edit' s.pk %}" class="stack">{% csrf_token %}{% include "includes/form.html" with form=s.edit_form %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}{% endif %}

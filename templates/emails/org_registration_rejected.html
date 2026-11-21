@@ -1,0 +1,5 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{% blocktrans with org=org_name %}The registration of {{ org }} on the Example Cloud portal was not approved.{% endblocktrans %}<br>
+{% if reason %}<br>
+{% trans "Reason" %}: {{ reason }}{% endif %}</p>
+{% endblock %}

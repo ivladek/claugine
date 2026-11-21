@@ -1,0 +1,9 @@
+{% load i18n %}{# the site form, compact (correction 10, 2026-10-28 "make this form more compact"): one row for country, city, data center, site code, time zone and the green-field DNS server; DNS servers, NTP servers and management hosts side by side; then the ssh ports next to the log collectors #}
+<div class="site-form">
+{% if new %}{% include "includes/field.html" with f=form.code %}{% endif %}
+<div class="grid cols6">{% include "includes/field.html" with f=form.country %}{% include "includes/field.html" with f=form.city %}{% include "includes/field.html" with f=form.dc %}{% include "includes/field.html" with f=form.number %}{% include "includes/field.html" with f=form.timezone %}{% include "includes/field.html" with f=form.bootstrap_dns %}</div>
+<div class="grid cols2">{% include "includes/field.html" with f=form.edge_cluster %}</div>
+<div class="grid cols3">{% include "includes/field.html" with f=form.dns_servers %}{% include "includes/field.html" with f=form.ntp_servers %}{% include "includes/field.html" with f=form.mgmt_hosts %}</div>
+<div class="grid cols1-2">{% include "includes/field.html" with f=form.ssh_ports %}{% include "includes/field.html" with f=form.log_collectors %}</div>
+{% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+</div>

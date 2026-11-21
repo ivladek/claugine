@@ -1,0 +1,5 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{% blocktrans with name=user.full_name|default:user.email %}Hello {{ name }},{% endblocktrans %}</p>
+<p style="margin:0 0 10px">{% trans "This is a test message from Example Cloud's portal (Settings → Mail → Send test)." %}<br>
+{% trans "It reached you, so the portal's mail is sent." %}</p>
+{% endblock %}

@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% load i18n %}{% block content %}
+<div class="card narrow" style="margin:0 auto"><h1>{% trans "This link does not work" %}</h1><p>{% trans "It may have expired, been used already, or been revoked. Ask for a new one." %}</p><a href="{% url 'home' %}">{% trans "Home" %}</a></div>
+{% endblock %}

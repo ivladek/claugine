@@ -1,0 +1,4 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{{ text|linebreaksbr }}</p>
+<p style="margin:0 0 10px">{% trans "Settings → Portal → Updates shows the nodes and the steps. Auto-update waits for a newer release." %}</p>
+{% endblock %}

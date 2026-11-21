@@ -1,0 +1,82 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Services" %}{% endblock %}
+{% block content %}
+{# owner 2026-11-21 (T33): Services after Hardware profiles; tabs Services, Detected, Logging rules; no roles (07:17) #}
+<h1>{% trans "Services" %}</h1>
+<div class="subnav"><a class="btn {% if tab != 'services' %}ghost{% endif %} small" href="{% url 'infra_services' %}">{% trans "Services" %}</a><a class="btn {% if tab != 'detected' %}ghost{% endif %} small" href="{% url 'infra_services' %}?tab=detected">{% trans "Detected" %}</a><a class="btn {% if tab != 'rules' %}ghost{% endif %} small" href="{% url 'infra_services' %}?tab=rules">{% trans "Logging rules" %}</a></div>
+
+{% if tab == "services" %}
+<p class="muted">{% trans "What runs on the platform's machines. When a machine is deployed, the deployment looks at what is installed on it and takes every service whose checks match (Present when); nothing is assigned by hand. Each service found gives its rsyslog and logrotate files: its log sources sent to the site's log collector with its log_type, and their local rotation. A service with no log sources goes with the common sources (Logging rules)." %}</p>
+<section class="card olist" data-key="services" data-autoselect>
+  {% trans "Add service" as add_label %}{% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-service" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Service" %}</th><th>{% trans "Group" %}</th><th>log_type</th><th>{% trans "Present when" %}</th><th class="num">{% trans "Log sources" %}</th><th>{% trans "Rotation" %}</th><th class="num">{% trans "Kept, days" %}</th><th></th></tr></thead><tbody>
+  {% for s in services %}<tr class="orow" data-id="sv-{{ s.key }}"><td><b>{{ s.name }}</b> <small class="code muted">{{ s.key }}</small></td><td><small>{{ s.get_group_display }}</small></td>
+    <td>{% if s.log_type %}<span class="code">{{ s.log_type }}</span>{% elif s.sources %}<span class="code">{{ s.key }}</span>{% else %}<small class="muted">{% trans "common" %}</small>{% endif %}</td>
+    <td><small>{% for c in s.present_when %}{{ c.kind }} <span class="code">{{ c.value }}</span>{% if not forloop.last %} {% trans "or" %} {% endif %}{% empty %}<span class="muted">{% trans "every machine" %}</span>{% endfor %}</small></td>
+    <td class="num">{{ s.sources|length|default:"—" }}</td>
+    <td><small>{% if s.rotate.paths or s.rotate.method == "own" %}{{ s.rotate_label }}{% else %}<span class="muted">—</span>{% endif %}</small></td>
+    <td class="num">{% if s.kept_days %}{{ s.kept_days }}{% else %}<span class="muted">{{ rules.log_kept_days }}</span>{% endif %}</td>
+    <td class="row-actions"><span class="stack-right">{% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-sv-{{ s.key }}">{% trans "Edit" %}</button>
+      <form class="inline" method="post" action="{% url 'inv_service_delete' s.key %}" onsubmit="return confirm('{% trans "Delete this service?" %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% trans "Delete" %}</button></form>{% endif %}</span></td></tr>
+  {% empty %}<tr><td colspan="8" class="muted">{% trans "No services defined." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for s in services %}<div class="odetail card" data-for="sv-{{ s.key }}" hidden><h3>{{ s.name }} <span class="code">{{ s.key }}</span></h3>
+    {% if s.units %}<p><small>{% trans "Units" %}: {% for u in s.units %}<span class="code">{{ u }}</span> {% endfor %}</small></p>{% endif %}
+    {% if s.sources %}<div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Read from" %}</th><th>{% trans "Path / program / text" %}</th><th>{% trans "Tag" %}</th><th>{% trans "Send" %}</th></tr></thead><tbody>
+    {% for src in s.sources %}<tr><td>{{ src.kind }}</td><td><span class="code">{{ src.match }}</span></td><td><span class="code">{{ src.tag }}</span></td><td><small>{{ src.send_label }}{% if src.filter %} <span class="code">{{ src.filter }}</span>{% endif %}{% if src.start %}; {% trans "entries start with" %} <span class="code">{{ src.start }}</span>{% endif %}{% if src.vm_id %}; vm_id {% trans "from the file name" %}{% endif %}</small></td></tr>{% endfor %}
+    </tbody></table></div>{% else %}<p class="muted"><small>{% trans "No log sources: its messages go with the common sources." %}</small></p>{% endif %}
+    {% if s.rotate.paths %}<p><small>{% trans "Rotation" %}: {% for p in s.rotate.paths %}<span class="code">{{ p }}</span> {% endfor %}— {{ s.rotate_label }}{% if s.rotate.command %} <span class="code">{{ s.rotate.command }}</span>{% endif %}</small></p>{% endif %}
+    {% if s.notes %}<p class="muted"><small>{{ s.notes|linebreaksbr }}</small></p>{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}
+<dialog id="dlg-service" class="card" style="max-width:980px;width:96%"><h2>{% trans "Add service" %}</h2>
+  <form method="post" action="{% url 'inv_service_new' %}" class="stack">{% csrf_token %}
+    {% for f in service_form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add service" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for s in services %}<dialog id="dlg-sv-{{ s.key }}" class="card" style="max-width:980px;width:96%"><h2>{% trans "Edit" %} {{ s.name }}</h2>
+  <form method="post" action="{% url 'inv_service_edit' s.key %}" class="stack">{% csrf_token %}
+    {% for f in s.form %}{% if f.name != 'key' %}{% include "includes/field.html" %}{% endif %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endif %}
+
+{% elif tab == "detected" %}
+<p class="muted">{% trans "The services each machine was found to run when it was deployed (Hosts → Deploy, the step Services and logging)." %}</p>
+<section class="card"><div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Site" %}</th><th>{% trans "Machine" %}</th><th>{% trans "Services found" %}</th><th>{% trans "Found" %}</th></tr></thead><tbody>
+{% for h in hosts %}<tr><td>{{ h.site.code }}</td><td><span class="code">{{ h.name }}</span></td>
+  <td><small>{% for s in h.found %}<a href="{% url 'infra_services' %}?sel=sv-{{ s.key }}">{{ s.name }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}{% for k in h.unknown %} · <span class="muted">{{ k }} ({% trans "deleted" %})</span>{% endfor %}</small></td>
+  <td><small>{{ h.services_at|date:"Y-m-d H:i" }}</small></td></tr>
+{% empty %}<tr><td colspan="4" class="muted">{% trans "No machine has been deployed with this step yet." %}</td></tr>{% endfor %}
+</tbody></table></div></section>
+
+{% else %}
+<section class="card"><h2>{% trans "Where logs go" %}</h2>
+<p class="muted">{% trans "Each site's own setting: Sites → the site → Log collectors. A machine sends to its site's collector for the core services; a site without it: the deployment stops and says so." %}</p>
+<div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Site" %}</th><th>{% trans "Core services (machines)" %}</th><th>IPMI</th><th>{% trans "VyOS VMs" %}</th><th></th></tr></thead><tbody>
+{% for x in sites %}<tr><td>{{ x.site.code }}</td>
+  <td>{% if x.core %}<span class="code">{{ x.core.host }}:{{ x.core.port }}</span> {{ x.core.proto }}{% else %}{% st "bad" _("not set") %}{% endif %}</td>
+  <td>{% if x.all.ipmi.host %}<span class="code">{{ x.all.ipmi.host }}:{{ x.all.ipmi.port }}</span> {{ x.all.ipmi.proto }}{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td>{% if x.all.vyos.host %}<span class="code">{{ x.all.vyos.host }}:{{ x.all.vyos.port }}</span> {{ x.all.vyos.proto }}{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td><a class="btn ghost small" href="{% url 'infra_site' x.site.code %}">{% trans "Site" %}</a></td></tr>{% endfor %}
+</tbody></table></div></section>
+
+<section class="card"><h2>{% trans "How they are sent and kept" %}</h2>
+<p class="muted"><small>{% trans "Format" %}: <span class="code">&lt;pri&gt;1 &lt;time&gt; &lt;host&gt; &lt;tag&gt; - - log_type=&lt;log_type&gt; [vm_id=&lt;id&gt;] &lt;message&gt;</span>; TCP with octet-counted framing. {% trans "rsyslog's --mark-- lines are dropped." %}</small></p>
+{% if can_edit %}<form method="post" action="{% url 'inv_logging_rules' %}" class="stack">{% csrf_token %}
+  {% for f in rules_form %}{% include "includes/field.html" %}{% endfor %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button></div></form>
+{% else %}<dl class="facts"><dt>{% trans "Kept on the machine, days" %}</dt><dd>{{ rules.log_kept_days }}</dd><dt>{% trans "Queue when the collector is down, MB" %}</dt><dd>{{ rules.log_queue_mb }}</dd><dt>{% trans "Retry the collector every, seconds" %}</dt><dd>{{ rules.log_retry_seconds }}</dd><dt>{% trans "Other messages sent from level" %}</dt><dd>{{ rules.get_log_syslog_level_display }}</dd></dl>{% endif %}
+</section>
+
+<section class="card"><h2>{% trans "Common sources" %} <small class="muted">— {% trans "every Linux machine" %}</small></h2>
+<div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Messages" %}</th><th>{% trans "Kept in" %}</th><th>log_type</th><th>{% trans "Sent" %}</th></tr></thead><tbody>
+<tr><td>{% trans "containing" %} <span class="code">[UFW </span></td><td><span class="code">/var/log/ufw.log</span></td><td><span class="code">ufw</span></td><td>{% trans "all" %}</td></tr>
+<tr><td>{% trans "facilities" %} auth, authpriv</td><td><span class="code">/var/log/auth.log</span></td><td><span class="code">auth</span></td><td>{% trans "all" %}</td></tr>
+<tr><td>{% trans "facility" %} kern</td><td><span class="code">/var/log/kern.log</span></td><td><span class="code">kern</span></td><td>{% trans "all" %}</td></tr>
+<tr><td><span class="code">/var/log/apt/history.log</span></td><td>—</td><td><span class="code">apt</span></td><td>{% trans "all" %}</td></tr>
+<tr><td>{% trans "everything else" %}</td><td><span class="code">/var/log/syslog</span></td><td><span class="code">syslog</span></td><td>{{ rules.get_log_syslog_level_display }} {% trans "and above" %}</td></tr>
+</tbody></table></div>
+<p class="muted"><small>{% trans "Files of other origin in /etc/rsyslog.d and /etc/logrotate.d are moved to /etc/claugine/dist on the machine (kept, not deleted)." %}</small></p>
+</section>
+{% endif %}
+{% endblock %}
