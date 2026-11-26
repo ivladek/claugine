@@ -1,0 +1,19 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 12px">{% blocktrans with d=date|date:"d.m.Y" %}Registration requests on the portal, {{ d }}.{% endblocktrans %}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:13px">
+<tr style="color:#6b736e"><td style="padding:4px 0"></td><td style="padding:4px 8px;text-align:right">{% trans "24 hours" %}</td><td style="padding:4px 0 4px 8px;text-align:right">{% trans "30 days" %}</td></tr>
+{% for label, a, b in rows %}<tr style="border-top:1px solid #eef0ee"><td style="padding:4px 0">{{ label }}</td><td style="padding:4px 8px;text-align:right"><strong>{{ a }}</strong></td><td style="padding:4px 0 4px 8px;text-align:right">{{ b }}</td></tr>{% endfor %}
+</table>
+{% if day.reasons %}<p style="margin:14px 0 4px"><strong>{% trans "Reasons in the last 24 hours" %}</strong></p>
+<ul style="margin:0;padding-left:18px">{% for r, n in day.reasons %}<li>{{ r }}: {{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if day.ips %}<p style="margin:14px 0 4px"><strong>{% trans "Addresses with several attempts" %}</strong></p>
+<ul style="margin:0;padding-left:18px">{% for ip, n in day.ips %}<li><code>{{ ip }}</code>: {{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if day.flagged %}<p style="margin:14px 0 4px"><strong>{% trans "Suspicious in the last 24 hours" %}</strong></p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:12px">
+{% for f in day.flagged %}<tr style="border-top:1px solid #eef0ee;vertical-align:top"><td style="padding:4px 6px 4px 0;white-space:nowrap">{{ f.at }}<br><span style="color:#6b736e">{{ f.kind }}</span></td>
+<td style="padding:4px 6px">{{ f.email|default:"—" }}<br>{{ f.org|default:"—" }} {{ f.tax_id }}</td><td style="padding:4px 6px"><code>{{ f.ip|default:"—" }}</code><br>{% trans "score" %} {{ f.score }}</td><td style="padding:4px 0 4px 6px">{{ f.reasons }}</td></tr>{% endfor %}</table>{% endif %}
+<p style="margin:14px 0 4px"><strong>{% trans "Waiting for approval" %}: {{ waiting|length }}</strong></p>
+{% if waiting %}<ul style="margin:0;padding-left:18px">{% for w in waiting %}<li>{{ w.name }} {{ w.tax_id }} · {{ w.days }} {% trans "days" %}{% if w.reasons %} · {% trans "score" %} {{ w.score }} — {{ w.reasons }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+<p style="margin:14px 0 0;color:#6b736e">{% trans "Requests that were not approved are deleted; the portal's log keeps them (Logs)." %}</p>
+<p style="margin:10px 0 0"><a href="{{ link }}" style="color:#0f6b55">{{ link }}</a></p>
+{% endblock %}

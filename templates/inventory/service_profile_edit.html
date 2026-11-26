@@ -1,0 +1,65 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% if p %}{{ p.key }}{% else %}{% trans "New service profile" %}{% endif %}{% endblock %}
+{% block content %}
+{# T34 S2d (ui-16, R8): a page, Save and Cancel on top; the installation and every config chosen from Templates (owner 2026-11-22 16:59); its logged services from Profiles → Logging (owner 2026-11-24 09:13) #}
+<h1>{% if p %}{% trans "Edit service profile" %}{% else %}{% trans "New service profile" %}{% endif %}</h1>
+<div class="actions" style="margin-bottom:12px">
+  <button class="btn" form="sp-form">{% trans "Save" %}</button>
+  <a class="btn ghost" href="{% url 'infra_services' %}{% if p %}?sel=sp-{{ p.pk }}{% endif %}">{% trans "Cancel" %}</a>
+</div>
+<form id="sp-form" method="post" class="stack">{% csrf_token %}
+<section class="card compact">
+  {# owner 2026-11-23 (U5-U8, mockup p04): Name editable, Description, OS then the types of that OS - both fixed once made; a VyOS profile has only its VyOS template #}
+  {% if p %}<p class="ctxline"><strong><span class="code">{{ p.key }}</span></strong>{% if p.name %} · {{ p.name }}{% endif %} · {{ type_label }}{% if instances %} · {% trans "instances" %} {% for x in instances %}{{ x.site.code }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</p>{% endif %}
+  <div class="fld-inline">{{ form.key.label_tag }} {{ form.key }}<span class="fnote">{{ form.key.help_text }}</span></div>{{ form.key.errors }}
+  <div class="fld-inline wide">{{ form.name.label_tag }} {{ form.name }}</div>{{ form.name.errors }}
+  <div class="fld-inline">{{ form.os.label_tag }} {{ form.os }}<span class="fnote">{% if p %}{% trans "Chosen when the profile was made (Profiles → OS gives the release)." %}{% else %}{% trans "It cannot be changed later; the release from Profiles → Baseline." %}{% endif %}</span></div>{{ form.os.errors }}
+  <div class="fld-inline">{{ form.stype.label_tag }} {{ form.stype }}{% if not p %}<span class="fnote">{{ form.stype.help_text }}</span>{% endif %}</div>{{ form.stype.errors }}
+  <div class="fld-inline"><label>{% trans "Size" %}</label><span>{{ form.vcpu }} vCPU {{ form.ram_gb }} {% trans "GB RAM" %} {{ form.disk_gb }} {% trans "GB disk" %}</span><span class="fnote">{% trans "Empty for the KVM host profile: the server profile." %}</span></div>{{ form.vcpu.errors }}{{ form.ram_gb.errors }}{{ form.disk_gb.errors }}
+  <div class="fld-inline"><label for="{{ form.vms.id_for_label }}">{% trans "VMs" %}</label>{{ form.vms }}<span class="fnote">{{ form.vms.help_text }}</span></div>{{ form.vms.errors }}
+  {# T36 B2d (rules v2 C3-C5, mockup m03): where it is used and placed #}
+  <div class="fld-inline">{{ form.usage.label_tag }} {{ form.usage }}<span class="fnote">{% trans "project automation: never added in Site → Services" %}</span></div>{{ form.usage.errors }}
+  <div class="fld-inline wide">{{ form.placement.label_tag }} {{ form.placement }}</div>{{ form.placement.errors }}
+  <div class="fld-inline">{{ form.dns_slot.label_tag }} {{ form.dns_slot }}<span class="fnote">{{ form.dns_slot.help_text }}</span></div>{{ form.dns_slot.errors }}{# commit-507 #}
+  <div class="fld-inline">{{ form.host_slot.label_tag }} {{ form.host_slot }}<span class="fnote">{{ form.host_slot.help_text }}</span></div>{{ form.host_slot.errors }}{# T36 B4a #}
+  <div class="fld-inline wide">{{ form.install_template.label_tag }} {{ form.install_template }}<span class="fnote">{{ form.install_template.help_text }}</span></div>{{ form.install_template.errors }}
+</section>
+<section class="card compact"><h2>{% trans "Roles" %}</h2><div class="field" data-field="roles">{{ form.roles }}<div class="help">{{ form.roles.help_text }}</div>{{ form.roles.errors }}</div></section>
+{% if not p.is_vyos %}<section class="card compact not-vyos"><h2>{% trans "Configs" %}</h2><div class="field" data-field="configs">{{ form.configs }}<div class="help">{{ form.configs.help_text }}</div>{{ form.configs.errors }}</div></section>{% endif %}
+<section class="card compact"><h2>{% trans "Networks" %}</h2><div class="field" data-field="nics">{{ form.nics }}<div class="help">{{ form.nics.help_text }}</div>{{ form.nics.errors }}</div></section>
+{% if not p.is_vyos %}<section class="card compact not-vyos"><h2>{% trans "Checks" %}</h2><div class="field" data-field="checks">{{ form.checks }}<div class="help">{{ form.checks.help_text }}</div>{{ form.checks.errors }}</div></section>{% endif %}
+{# owner 2026-11-24 09:13 / 09:21 (mockup 19): the logged services from Profiles → Logging, picked like the countries in Settings; common always on Base OS, vyos only on VyOS #}
+<section class="card compact not-vyos"><h2>{% trans "Logged services" %}</h2>
+  <div class="fld-inline"><label>{% trans "Always" %}</label><span class="code">common</span> <span class="fnote">{% trans "every Base OS profile" %}</span></div>
+  <div class="duallist" data-duallist style="max-width:640px">
+    <div class="dl-col"><input type="search" class="dl-filter" placeholder="{% trans "Find a service" %}" aria-label="{% trans "Find a service" %}" data-dl-filter>
+      <select multiple size="9" aria-label="{% trans "Logged services" %}" data-dl-from>{% for v, n in logged_rows.0 %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
+    <div class="dl-buttons"><button class="btn small" type="button" data-dl-add title="{% trans "Add" %}" aria-label="{% trans "Add" %}">&rarr;</button><button class="btn ghost small" type="button" data-dl-remove title="{% trans "Remove" %}" aria-label="{% trans "Remove" %}">&larr;</button></div>
+    <div class="dl-col"><div class="dl-head">{% trans "Logged" %}</div>
+      <select id="id_logged" name="logged" multiple size="9" data-dl-to>{% for v, n in logged_rows.1 %}<option value="{{ v }}">{{ n }}</option>{% endfor %}</select></div>
+  </div>
+  {{ form.logged.errors }}
+  <div class="help">{% trans "From Profiles → OS and Functions (base-os). The machines get them with their next logging (deployment, Apply logging)." %}</div>
+</section>
+<section class="card compact vyos-only"><h2>{% trans "Logged services" %}</h2><p style="margin:0"><span class="code">vyos</span> <span class="fnote">{% trans "always; a VyOS profile has only this one" %}</span></p></section>
+<section class="card compact vyos-only"><p class="muted" style="margin:0"><small>{% trans "A VyOS profile has no installation script, config files, rsyslog or logrotate files and no checks: its VyOS template is its VMs' whole configuration." %}</small></p></section>
+<section class="card compact">{% with f=form.notes %}{% include "includes/field.html" %}{% endwith %}</section>
+</form>
+{# U7: the types follow the OS; U8: a VyOS profile shows only what it has #}
+<script>(function () {
+  var os = document.getElementById("{{ form.os.id_for_label }}"), st = document.getElementById("{{ form.stype.id_for_label }}");
+  var vyos = {{ vyos_types_json|safe }};
+  if (!os || !st) return;
+  function sync() {
+    var v = os.value === "vyos";
+    Array.prototype.forEach.call(st.options, function (o) { o.hidden = (vyos.indexOf(o.value) >= 0) !== v; });
+    if (st.selectedOptions.length && st.selectedOptions[0].hidden) {
+      var first = Array.prototype.find.call(st.options, function (o) { return !o.hidden; });
+      if (first) st.value = first.value;
+    }
+    document.querySelectorAll(".not-vyos").forEach(function (el) { el.hidden = v; });
+    document.querySelectorAll(".vyos-only").forEach(function (el) { el.hidden = !v; });
+  }
+  os.addEventListener("change", sync);
+  sync();
+})();</script>
+{% endblock %}

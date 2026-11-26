@@ -1,0 +1,70 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Services" %}{% endblock %}
+{% block content %}
+{# owner 2026-11-21 (T33): no roles (07:17). T34 (13:01): in the Profiles section; 2026-11-24 08:54: Logging rules is Profiles → Logging #}
+{% include "inventory/_hw_tabs.html" with hw_tab="services" %}
+
+{# T34 S2d (ui-14, owner 2026-11-22 18:10 "implement"): Profiles → Services = the service profiles; a profile holds its installation, configs (templates) and logging (its services' log sources; owner 16:45, 20:00) #}
+<section class="card olist" data-key="sprofiles" data-autoselect>
+  {% blocktrans count n=profiles|length asvar title %}{{ n }} Service{% plural %}{{ n }} Services{% endblocktrans %}{% trans "new" as add_label %}{% url 'inv_sprofile_new' as new_url %}{% if can_edit %}{% include "ui/bar.html" with add_url=new_url help_url=docs.staff %}{% else %}{% include "ui/bar.html" with help_url=docs.staff %}{% endif %}
+  {# owner 2026-11-23 (U4-U8, mockup p03): Name (the key, editable), Description (the name), OS with the baseline's release; found by its id; a VyOS profile shows no Ubuntu part #}
+  {# T36 B2d (rules v2 C3-C5, mockup m03): Name, Used in, Roles (OS · functions), Size, Placed on #}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Used in" %}</th><th>{% trans "Roles: OS · functions" %}</th><th>{% trans "Size" %}</th><th>{% trans "Placed on" %}</th></tr></thead><tbody>
+  {% for p in profiles %}<tr class="orow" data-id="sp-{{ p.pk }}"><td><span class="code">{{ p.key }}</span></td>
+    <td><small>{% if p.usage == 'project' %}{% trans "project" %}{% else %}{% trans "Site → Services" %}{% endif %}</small></td>
+    <td><small>{% for r in p.roles %}<div>{{ r.name }}{% if r.count %} ×{{ r.count }}{% endif %}: {{ r.os }} · {{ r.functions|join:", " }}</div>{% empty %}{% if p.roles_missing %}{% st "warn" _("roles to fill") %} {% endif %}<span class="muted">{{ p.os }}{% if p.services %} · {{ p.services|join:", " }}{% endif %}</span>{% endfor %}</small></td>
+    <td><small>{% if p.vcpu %}{{ p.vcpu }}/{{ p.ram_gb }}/{{ p.disk_gb|default:"—" }}{% else %}<span class="muted">{% trans "host" %}</span>{% endif %}</small></td>
+    <td><small>{{ p.placement|default:"—" }}</small></td></tr>
+  {% empty %}<tr><td colspan="5" class="muted">{% trans "No service profiles." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for p in profiles %}<div class="odetail" data-for="sp-{{ p.pk }}" hidden><div class="rowdetail">
+    <div class="sumline"><strong><span class="code">{{ p.key }}</span></strong> {% if p.name %}<small class="muted">{{ p.name }}</small>{% endif %}
+      <span class="row-acts">{% if p.preview %}<button class="btn ghost small" type="button" data-open="dlg-spv-{{ p.pk }}">{% trans "Preview…" %}</button>{% endif %}
+        {% if can_edit %}<a class="btn ghost small" href="{% url 'inv_sprofile_edit' p.pk %}">{% trans "Edit" %}</a>
+        {% if p.stype != "host" and not p.instances %}<form class="inline" method="post" action="{% url 'inv_sprofile_delete' p.pk %}" onsubmit="return confirm('{% trans "Delete this profile?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}{% endif %}</span></div>
+    <div class="contact">{% trans "Type of service" %}: {{ p.type_label }}{% if p.vms %} · {% blocktrans count n=p.vms %}{{ n }} VM{% plural %}{{ n }} VMs{% endblocktrans %}{% endif %} · {% trans "size" %} {% if p.vcpu %}{{ p.vcpu }} vCPU · {{ p.ram_gb }} GB · {{ p.disk_gb|default:"—" }} GB, {% trans "a site service may change it" %}{% else %}{% trans "the server profile" %}{% endif %}</div>
+    <dl class="facts" style="margin-top:8px"><dt>{% trans "Used in" %}</dt><dd>{{ p.get_usage_display }}</dd>
+      <dt>{% trans "Placed on" %}</dt><dd>{{ p.placement|default:"—" }}</dd>
+      {% if p.stype == "host" %}<dt>{% trans "Host slot" %}</dt><dd>{% if p.host_slot %}{{ p.get_host_slot_display }}{% else %}<span class="muted">—</span>{% endif %}</dd>{% endif %}
+      <dt>{% trans "Description" %}</dt><dd>{{ p.name|default:"—" }} <small class="muted">{% trans "type" %} {% tp p.stype %}</small></dd>
+      <dt>{% trans "OS" %}</dt><dd>{{ p.os_label }} <small class="muted">{{ p.os_release }} ({% trans "Profiles → OS" %})</small></dd>
+      {% if p.is_vyos %}<dt>{% trans "Configuration" %}</dt><dd>{% if p.install_t %}{% trans "VyOS template" %} <a href="{% url 'infra_templates' %}?sel=tpl-{{ p.install_t.pk }}"><span class="code">{{ p.install_t.role }}</span></a>{% else %}<span class="code">{{ p.install_template|default:"—" }}</span>{% endif %} <small class="muted">{% trans "the VMs' whole configuration, their logging included" %}</small></dd>
+      {% else %}<dt>{% trans "Installation" %}</dt><dd>{% if p.install_t %}{% trans "template" %} <a href="{% url 'infra_templates' %}?sel=tpl-{{ p.install_t.pk }}"><span class="code">{{ p.install_t.role }}</span></a> <small class="muted">{{ p.install_t.get_kind_display }}</small>{% elif p.install_template %}<span class="code">{{ p.install_template }}</span> {% st "bad" _("no such template") %}{% else %}<span class="muted">—</span>{% endif %}</dd>
+      <dt>{% trans "Checks" %}</dt><dd><small>{% for c in p.checks %}{{ c.kind }} <span class="code">{{ c.value }}</span>{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</small></dd>{% endif %}
+      {# owner 2026-11-24 09:13 (mockup 18): the logged services, each a link to Profiles → Logging #}
+      <dt>{% trans "Logged services" %}</dt><dd>{% for x in p.logged_list %}<a href="{% url 'infra_logging' %}?sel=lg-{{ x.pk }}"><span class="code">{{ x.name }}</span></a>{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">—</span>{% endfor %} <small class="muted">({% trans "Profiles → OS and Functions" %})</small></dd>
+      {% if p.stype != "host" %}<dt>{% trans "A site service gives" %}</dt><dd><small>{% trans "the platform, VMs and their IPs, secrets" %}</small></dd>{% endif %}</dl>
+    {% if p.notes %}<div class="contact">{{ p.notes|linebreaksbr }}</div>{% endif %}
+  </div>
+  {# T36 B2d (mockup m03): the roles - each an OS with its functions in order, a count and its NICs #}
+  <section class="card"><div class="olist-bar"><h2 style="margin:0">{% trans "Roles" %}</h2>{% if can_edit %}<div class="olist-tools"><a class="btn small" href="{% url 'inv_sprofile_edit' p.pk %}">{% trans "Edit" %}</a></div>{% endif %}</div>
+    <div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Role" %}</th><th class="num">{% trans "Count" %}</th><th>{% trans "OS" %}</th><th>{% trans "Functions (in order)" %}</th><th>NICs</th></tr></thead><tbody>
+    {% for r in p.roles %}<tr><td>{{ r.name }}</td><td class="num">{% if r.count %}{{ r.count }}{% else %}<span class="muted">{% trans "any" %}</span>{% endif %}</td><td><a href="{% url 'infra_os' %}?sel=os-{{ r.os }}">{{ r.os }}</a></td>
+      <td>{% for k in r.functions %}<a href="{% url 'infra_functions' %}?sel=fn-{{ p.fn_ids|get_item:k }}"><span class="code">{{ k }}</span></a>{% if not forloop.last %} {% endif %}{% endfor %}</td>
+      <td><small>{% if p.stype == "host" %}<span class="muted">{% trans "server profile" %}</span>{% else %}{% for n in r.nics %}{{ n.network }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">{% trans "as Networks below" %}</span>{% endfor %}{% endif %}</small></td></tr>
+    {% empty %}<tr><td colspan="5" class="muted">{% if p.roles_missing %}{% st "warn" _("roles to fill") %} {% if p.instance_vms %}{% blocktrans with n=p.instance_vms|join:", " %}No roles: its services have {{ n }} VMs, unlike the rules' layout - fill the roles to match them (Edit), or change the services first.{% endblocktrans %}{% else %}{% trans "No roles: fill them (Edit)." %}{% endif %}{% else %}{% trans "No roles yet: its services' list above." %}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  </section>
+  <section class="card"><div class="olist-bar"><h2 style="margin:0">{% trans "Networks" %}</h2></div>
+    <div class="table-wrap"><table class="compact"><thead><tr><th>NIC</th><th>{% trans "Network" %}</th></tr></thead><tbody>
+    {% if p.stype == "host" %}<tr><td>{% trans "bonds" %}</td><td><small class="muted">{% trans "the server profile's port aliases and bonds" %}</small></td></tr>
+    {% else %}{% for n, opt in p.networks %}<tr><td>{{ forloop.counter }}</td><td><span class="code">{{ n }}</span>{% if n == "storage" %} <small class="muted">{% trans "the network of its volume: nfs or iscsi" %}</small>{% endif %}{% if opt %} <small class="muted">({% trans "optional: when the instance has it" %})</small>{% endif %}</td></tr>{% empty %}<tr><td colspan="2" class="muted">{% trans "No networks." %}</td></tr>{% endfor %}{% endif %}</tbody></table></div></section>
+  {% if not p.is_vyos %}{# U8: no Ubuntu part on a VyOS profile - no configs #}
+  <section class="card"><div class="olist-bar"><h2 style="margin:0">{% trans "Configs" %}</h2>{% if can_edit %}<div class="olist-tools"><a class="btn small" href="{% url 'inv_sprofile_edit' p.pk %}">+ {% trans "Config" %}</a></div>{% endif %}</div>
+    <div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "File" %}</th><th>{% trans "Template" %}</th><th>{% trans "Owner, mode" %}</th><th>{% trans "Check, then" %}</th></tr></thead><tbody>
+    {% for c, t in p.config_rows %}<tr><td><span class="code">{{ c.path }}</span></td><td>{% if t %}<a href="{% url 'infra_templates' %}?sel=tpl-{{ t.pk }}"><span class="code">{{ t.role }}</span></a>{% else %}<span class="code">{{ c.template }}</span> {% st "bad" _("no such template") %}{% endif %}</td><td><small>{{ c.owner|default:"root:root" }} {{ c.mode|default:"0644" }}</small></td><td><small>{% if c.check %}<span class="code">{{ c.check }}</span> · {% endif %}{{ c.then|default:"nothing" }}</small></td></tr>{% endfor %}
+    {% if not p.config_rows %}<tr><td colspan="4" class="muted">{% trans "No configs." %}</td></tr>{% endif %}
+    </tbody></table></div>
+    </section>
+  {% endif %}
+  {# R11: instances last #}
+  <section class="card"><div class="olist-bar"><h2 style="margin:0">{% trans "Instances" %}</h2></div>
+    {% if p.stype == "host" %}{# T36 B4a: the hosts made from this host service (Host.service) #}<div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Site" %}</th><th>{% trans "Host" %}</th><th>{% trans "Clusters" %}</th><th>{% trans "State" %}</th></tr></thead><tbody>
+    {% for h in p.host_list %}<tr><td><a href="{% url 'infra_site' h.site.code %}">{{ h.site.code }}</a></td><td><a href="{% url 'infra_site' h.site.code %}?tab=hosts&amp;sel=h-{{ h.name }}"><span class="code">{{ h.name }}</span></a></td><td><small>{% for c in h.clusters.all %}{{ c.platform.key }}/{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</small></td><td>{% st h.state h.get_state_display %}</td></tr>
+    {% empty %}<tr><td colspan="4" class="muted">{% if p.host_slot %}{% blocktrans with s=p.get_host_slot_display %}No host yet: made for {{ s }} when they are deployed.{% endblocktrans %}{% else %}{% trans "No host slot: no host is made from it." %}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Site" %}</th><th>{% trans "Service" %}</th><th class="num">VMs</th><th>{% trans "State" %}</th></tr></thead><tbody>
+    {% for x in p.instances %}<tr><td><a href="{% url 'infra_site' x.site.code %}">{{ x.site.code }}</a></td><td><span class="code">{{ x.name }}</span></td><td class="num">{{ x.nodes.count }}</td><td>{% st x.state x.get_state_display %}</td></tr>
+    {% empty %}<tr><td colspan="4" class="muted">{% trans "No site uses this profile." %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}</section>
+  {% if p.preview %}<dialog id="dlg-spv-{{ p.pk }}" class="card wide" style="width:96%"><div class="card-top"><h2>{% trans "Preview — an example VM, secrets hidden" %}</h2><div class="actions"><button class="btn ghost" type="button" data-close>{% trans "Close" %}</button></div></div><pre class="config">{{ p.preview }}</pre></dialog>{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% endblock %}

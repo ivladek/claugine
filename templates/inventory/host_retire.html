@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% load i18n %}{% load ui %}{% block title %}{% trans "Retire" %} · {{ h.name }}{% endblock %}
+{% block content %}
+{# commit-207 (owner 2026-11-20 10:38-10:39): what is on the host's local storage is shown before it is deleted #}
+<p><a href="{% url 'infra_site' h.site.code %}?tab=hosts&sel=h-{{ h.name }}">← {% trans "Hosts" %}</a></p>
+<h1>{% trans "Retire" %} <span class="code">{{ h.name }}</span> <small class="muted">{{ cluster.platform.key }}/{{ cluster.name }}</small></h1>
+<p class="muted">{% trans "The host is disabled in OpenNebula and its VMs are moved, one at a time, to the other enabled hosts of its cluster - running ones live, powered-off ones cold. The run stops at the first VM that does not move. An empty host is then deleted from OpenNebula, shut down through its iLO and marked retired." %}</p>
+{% if error %}<div class="card"><p>{% st "bad" _("not read") %} {% trans "What is on the host's local storage could not be read from OpenNebula, so the host cannot be retired now." %}</p><p><small class="muted">{{ error }}</small></p></div>
+{% else %}
+<form method="post" class="card stack">{% csrf_token %}<input type="hidden" name="wipe" value="{{ local.key }}">
+  {% if local.datastores %}
+  <h3 style="color:var(--bad)">{% trans "Deleted with no way to restore them" %}</h3>
+  <p>{% trans "These are on the host's local storage. The VMs cannot be moved from it: they are deleted right after the host is disabled; the images and the datastores once the host is empty." %}</p>
+  <h4>{% trans "VMs" %} ({{ local.vms|length }})</h4>
+  <div class="table-wrap"><table><thead><tr><th>ID</th><th>{% trans "Name" %}</th><th>{% trans "Host" %}</th></tr></thead><tbody>
+  {% for i, n, x in local.vms %}<tr><td>{{ i }}</td><td><span class="code">{{ n }}</span></td><td>{{ x|default:"—" }}</td></tr>{% empty %}<tr><td colspan="3" class="muted">{% trans "none" %}</td></tr>{% endfor %}</tbody></table></div>
+  <h4>{% trans "Images" %} ({{ local.images|length }})</h4>
+  <div class="table-wrap"><table><thead><tr><th>ID</th><th>{% trans "Name" %}</th><th>{% trans "Datastore" %}</th></tr></thead><tbody>
+  {% for i, n, x in local.images %}<tr><td>{{ i }}</td><td><span class="code">{{ n }}</span></td><td>{{ x }}</td></tr>{% empty %}<tr><td colspan="3" class="muted">{% trans "none" %}</td></tr>{% endfor %}</tbody></table></div>
+  <h4>{% trans "Datastores" %} ({{ local.datastores|length }})</h4>
+  <div class="table-wrap"><table><thead><tr><th>ID</th><th>{% trans "Name" %}</th></tr></thead><tbody>
+  {% for i, n, x in local.datastores %}<tr><td>{{ i }}</td><td><span class="code">{{ n }}</span></td></tr>{% endfor %}</tbody></table></div>
+  <label><input type="checkbox" name="confirm_delete" required> {% trans "Delete these VMs, images and datastores - they cannot be restored" %}</label>
+  {% else %}<p class="muted">{% trans "Nothing of OpenNebula is on the host's local storage." %}</p>{% endif %}
+  <div class="field"><label for="rn">{% trans "Type the host's name: it leaves OpenNebula and is powered off" %}</label><input id="rn" name="confirm_name" autocomplete="off" required placeholder="{{ h.name }}"></div>
+  <div class="actions"><button class="btn danger">{% trans "Retire" %}</button><a class="btn ghost" href="{% url 'infra_site' h.site.code %}?tab=hosts&sel=h-{{ h.name }}">{% trans "Cancel" %}</a></div>
+</form>{% endif %}
+{% endblock %}

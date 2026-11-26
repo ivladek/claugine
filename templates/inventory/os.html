@@ -1,0 +1,65 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "OS" %}{% endblock %}
+{% block content %}
+{# owner 2026-11-24 (T36 rules v2 C1 and D, mockup m01 approved 21:11): Profiles → OS - the logging line common to every OS, the two OS (base-os, vyos) with their version, minimum resources, installation media and logging rules; base-os also carries the platforms checked against the baseline and the hosts' installation media (from Profiles → Baseline) #}
+{% include "inventory/_hw_tabs.html" with hw_tab="os" %}
+<section class="card compact">
+  <div class="olist-bar"><h2 style="margin:0">{% trans "Logging" %} <small class="muted">— {% trans "common to every OS" %}</small></h2></div>
+  {% if can_edit %}<form class="filters" method="post" action="{% url 'inv_logging_settings' %}" style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:8px 0 0">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
+    <div class="field" style="margin:0"><label for="{{ settings_form.log_queue_mb.id_for_label }}">{% trans "Queue, MB" %} <small class="muted">{% trans "while the collector is down" %}</small></label>{{ settings_form.log_queue_mb }}</div>
+    <div class="field" style="margin:0"><label for="{{ settings_form.log_retry_seconds.id_for_label }}">{% trans "Retry, s" %} <small class="muted">{% trans "to the next try" %}</small></label>{{ settings_form.log_retry_seconds }}</div>
+    <div class="field" style="margin:0"><label for="{{ settings_form.log_kept_days.id_for_label }}">{% trans "Days" %} <small class="muted">{% trans "default" %}</small></label>{{ settings_form.log_kept_days }}</div>
+    <div class="field" style="margin:0"><label for="{{ settings_form.log_size_mb.id_for_label }}">{% trans "Size, MB" %} <small class="muted">{% trans "default" %}</small></label>{{ settings_form.log_size_mb }}</div>
+    <button class="btn small">{% trans "Save" %}</button><small class="muted">{% trans "Queue and Retry for every machine; Days and Size: what a new logged service starts from" %}</small></form>
+  {% else %}<p><small>{% trans "Queue, MB" %} {{ rules.log_queue_mb }} · {% trans "Retry, s" %} {{ rules.log_retry_seconds }} · {% trans "Days" %} {{ rules.log_kept_days }} · {% trans "Size, MB" %} {{ rules.log_size_mb }}</small></p>{% endif %}
+</section>
+<section class="card olist" data-key="t36-os" data-autoselect>
+  {% blocktrans count n=rows|length asvar title %}{{ n }} OS{% plural %}{{ n }} OS{% endblocktrans %}
+  {% include "ui/bar.html" %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Distro" %}</th><th>{% trans "Version" %}</th><th>{% trans "Min resources" %}</th><th>{% trans "Media" %}</th><th class="num">{% trans "Functions" %}</th><th>{% trans "Used by" %}</th></tr></thead><tbody>
+  {% for o in rows %}<tr class="orow" data-id="os-{{ o.key }}"><td><span class="code">{{ o.key }}</span></td><td>{{ o.distro }}</td><td>{{ o.version }}</td>
+    <td><small>{{ o.min_vcpu }} · {{ o.min_ram_gb }} GB · {{ o.min_disk_gb }} GB · 1 NIC</small></td>
+    <td><small>{% if o.key == 'base-os' %}{% trans "ISO (portal nodes)" %}{% elif o.media_url %}{% trans "qcow2 URL" %}{% else %}<span class="muted">—</span>{% endif %}</small></td>
+    <td class="num">{{ o.functions|length }}</td><td><small>{% blocktrans count n=o.used_by|length %}{{ n }} service{% plural %}{{ n }} services{% endblocktrans %}</small></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for o in rows %}<div class="odetail" data-for="os-{{ o.key }}" hidden>
+    <div class="card"><div class="card-top"><h3><span class="code">{{ o.key }}</span> <small class="muted">{{ o.distro }} — {% if o.key == 'base-os' %}{% trans "every Base OS machine (hosts and VMs)" %}{% else %}{% trans "every VyOS VM" %}{% endif %}</small></h3>
+      {% if can_edit %}<div class="actions"><button class="btn ghost small" type="button" data-open="dlg-os-{{ o.key }}">{% trans "Edit" %}</button></div>{% endif %}</div>
+    <dl class="facts">
+      <dt>{% trans "Distro" %}</dt><dd>{{ o.distro }} <small class="muted">{% trans "read only" %}</small></dd>
+      <dt>{% trans "Version" %}</dt><dd>{{ o.version }}{% if o.key == 'vyos' %} <small class="muted">{% trans "a reference value: the release the VyOS service images carry" %}</small>{% endif %}</dd>
+      <dt>{% trans "Min resources" %}</dt><dd>{{ o.min_vcpu }} vCPU · {{ o.min_ram_gb }} GB · {{ o.min_disk_gb }} GB · 1 NIC <small class="muted">({% trans "NIC fixed" %})</small></dd>
+      {% if o.key == 'base-os' %}<dt>{% trans "Rules" %}</dt><dd>{% trans "snapd removed and masked; services sized below the minimum are refused" %}</dd>
+      {% else %}<dt>{% trans "Installation media" %}</dt><dd>{% if o.media_url %}<span class="code">{{ o.media_url }}</span>{% else %}<span class="muted">—</span>{% endif %} <small class="muted">{% trans "the customised qcow2 image" %}</small></dd>{% endif %}
+      <dt>{% trans "Functions" %}</dt><dd>{% for f in o.functions %}<span class="code">{{ f.key }}</span>{% if not forloop.last %} {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</dd>
+    </dl></div>
+    {% if o.key == 'base-os' %}
+    <section class="card" id="baseline"><div class="card-top"><h3>{% trans "Platforms" %} <small class="muted">— {% trans "front ends and hosts against the base OS and each platform's OpenNebula" %}</small></h3>
+      {% if can_edit %}<div class="actions"><form method="post" action="{% url 'infra_baseline' %}" class="inline">{% csrf_token %}{% if baseline_timer %}<small class="muted">{% if baseline_timer.state == 'running' %}{% trans "checking…" %}{% elif baseline_timer.last_at %}{% trans "checked" %} {{ baseline_timer.last_at|date:"d.m.Y H:i" }}{% endif %}</small> {% endif %}<button class="btn ghost small" name="section" value="baseline_check" {% if baseline_timer.state == 'running' %}disabled{% endif %}>{% trans "Check now" %}</button></form></div>{% endif %}</div>
+      {% if can_edit %}{% include "inventory/_baseline_platforms.html" %}
+      {% else %}{# commit-477: the nodes, their addresses and errors only for super admins (as Baseline was) #}
+      <table class="compact"><thead><tr><th>{% trans "Platform" %}</th><th>OpenNebula</th><th>{% trans "Baseline" %}</th></tr></thead><tbody>
+      {% for row in baseline_rows %}<tr><td><span class="code">{{ row.p.key }}</span></td><td>{{ row.p.one_version|default:"—" }}</td>
+        <td>{% if row.state == 'ok' %}{% st "ok" _("in baseline") %}{% elif row.state == 'out' %}{% st "warn" _("upgrade required") %}{% elif row.state == 'unread' %}{% st "pending" _("not all read") %}{% elif row.state == 'stale' %}{% st "warn" _("not checked against these values") %}{% else %}{% st "muted" _("not checked") %}{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="3" class="muted">—</td></tr>{% endfor %}</tbody></table>{% endif %}
+    </section>
+    {% if can_edit %}{% include "inventory/_hostmedia.html" %}{% endif %}
+    {% endif %}
+    {% if o.logged %}{% with s=o.logged %}<div class="card"><div class="card-top"><h3>{% trans "Logging rules" %} <small class="muted">— <span class="code">{{ s.name }}</span></small></h3>{% if can_edit %}<div class="actions"><button class="btn ghost small" type="button" data-open="dlg-lg-{{ s.pk }}">{% trans "Edit" %}</button></div>{% endif %}</div>
+      {% include "inventory/_logged_detail.html" %}</div>{% endwith %}{% endif %}
+    <div class="card"><div class="card-top"><h3>{% trans "Used by" %}</h3></div>
+      <table class="compact"><thead><tr><th>{% trans "Service" %}</th><th>{% trans "Used in" %}</th></tr></thead><tbody>
+      {% for p in o.used_by %}<tr><td><a href="{% url 'infra_services' %}?sel=sp-{{ p.pk }}"><span class="code">{{ p.key }}</span></a></td><td><small>{{ p.get_usage_display }}</small></td></tr>{% empty %}<tr><td colspan="2" class="muted">—</td></tr>{% endfor %}</tbody></table></div>
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}{% for o in rows %}<dialog id="dlg-os-{{ o.key }}" class="card" style="max-width:560px;width:94%"><h2>{% trans "Edit" %} <span class="code">{{ o.key }}</span></h2>
+  <form method="post" action="{% url 'inv_os_save' o.key %}" class="stack compact">{% csrf_token %}
+  <div class="field"><label>{% trans "Distro" %}</label><input type="text" value="{{ o.distro }}" readonly><div class="help">{% trans "read only" %}</div></div>
+  {% with f=o.form.version %}{% include "includes/field.html" %}{% endwith %}
+  {% if o.key == 'base-os' %}<p class="muted"><small>{% trans "A new base OS release is the baseline's: the platforms are checked against it again, and until then no host is deployed and no platform is created." %}</small></p>{% endif %}
+  <div class="grid three">{% with f=o.form.min_vcpu %}{% include "includes/field.html" %}{% endwith %}{% with f=o.form.min_ram_gb %}{% include "includes/field.html" %}{% endwith %}{% with f=o.form.min_disk_gb %}{% include "includes/field.html" %}{% endwith %}</div>
+  {% if o.form.media_url %}{% with f=o.form.media_url %}{% include "includes/field.html" %}{% endwith %}{% endif %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+  {% if o.logged %}{% with s=o.logged %}{% include "inventory/_logged_dialog.html" %}{% endwith %}{% endif %}{% endfor %}{% endif %}
+{% endblock %}
