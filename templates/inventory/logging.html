@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Logging" %}{% endblock %}
+{% block content %}
+{# owner 2026-11-24 08:54 - 09:36 (T33, mockup 17 approved 09:24, log_type 09:36): Profiles → Logging - one list of logged services, the common Queue and Retry one line above it; details like Templates; Edit in a dialog #}
+{% include "inventory/_hw_tabs.html" with hw_tab="logging" %}
+<p class="muted">{% trans "The logged services: what each one writes on a machine and sends to the site's log collector (Sites → the site → Log collectors). Profiles → Services picks them: a VyOS profile has vyos only, every other profile has common and any of the rest. Logs are rotated once a day." %}</p>
+{% if can_edit %}<form class="filters" method="post" action="{% url 'inv_logging_settings' %}" style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:0 0 12px">{% csrf_token %}
+  <div class="field" style="margin:0"><label for="{{ settings_form.log_queue_mb.id_for_label }}">{% trans "Queue, MB" %} <small class="muted">{% trans "while the collector is down" %}</small></label>{{ settings_form.log_queue_mb }}</div>
+  <div class="field" style="margin:0"><label for="{{ settings_form.log_retry_seconds.id_for_label }}">{% trans "Retry, s" %} <small class="muted">{% trans "to the next try" %}</small></label>{{ settings_form.log_retry_seconds }}</div>
+  <button class="btn small">{% trans "Save" %}</button><small class="muted">{% trans "for every machine" %}</small></form>
+{% else %}<p><small>{% trans "Queue, MB" %} {{ rules.log_queue_mb }} · {% trans "Retry, s" %} {{ rules.log_retry_seconds }} <span class="muted">{% trans "for every machine" %}</span></small></p>{% endif %}
+<section class="card olist" data-key="logging" data-autoselect>
+  {% blocktrans count n=rows|length asvar title %}{{ n }} Logged service{% plural %}{{ n }} Logged services{% endblocktrans %}{% trans "new" as add_label %}
+  {% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-lg-new" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Type" %}</th><th>log_type</th><th class="num">{% trans "Days" %}</th><th class="num">{% trans "Size, MB" %}</th>{% if can_edit %}<th></th>{% endif %}</tr></thead><tbody>
+  {% for s in rows %}<tr class="orow" data-id="lg-{{ s.pk }}"><td><span class="code">{{ s.name }}</span></td><td>{{ s.kind }}</td><td><span class="code">{{ s.shown_log_type }}</span></td>
+    <td class="num">{% if s.is_vyos %}<span class="muted">—</span>{% else %}{{ s.days }}{% endif %}</td><td class="num">{{ s.size_mb }}</td>
+    {% if can_edit %}<td class="row-actions"><button class="btn ghost small" type="button" data-open="dlg-lg-{{ s.pk }}">{% trans "Edit" %}</button>
+      {% if not s.fixed and not s.used_by %}<form class="inline" method="post" action="{% url 'inv_logged_delete' s.pk %}" onsubmit="return confirm('{% trans "Delete this logged service?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}</td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="6" class="muted">{% trans "No logged services." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for s in rows %}<div class="odetail card" data-for="lg-{{ s.pk }}" hidden><div class="card-top"><h3><span class="code">{{ s.name }}</span> <small class="muted">{{ s.kind }}</small></h3></div>
+    {% include "inventory/_logged_detail.html" %}
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}<dialog id="dlg-lg-new" class="card" style="max-width:520px;width:94%"><h2>{% trans "New logged service" %}</h2>
+  <form method="post" action="{% url 'inv_logged_new' %}" class="stack">{% csrf_token %}
+  {% with f=new_form.name %}{% include "includes/field.html" %}{% endwith %}
+  <div class="field"><label>{% trans "Type" %}</label><input type="text" value="base-os" readonly></div>
+  {% with f=new_form.log_type %}{% include "includes/field.html" %}{% endwith %}
+  <p class="muted"><small>{% trans "Days and Size start from common; the rest starts empty." %}</small></p>
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for s in rows %}{% include "inventory/_logged_dialog.html" %}{% endfor %}{% endif %}
+{% endblock %}

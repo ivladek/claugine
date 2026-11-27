@@ -1,0 +1,6 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">Hello,</p>
+<p style="margin:0 0 10px">The POC of project {{ tenant.name|default:tenant.title }} ends on {{ date }} — in {{ days }} day{{ days|pluralize }}.<br>
+Contact your sales rep to extend it or to sign a contract{% if tenant.sales_rep %}: <a href="mailto:{{ tenant.sales_rep.email }}" style="color:#0f6b55">{{ tenant.sales_rep.full_name|default:tenant.sales_rep.email }}</a>{% endif %}.</p>
+<p style="margin:14px 0"><a class="btn" href="{{ link }}" style="display:inline-block;background:#0f6b55;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:8px">Open</a> <span style="color:#6b736e;font-size:12px">{{ link }}</span></p>
+{% endblock %}
