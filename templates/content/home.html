@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% load i18n %}
+{% block content %}
+<section class="hero">
+  <h1>{% trans "Cloud infrastructure in Kazakhstan" %}</h1>
+  <p>{% blocktrans %}Virtual machines, GPU servers and storage in data centers in Kazakhstan, with your data kept in the country. Choose the resources you need, connect over the internet, the corporate network or a dedicated L2 channel, and manage everything in the OpenNebula console.{% endblocktrans %}</p>
+  {% if not user.is_authenticated %}<div class="actions"><a class="btn" href="{% url 'register' %}">{% trans "Register" %}</a><a class="btn ghost" href="{% url 'login' %}">{% trans "Sign in" %}</a></div>{% endif %}
+</section>
+
+<section class="card" style="margin-top:24px">
+  <h2>{% trans "Documentation" %}</h2>
+  <div class="grid two">
+    <div><p><a href="{{ docs.service }}" target="_blank" rel="noopener"><strong>{% trans "The service" %}</strong></a><br><small class="muted">{% trans "What Example Cloud is and how it works." %}</small></p>
+      <p><a href="{{ docs.architecture }}" target="_blank" rel="noopener"><strong>{% trans "Platform and architecture" %}</strong></a><br><small class="muted">{% trans "OpenNebula, KVM, VyOS: what the cloud is built from." %}</small></p>
+      <p><a href="{{ docs.services }}" target="_blank" rel="noopener"><strong>{% trans "Services for projects" %}</strong></a><br><small class="muted">{% trans "Compute, storage, connectivity and OpenNebula services in detail." %}</small></p></div>
+    <div><p><a href="{{ docs.org_admin }}" target="_blank" rel="noopener"><strong>{% trans "Organization admin guide" %}</strong></a><br><small class="muted">{% trans "Registration, ordering projects, users and changes." %}</small></p>
+      <p><a href="{{ docs.tenant_user }}" target="_blank" rel="noopener"><strong>{% trans "Project user guide" %}</strong></a><br><small class="muted">{% trans "Invitation, the console and the project gateway." %}</small></p>
+      <p><a href="{{ docs.staff }}" target="_blank" rel="noopener"><strong>{% trans "Platform users guide" %}</strong></a><br><small class="muted">{% trans "What each platform role does." %}</small></p></div>
+  </div>
+</section>
+
+<div class="grid two" style="margin-top:16px">
+  <section class="card">
+    <h2>{% trans "Service status" %}</h2>
+    {% if components %}
+      <p><span class="pill {{ overall }}">{% if overall == 'operational' %}{% trans "All services operational" %}{% elif overall == 'maintenance' %}{% trans "Planned maintenance" %}{% elif overall == 'degraded' %}{% trans "Partially degraded" %}{% else %}{% trans "Service disruption" %}{% endif %}</span></p>
+      {% for c, uptime in components %}
+        <div class="status-row">
+          <div><span class="dot {{ c.state }}"></span>{{ c.name }}{% if c.note %} <small>— {{ c.note }}</small>{% endif %}</div>
+          <div>{% if uptime is not None %}<small>{% blocktrans with u=uptime|floatformat:2 %}{{ u }}% uptime, 30 days{% endblocktrans %}</small>{% endif %}</div>
+        </div>
+      {% endfor %}
+    {% else %}<p class="muted">{% trans "Status information will appear here." %}</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>{% trans "Announcements" %}</h2>
+    {% for a in announcements %}
+      <div class="news-item"><time>{{ a.published_at|date:"d.m.Y" }}</time><div><a href="{% url 'article' a.pk %}">{{ a.title }}</a></div></div>
+    {% empty %}<p class="muted">{% trans "No announcements." %}</p>{% endfor %}
+  </section>
+</div>
+
+<section class="card" style="margin-top:16px">
+  <h2>{% trans "News" %}</h2>
+  {% for a in news %}
+    <div class="news-item"><time>{{ a.published_at|date:"d.m.Y" }}</time><h3 style="margin:2px 0 4px"><a href="{% url 'article' a.pk %}">{{ a.title }}</a></h3><p class="muted" style="margin:0">{{ a.body|truncatechars:220 }}</p></div>
+  {% empty %}<p class="muted">{% trans "No news yet." %}</p>{% endfor %}
+</section>
+{% endblock %}

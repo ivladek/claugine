@@ -1,0 +1,1 @@
+<div style="background:#e3e6e3;border-radius:4px;height:6px;width:110px;margin:3px 0 0 auto"><div style="background:{% if lvl == 'bad' %}#b3261e{% elif lvl == 'warn' %}#a86400{% else %}#0f6b55{% endif %};border-radius:4px;height:6px;width:{% if pct > 100 %}100{% elif pct %}{{ pct }}{% else %}0{% endif %}%"></div></div>

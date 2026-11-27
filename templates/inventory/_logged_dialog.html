@@ -1,0 +1,22 @@
+{% load i18n %}{# a logged service's Edit dialog (T36 B2); posts with next = the page it is on #}
+<dialog id="dlg-lg-{{ s.pk }}" class="card wide" style="width:96%"><h2>{% trans "Edit" %} <span class="code">{{ s.name }}</span></h2>
+  <form method="post" action="{% url 'inv_logged_save' s.pk %}" class="stack compact">{% csrf_token %}{% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+  <div class="grid three" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    {% if s.fixed %}<div class="field"><label>{% trans "Name" %}</label><input type="text" value="{{ s.name }}" readonly><div class="help">{% trans "predefined" %}</div></div>
+    {% else %}{% with f=s.form.name %}{% include "includes/field.html" %}{% endwith %}{% endif %}
+    <div class="field"><label>{% trans "Type" %}</label><input type="text" value="{{ s.kind }}" readonly><div class="help">{% trans "not editable" %}</div></div>
+    {% if s.fixed %}<div class="field"><label>log_type</label><input type="text" value="{{ s.shown_log_type }}" readonly><div class="help">{% if s.name == "common" %}{% trans "set by its rules" %}{% else %}{% trans "fixed" %}{% endif %}</div></div>
+    {% else %}{% with f=s.form.log_type %}{% include "includes/field.html" %}{% endwith %}{% endif %}
+    {% if s.is_vyos %}<div class="field"><label>{% trans "Days" %}</label><input type="text" value="—" readonly><div class="help">{% trans "VyOS rotates by size only" %}</div></div>
+    {% else %}{% with f=s.form.days %}{% include "includes/field.html" %}{% endwith %}{% endif %}
+    {% with f=s.form.size_mb %}{% include "includes/field.html" %}{% endwith %}
+  </div>
+  {% if not s.is_vyos %}{% with f=s.form.also_rotated %}{% include "includes/field.html" %}{% endwith %}
+    {% with f=s.form.after_rotation %}{% include "includes/field.html" %}{% endwith %}
+    {% with f=s.form.rsyslog_conf %}{% include "includes/field.html" %}{% endwith %}
+    <fieldset><legend>{% trans "Config changes" %} <small>— {% trans "settings in the service's own files the portal makes sure of" %}</small></legend>
+      {% with f=s.form.config_changes %}{% include "includes/field.html" %}{% endwith %}
+      <div class="grid three">{% with f=s.form.config_check %}{% include "includes/field.html" %}{% endwith %}{% with f=s.form.config_then %}{% include "includes/field.html" %}{% endwith %}{% with f=s.form.config_command %}{% include "includes/field.html" %}{% endwith %}</div></fieldset>{% endif %}
+  {% if not s.fixed %}{% with f=s.form.function %}{% include "includes/field.html" %}{% endwith %}{% endif %}
+  {% with f=s.form.notes %}{% include "includes/field.html" %}{% endwith %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>

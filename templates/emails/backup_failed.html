@@ -1,0 +1,5 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{{ subject }}</p>
+<p style="margin:0 0 10px">{{ text|linebreaksbr }}</p>
+<p style="margin:0 0 10px">{% trans "Settings → Backups shows the latest result and the schedule." %}</p>
+{% endblock %}

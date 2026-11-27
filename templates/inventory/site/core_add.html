@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{% trans "Add service" %} · {{ site.code }}{% endblock %}
+{% block content %}
+{# T34 S3c (ui-19, owner 2026-11-22 16:59): the service profile first, then what its type needs; R8: a page, Add and Cancel on top #}
+<h1>{% trans "Add service" %} · <span class="code">{{ site.code }}</span></h1>
+<div class="actions" style="margin-bottom:12px">
+  {% if form %}<button class="btn" form="cs-add">{% trans "Add" %}</button>{% endif %}
+  <a class="btn ghost" href="{% url 'infra_site' site.code %}?tab=core">{% trans "Cancel" %}</a>
+</div>
+<section class="card compact">
+  <form method="get" class="fld-inline" style="margin:0 0 10px">
+    <label for="cs-profile">{% trans "Service profile" %}</label>
+    <select id="cs-profile" name="profile" onchange="this.form.submit()" style="min-width:360px">
+      <option value="">—</option>
+      {% for p, why in choices %}<option value="{{ p.pk }}" {% if prof and prof.pk == p.pk %}selected{% endif %} {% if why %}disabled{% endif %}>{{ p.key }}{% if p.name %} - {{ p.name }}{% endif %}{% if why %} ({{ why }}){% endif %}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn ghost small">{% trans "Choose" %}</button></noscript>
+    <span class="fnote">{% trans "The rest of the form is what this profile asks for." %}</span>
+  </form>
+  {% if prof %}
+  <p class="ctxline"><strong>{{ prof.name }}</strong> · <span class="code">{{ prof.key }}</span> · {{ type_label }}{% if prof.vms %} · {% blocktrans count n=prof.vms %}{{ n }} VM{% plural %}{{ n }} VMs{% endblocktrans %}{% endif %}{% if prof.install_template %} · {% trans "template" %} <span class="code">{{ prof.install_template }}</span>{% endif %}</p>
+  <form id="cs-add" method="post" class="stack cs-form-wrap">{% csrf_token %}<input type="hidden" name="profile" value="{{ prof.pk }}">
+    {% with f=form %}{% include "inventory/site/_core_type_form.html" %}{% endwith %}
+  </form>
+  <p class="muted" style="margin:8px 0 0"><small>{% trans "Nothing is deployed by Add: the VMs are defined, then each is deployed from the service's VMs (Deploy)." %}</small></p>
+  {% else %}<p class="muted"><small>{% trans "Choose the service profile it is made from (Profiles → Services)." %}</small></p>{% endif %}
+</section>
+<style>
+.cs-form input[type=text], .cs-form input[type=number], .cs-form select, .cs-form textarea { box-sizing: border-box; width: 100%; max-width: 520px; padding: 6px 9px; }
+.cs-grid { display: grid; gap: 8px 12px; } .cs-res1 { grid-template-columns: repeat(4, minmax(110px, 160px)); }
+.cs-sub label { font-size: .75rem; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .02em; }
+</style>
+{% endblock %}
