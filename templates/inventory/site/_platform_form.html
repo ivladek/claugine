@@ -1,0 +1,20 @@
+{% load i18n %}{# owner 2026-11-15: the platform's Add and Edit dialogs - actions on top, one row per option, the nodes table #}
+<div class="card-top"><h2>{{ title }}</h2><div class="actions"><button class="btn">{{ submit }}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></div>
+<div class="dlg-rows">
+  <div class="fld-inline">{% if p %}<label for="pl-rn-{{ p.name }}">{% trans "Platform name" %}</label><input type="text" id="pl-rn-{{ p.name }}" name="rename" value="{{ p.name }}" pattern="[a-z][a-z0-9_\-]{1,30}" maxlength="31" required>{% else %}<label for="{{ form.name.id_for_label }}">{% trans "Platform name" %}</label>{{ form.name }}{% endif %}</div>
+  <div class="fld-inline"><label for="{{ form.kind.id_for_label }}">{% trans "Type" %}</label>{{ form.kind }}</div>
+  {% if p %}<div class="fld-inline"><label for="{{ form.state.id_for_label }}">{% trans "State" %}</label>{{ form.state }}</div>{% endif %}
+  <div class="fld-inline pair"><label for="{{ form.fe_mode.id_for_label }}">{% trans "Mode" %}</label>{{ form.fe_mode }}<span class="fld-sub">{% trans "primary" %}</span>{{ form.fe_primary }}</div>
+  {# owner 2026-11-24 (T36 rules v2 B4, mockup m04): OpenNebula per platform; a mgmt or simple platform's front end runs on its hosts #}
+  <div class="fld-inline"><label for="{{ form.one_version.id_for_label }}">OpenNebula</label>{{ form.one_version }}<label class="check" style="margin:0 0 0 14px">{{ form.one_ee }} {% trans "Enterprise Edition" %}</label><span class="fld-sub">{% trans "login" %}</span>{{ form.one_login }}</div>
+  <div class="fld-inline"><label for="{{ form.fe_type.id_for_label }}">{% trans "Runs on" %}</label>{{ form.fe_type }}<small class="muted">{% trans "mgmt and simple: always the host OS" %}</small></div>
+  <div class="fld-inline"><label for="{{ form.fe_name.id_for_label }}">{% trans "Zone name" %}</label>{{ form.fe_name }}<label class="check" style="margin:0 0 0 14px">{{ form.onegate_proxy }} {% trans "OneGate through hosts" %}</label></div>
+  <div class="fld-inline pair"><label for="{{ form.sa.id_for_label }}">{% trans "Secrets" %}</label><span class="fld-sub">{% trans "super admins" %}</span>{{ form.sa }}<span class="fld-sub">{% trans "platform" %}</span>{{ form.fe_secrets }}</div>
+  <div class="fld-inline wide"><label for="{{ form.public_fqdn.id_for_label }}">{% trans "Public FQDN" %}</label>{{ form.public_fqdn }}</div>
+</div>
+<div class="table-wrap fe-nodes"><table class="compact"><thead><tr><th style="width:4em"></th><th>{% trans "Name" %}</th><th>{% trans "IP" %}</th></tr></thead><tbody>
+  <tr><td class="muted">VIP</td><td>{{ form.fe_hostname }}</td><td>{{ form.fe_vip }}</td></tr>
+  <tr><td class="muted">1</td><td>{{ form.fe_node1 }}</td><td>{{ form.fe_ip1 }}</td></tr>
+  <tr><td class="muted">2</td><td>{{ form.fe_node2 }}</td><td>{{ form.fe_ip2 }}</td></tr>
+  <tr><td class="muted">3</td><td>{{ form.fe_node3 }}</td><td>{{ form.fe_ip3 }}</td></tr>
+</tbody></table></div>

@@ -1,0 +1,68 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Functions" %}{% endblock %}
+{% block content %}
+{# owner 2026-11-24 (T36 rules v2 C2 and D, mockup m02 approved 21:11): Profiles → Functions - each Linux service or VyOS purpose: OS, requires, version, parts, installation, logging rules (the logged services linked to it) and the services built with it #}
+{% include "inventory/_hw_tabs.html" with hw_tab="functions" %}
+<section class="card olist" data-key="t36-functions" data-autoselect>
+  {% blocktrans count n=rows|length asvar title %}{{ n }} Function{% plural %}{{ n }} Functions{% endblocktrans %}{% trans "new" as add_label %}
+  {% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-fn-new" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "OS" %}</th><th>{% trans "Requires" %}</th><th>{% trans "Version" %}</th><th>{% trans "What it is" %}</th><th>{% trans "Used by" %}</th></tr></thead><tbody>
+  {% for f in rows %}<tr class="orow" data-id="fn-{{ f.pk }}"><td><span class="code">{{ f.key }}</span></td><td>{{ f.os }}</td>
+    <td>{{ f.requires_keys|join:", "|default:"—" }}</td>
+    <td>{{ f.shown_version|default:"—" }}</td><td><small>{{ f.name }}</small></td>
+    <td><small>{% for p in f.used_by %}{{ p.key }}{% if p.usage == 'project' %} <span class="muted">({% trans "project" %})</span>{% endif %}{% if not forloop.last %}, {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</small></td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">{% trans "No functions." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for f in rows %}<div class="odetail" data-for="fn-{{ f.pk }}" hidden>
+    <div class="card"><div class="card-top"><h3><span class="code">{{ f.key }}</span> <small class="muted">{{ f.name }}</small></h3>
+      {% if can_edit %}<div class="actions"><button class="btn ghost small" type="button" data-open="dlg-fn-{{ f.pk }}">{% trans "Edit" %}</button>
+        {% if not f.used_by %}<form class="inline" method="post" action="{% url 'inv_function_delete' f.pk %}" onsubmit="return confirm('{% trans "Delete this function?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}</div>{% endif %}</div>
+    <dl class="facts">
+      <dt>{% trans "OS" %}</dt><dd><span class="code">{{ f.os }}</span> <small class="muted">{% trans "fixed once made" %}</small></dd>
+      <dt>{% trans "Requires" %}</dt><dd>{% for k in f.requires_keys %}<span class="code">{{ k }}</span>{% if not forloop.last %} {% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</dd>
+      <dt>{% trans "Version" %}</dt><dd>{{ f.shown_version|default:"—" }}{% if f.key == 'frr' %} <small class="muted">{% trans "the baseline's FRR release: new hosts install it" %}</small>{% elif f.key == 'one-fe' %} <small class="muted">{% trans "each platform's OpenNebula (Sites → the site → Platforms)" %}</small>{% endif %}</dd>
+      {% if f.parts %}<dt>{% trans "Parts" %}</dt><dd>{% for k in f.parts %}<span class="code">{{ k }}</span>{% if not forloop.last %} {% endif %}{% endfor %} <small class="muted">{% trans "come with it" %}</small></dd>{% endif %}
+      <dt>{% trans "Installation" %}</dt><dd>{% if f.install_t %}<a href="{% url 'infra_templates' %}"><span class="code">{{ f.install_t }}</span></a>{% if f.install_missing %} {% st "bad" _("no such template") %}{% endif %} <small class="muted">({% if f.os == 'vyos' %}{% trans "its VyOS template" %}{% else %}Profiles → Templates{% endif %})</small>{% else %}<span class="muted">{% trans "none: it installs nothing yet" %}</span>{% endif %}</dd>
+      {% if f.os == 'base-os' %}{# T36 B5a (QB5-1): its config files, written whole at the step naming them #}<dt>{% trans "Config files" %}</dt><dd>{% for c, role in f.config_rows %}<span class="code">{{ c.path }}</span> <small class="muted">← {{ role }}{% if c.then and c.then != "nothing" %}, {{ c.then }}{% endif %}</small>{% if not forloop.last %}<br>{% endif %}{% empty %}<span class="muted">—</span>{% endfor %}</dd>{% endif %}
+      {% if f.notes %}<dt>{% trans "Notes" %}</dt><dd>{{ f.notes|linebreaksbr }}</dd>{% endif %}
+    </dl></div>
+    {% if f.os == 'base-os' %}<div class="card"><div class="card-top"><h3>{% trans "Logging" %} <small class="muted">— {% trans "its logged services" %}</small></h3>
+      {% if can_edit %}<div class="actions"><button class="btn ghost small" type="button" data-open="dlg-lg-new-{{ f.pk }}">+ {% trans "logged service" %}</button></div>{% endif %}</div>
+      {% for s in f.logged %}<div style="margin:0 0 14px"><h4 style="margin:0 0 6px"><span class="code">{{ s.name }}</span>{% if can_edit %} <button class="btn ghost small" type="button" data-open="dlg-lg-{{ s.pk }}">{% trans "Edit" %}</button>{% endif %}</h4>
+        {% include "inventory/_logged_detail.html" %}</div>
+      {% empty %}<p class="muted"><small>{% trans "None: its messages go with the OS's common rules." %}</small></p>{% endfor %}</div>
+    {% else %}<div class="card"><p class="muted" style="margin:0"><small>{% trans "A VyOS function's logging is in its VyOS configuration (Profiles → OS → vyos)." %}</small></p></div>{% endif %}
+    <div class="card"><div class="card-top"><h3>{% trans "Used by" %}</h3></div>
+      <table class="compact"><thead><tr><th>{% trans "Service" %}</th><th>{% trans "Used in" %}</th></tr></thead><tbody>
+      {% for p in f.used_by %}<tr><td><a href="{% url 'infra_services' %}?sel=sp-{{ p.pk }}"><span class="code">{{ p.key }}</span></a></td><td><small>{{ p.get_usage_display }}</small></td></tr>{% empty %}<tr><td colspan="2" class="muted">—</td></tr>{% endfor %}</tbody></table></div>
+  </div>{% endfor %}</div>
+</section>
+{% if unlinked %}<section class="card" id="unlinked"><div class="card-top"><h2>{% trans "Logged services without a function" %}</h2></div>
+  <p class="muted"><small>{% trans "Give each its function in Edit; until then it is listed here." %}</small></p>
+  {% for s in unlinked %}<div id="lg-{{ s.pk }}" style="margin:0 0 14px"><h4 style="margin:0 0 6px"><span class="code">{{ s.name }}</span>{% if can_edit %} <button class="btn ghost small" type="button" data-open="dlg-lg-{{ s.pk }}">{% trans "Edit" %}</button>{% if not s.used_by %}<form class="inline" method="post" action="{% url 'inv_logged_delete' s.pk %}" onsubmit="return confirm('{% trans "Delete this logged service?" %}')">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}"><button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}{% endif %}</h4>
+    {% include "inventory/_logged_detail.html" %}</div>{% endfor %}
+</section>{% endif %}
+{% if can_edit %}
+<dialog id="dlg-fn-new" class="card" style="max-width:520px;width:94%"><h2>{% trans "New function" %}</h2>
+  <form method="post" action="{% url 'inv_function_new' %}" class="stack">{% csrf_token %}
+  {% with f=new_form.key %}{% include "includes/field.html" %}{% endwith %}{% with f=new_form.os %}{% include "includes/field.html" %}{% endwith %}{% with f=new_form.name %}{% include "includes/field.html" %}{% endwith %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for f in rows %}<dialog id="dlg-fn-{{ f.pk }}" class="card" style="max-width:{% if f.form.configs %}960{% else %}620{% endif %}px;width:94%"><h2>{% trans "Edit" %} <span class="code">{{ f.key }}</span></h2>
+  <form method="post" action="{% url 'inv_function_save' f.pk %}" class="stack compact">{% csrf_token %}
+  <div class="field"><label>{% trans "OS" %}</label><input type="text" value="{{ f.os }}" readonly><div class="help">{% trans "fixed once made" %}</div></div>
+  {% with fld=f.form.name %}{% with f=fld %}{% include "includes/field.html" %}{% endwith %}{% endwith %}
+  {% if f.form.version %}{% with fld=f.form.version %}{% with f=fld %}{% include "includes/field.html" %}{% endwith %}{% endwith %}{% endif %}
+  {% with fld=f.form.requires %}{% with f=fld %}{% include "includes/field.html" %}{% endwith %}{% endwith %}
+  {% if f.form.install_template %}{% with fld=f.form.install_template %}{% with f=fld %}{% include "includes/field.html" %}{% endwith %}{% endwith %}{% endif %}
+  {% if f.form.configs %}{% with fld=f.form.configs %}{% with f=fld %}{% include "includes/field.html" %}{% endwith %}{% endwith %}{% endif %}
+  {% with fld=f.form.notes %}{% with f=fld %}{% include "includes/field.html" %}{% endwith %}{% endwith %}
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+  {% if f.os == 'base-os' %}<dialog id="dlg-lg-new-{{ f.pk }}" class="card" style="max-width:520px;width:94%"><h2>{% trans "New logged service" %} <small class="muted">— <span class="code">{{ f.key }}</span></small></h2>
+  <form method="post" action="{% url 'inv_logged_new' %}" class="stack">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}?sel=fn-{{ f.pk }}"><input type="hidden" name="new-function" value="{{ f.pk }}">
+  {% with fld=logged_new_form.name %}{% with f=fld %}{% include "includes/field.html" %}{% endwith %}{% endwith %}
+  {% with fld=logged_new_form.log_type %}{% with f=fld %}{% include "includes/field.html" %}{% endwith %}{% endwith %}
+  <p class="muted"><small>{% trans "Days and Size start from the common line (Profiles → OS); the rest starts empty." %}</small></p>
+  <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+  {% for s in f.logged %}{% include "inventory/_logged_dialog.html" %}{% endfor %}{% endfor %}
+{% for s in unlinked %}{% include "inventory/_logged_dialog.html" %}{% endfor %}{% endif %}
+{% endblock %}

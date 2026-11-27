@@ -1,0 +1,88 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}DNS{% endblock %}
+{% block content %}
+{# owner 2026-11-21 13:38-13:50 (T34 B5): Infrastructure → DNS for all sites, right after Profiles; two tabs #}
+<h1>DNS</h1>
+<div class="subnav"><a class="btn {% if tab != 'zones' %}ghost{% endif %} small" href="?tab=zones">{% trans "Zones" %}</a><a class="btn {% if tab != 'servers' %}ghost{% endif %} small" href="?tab=servers">{% trans "DNS servers" %}</a></div>
+{% if settings.uncertain %}<p class="msg warning">{% blocktrans with why=settings.uncertain.why %}The primary name server's {{ why }} has not ended with its zones confirmed: what it serves is not known. Apply the zones (DNS servers → Apply).{% endblocktrans %}</p>{% endif %}{# commit-338 #}
+{% if settings.handoff %}<p class="msg warning">{% trans "The primary moved and not every name server follows it yet - the former primary may still serve its own copy of the zones. Apply the zones (DNS servers → Apply): the warning goes when every server has them." %}</p>{% endif %}{# commit-362 #}
+{% if tab == 'zones' %}
+<p class="muted">{% trans "Zones are added by the portal - the direct zone from Settings → Customer → Internal domain, a reverse zone for every core-cloud and core-kvm network - and you can add more. Records of the automatic zones come from what the portal has, deployed or planned: core service VMs, hosts, front ends (and a PTR when the address is in a reverse zone); you can add records to any zone. The zone data is kept only here; Apply (DNS servers) puts it on the name servers." %}</p>
+{% if notes %}<p><small style="color:var(--warn)">{% for n in notes %}{{ n }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</small></p>{% endif %}
+<section class="card olist" data-key="dns-zones" data-autoselect>
+  {% trans "Zones" as title %}{% trans "Add zone" as add_label %}{% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-dz-new" %}{% else %}{% include "ui/bar.html" %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Zone" %}</th><th>{% trans "Kind" %}</th><th>{% trans "From" %}</th><th class="num">{% trans "Automatic records" %}</th><th class="num">{% trans "Added records" %}</th><th>{% trans "On the name servers" %}</th><th></th></tr></thead><tbody>
+  {% for z in zones %}<tr class="orow" data-id="dz-{{ z.pk }}"><td><span class="code">{{ z.name }}</span></td><td>{{ z.get_kind_display }}</td>
+    <td><small>{% if z.source == 'domain' %}{% trans "auto: Settings → Customer → Internal domain" %}{% elif z.automatic %}{% trans "auto:" %} {{ z.from_text }}{% else %}{% trans "added" %}{% endif %}</small></td>
+    <td class="num">{{ z.auto_count }}</td><td class="num">{{ z.added_count }}</td>
+    <td>{% if z.state == 'applied' %}{% st "ok" _("applied") %}{% elif z.state == 'to apply' %}{% st "warn" _("to apply") %}{% else %}{% st "muted" _("no primary") %}{% endif %}{% if z.on_server and z.on_server != 'as applied' %} {% st "warn" z.on_server %}{% endif %}</td>
+    <td class="row-actions"><span class="stack-right">{% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-dr-new-{{ z.pk }}">+ {% trans "Add record" %}</button>
+      {% if not z.automatic %}<button class="btn ghost small" type="button" data-open="dlg-dz-{{ z.pk }}">{% trans "Edit" %}</button>
+      <form class="inline" method="post" action="{% url 'dns_zone_delete' z.pk %}" onsubmit="return confirm('{% trans "Delete this zone and its records? Apply removes it from the servers." %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}{% endif %}</span></td></tr>
+  {% empty %}<tr><td colspan="7" class="muted">{% trans "No zones: set the internal domain (Settings → Customer) or add one." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a zone to see its records." %}</div>
+  {% for z in zones %}<div class="odetail card" data-for="dz-{{ z.pk }}" hidden><h3><span class="code">{{ z.name }}</span> {{ z.get_kind_display }}{% if z.automatic %} · {% trans "automatic" %}{% endif %}</h3>
+    {% if z.source == 'domain' %}<p class="muted"><small>{% trans "From Settings → Customer → Internal domain - renamed there, renamed here; it cannot be deleted here." %}</small></p>{% endif %}
+    {% if z.notes %}<p class="muted"><small>{{ z.notes }}</small></p>{% endif %}
+    <p><small>SOA, NS: {% if primary %}{% trans "primary" %} <span class="code">{{ primary.host }}</span>, {% blocktrans count n=servers|length %}{{ n }} name server{% plural %}{{ n }} name servers{% endblocktrans %}{% else %}<span style="color:var(--warn)">{% trans "no primary yet: the first name server made from its profile (Deploy or Redeploy) becomes it" %}</span>{% endif %} · refresh {{ soa.refresh }} · retry {{ soa.retry }} · expire {{ soa.expire }} · minimum {{ soa.minimum }}</small></p>
+    <div class="table-wrap"><table><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Type" %}</th><th>{% trans "Value" %}</th><th>{% trans "Source" %}</th><th></th></tr></thead>
+    {% for r in z.rows %}<tr><td><span class="code">{{ r.name }}</span></td><td>{{ r.rtype }}</td><td><span class="code">{{ r.value }}</span>{% if r.ttl %} <small class="muted">TTL {{ r.ttl }}</small>{% endif %}</td><td><small>{{ r.source }}</small></td>
+      <td>{% if r.added and can_edit %}<span class="stack-right"><button class="btn ghost small" type="button" data-open="dlg-dr-{{ r.added.pk }}">{% trans "Edit" %}</button><form class="inline" method="post" action="{% url 'dns_record_delete' z.pk r.added.pk %}" onsubmit="return confirm('{% trans "Delete this record?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form></span>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="5" class="muted">{% trans "No records." %}</td></tr>{% endfor %}</table></div>
+    <p class="muted"><small>{% trans "An automatic record changes with what it comes from; an added record is changed or deleted here." %}</small></p>
+    {% if can_edit %}{% for r in z.rows %}{% if r.added %}<dialog id="dlg-dr-{{ r.added.pk }}" class="card" style="max-width:560px;width:94%"><h2>{% trans "Record" %} <small class="muted">{{ z.name }}</small></h2>
+      <form method="post" action="{% url 'dns_record_edit' z.pk r.added.pk %}" class="stack">{% csrf_token %}{% for f in r.form %}{% include "includes/field.html" %}{% endfor %}
+      <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}{% endfor %}
+    <dialog id="dlg-dr-new-{{ z.pk }}" class="card" style="max-width:560px;width:94%"><h2>{% trans "Add record" %} <small class="muted">{{ z.name }}</small></h2>
+      <form method="post" action="{% url 'dns_record_new' z.pk %}" class="stack">{% csrf_token %}{% for f in z.record_form %}{% include "includes/field.html" %}{% endfor %}
+      <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+    {% if not z.automatic %}<dialog id="dlg-dz-{{ z.pk }}" class="card" style="max-width:520px;width:94%"><h2>{% trans "Edit zone" %}</h2>
+      <form method="post" action="{% url 'dns_zone_edit' z.pk %}" class="stack">{% csrf_token %}{% for f in z.form %}{% include "includes/field.html" %}{% endfor %}
+      <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}{% endif %}
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}<dialog id="dlg-dz-new" class="card" style="max-width:520px;width:94%"><h2>{% trans "Add zone" %}</h2>
+  <form method="post" action="{% url 'dns_zone_new' %}" class="stack">{% csrf_token %}{% for f in zone_form %}{% include "includes/field.html" %}{% endfor %}
+  <div class="actions"><button class="btn">{% trans "Add" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% else %}
+<p class="muted">{% trans "One primary for all sites, every other VM of a core service ns a secondary. Apply writes the primary's zone files (checked with named-checkzone and named-checkconf), reloads it and writes every server's zone list; the secondaries take the zones by transfer. Only servers made from their profile (Redeploy) are written; the others are refused. Check reads only." %}</p>
+<section class="card">
+  <div class="card-top"><h3>{% trans "Name servers" %}</h3><span class="head-actions">
+    {% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-dns-settings">{% trans "Edit" %}</button>{% endif %}
+    <form class="inline" method="post" action="{% url 'dns_check' %}">{% csrf_token %}<button class="btn ghost small" {% if running %}disabled{% endif %}>{% trans "Check" %}</button></form>
+    {% if can_edit %}<button class="btn small" type="button" data-open="dlg-dns-apply" {% if running or not primary %}disabled{% endif %}>{% trans "Apply" %}</button>{% endif %}</span></div>
+  {% if running %}<p>{% st "running" _("task running") %} <small class="muted">{{ running.title }}</small></p>{% endif %}
+  <dl class="facts">
+    <dt>{% trans "Primary (one for all sites)" %}</dt><dd>{% if primary %}<span class="code">{{ primary.host }}</span> · {{ primary.site }} · <span class="code">{{ primary.ip }}</span>{% else %}<span style="color:var(--warn)">{% trans "none yet: the first name server made from its profile (Deploy or Redeploy)" %}{% if stale_primary %} - {% blocktrans with n=stale_primary.name %}{{ n }} is no longer a name server (its service retired): the next one made from its profile takes over{% endblocktrans %}{% endif %}</span>{% endif %}</dd>
+    {% if first_pending %}<dt>{% trans "Becoming the primary" %}</dt><dd><span style="color:var(--warn)">{% blocktrans with n=first_pending.host %}{{ n }} - its redeploy has not ended{% endblocktrans %}</span>{% if not first_pending.eligible %} <small class="muted">{% trans "it is no longer a name server" %}</small>{% endif %}{% if can_edit %} <button class="btn ghost small" type="button" data-open="dlg-dns-release">{% trans "Release" %}</button>{% endif %}</dd>{% endif %}{# commit-358 #}
+    <dt>{% trans "Secondaries" %}</dt><dd>{% for x in servers %}{% if x.role != 'primary' %}<span class="code">{{ x.host }}</span> {% endif %}{% empty %}—{% endfor %} <small class="muted">{% trans "every other VM of a core service ns" %}</small></dd>
+    <dt>{% trans "Forwarders" %}</dt><dd><span class="code">{{ settings.forwarders|join:" "|default:"—" }}</span></dd>
+    <dt>{% trans "Forwarded zones" %}</dt><dd>{% for z in settings.forward_zones %}<span class="code">{{ z.name }}</span> → <span class="code">{{ z.servers|join:" " }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}</dd>
+    <dt>{% trans "Views per site" %}</dt><dd>{% for c, v in settings.sites.items %}<small>{{ c }}: {% trans "internal" %} <span class="code">{{ v.internal|join:" "|default:"—" }}</span> · {% trans "public" %} <span class="code">{{ v.public|join:" "|default:"—" }}</span></small>{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}</dd>
+    <dt>{% trans "Last applied" %}</dt><dd>{% if settings.applied_at %}{{ settings.applied_at|date:"Y-m-d H:i" }} · {% trans "serial" %} <span class="code">{{ settings.serial }}</span>{% else %}{% trans "never" %}{% endif %}</dd>
+  </dl>
+</section>
+<section class="card"><h3>{% trans "Servers" %}</h3>
+  <div class="table-wrap"><table><thead><tr><th>{% trans "Server" %}</th><th>{% trans "Site" %}</th><th>{% trans "Address" %}</th><th>{% trans "Role" %}</th><th>{% trans "Serial" %}</th><th>{% trans "State" %}</th></tr></thead>
+  {% for x in servers %}<tr><td><span class="code">{{ x.host }}</span></td><td>{{ x.site }}</td><td><span class="code">{{ x.ip|default:"—" }}</span></td><td>{{ x.role }}</td><td><span class="code">{{ x.serial }}</span></td>
+    <td>{% if x.halfway %}<span title="{{ x.halfway|join:' ' }}">{% st "error" _("an Apply left half way: the next Apply undoes it") %}</span>{% elif x.error %}<span title="{{ x.error }}">{% st "error" _("not checked") %}</span>{% elif x.unknown %}{% st "warn" _("zones not known") %}{% elif x.in_sync %}{% st "ok" _("answers") %}{% elif x.unchecked and x.serial != '—' %}{% st "warn" _("not checked") %} <small class="muted">{{ x.unchecked|join:", " }}</small>{% elif x.serial != '—' %}{% st "warn" _("behind") %}{% else %}<span class="muted">{% trans "not checked" %}</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">{% trans "No name servers: add the core service ns on a site (Site → Services)." %}</td></tr>{% endfor %}</table></div>
+  <p class="muted"><small>{% trans "The servers are the VMs of the sites' core services ns (Site → Services), each made from its profile on its own, one at a time; the first made is the primary, or the one made with 'Make it the primary' ticked in its Deploy or Redeploy; every other is a secondary." %}{% if settings.last_check.at %} {% trans "Checked" %} {{ settings.last_check.at|slice:":16" }} UTC.{% endif %}</small></p>
+</section>
+{% if can_edit %}<dialog id="dlg-dns-settings" class="card" style="max-width:760px;width:94%"><h2>{% trans "Name servers" %}</h2>
+  <form method="post" action="{% url 'dns_settings' %}" class="stack">{% csrf_token %}
+    {% for f in settings_form %}{% if f.name not in "ttl refresh retry expire minimum" %}{% include "includes/field.html" %}{% endif %}{% endfor %}
+    <div class="grid cols6">{% for f in settings_form %}{% if f.name in "ttl refresh retry expire minimum" %}{% include "includes/field.html" %}{% endif %}{% endfor %}</div>
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+<dialog id="dlg-dns-apply" class="card" style="max-width:600px;width:94%"><h2>{% trans "Apply the zones?" %}</h2>
+  <p>{% blocktrans count n=zones|length %}{{ n }} zone is written to the primary with a new serial{% plural %}{{ n }} zones are written to the primary with a new serial{% endblocktrans %}{% if primary %} (<span class="code">{{ primary.host }}</span>){% endif %}, {% trans "checked, and the primary reloaded; then every server's zone list; then Check. A zone file that does not pass its check changes nothing." %}</p>
+  <form method="post" action="{% url 'dns_apply' %}" class="stack">{% csrf_token %}
+    <label>{% trans "Type apply to confirm" %}<input name="confirm" autocomplete="off" required></label>
+    <div class="actions"><button class="btn">{% trans "Apply" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% endif %}
+{% if can_edit and first_pending %}<dialog id="dlg-dns-release" class="card" style="max-width:600px;width:94%"><h2>{% trans "Release the primary-to-be?" %}</h2>{# commit-358 #}
+  <p>{% blocktrans with n=first_pending.host %}{{ n }} began becoming the primary and its redeploy did not end. Release it only when no VM made for it can answer as a primary any more (removed, powered off or rolled back - look on the platform for VMs carrying CLAUGINE_DNS_FIRST): another name server may then become the primary.{% endblocktrans %}</p>
+  <form method="post" action="{% url 'dns_release_first' %}" class="stack">{% csrf_token %}<input type="hidden" name="rev" value="{{ first_pending.rev }}">
+    <label>{% trans "Type its host name to confirm" %}<input name="confirm" autocomplete="off" required></label>
+    <div class="actions"><button class="btn danger">{% trans "Release" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% endblock %}

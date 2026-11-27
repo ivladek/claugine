@@ -1,0 +1,448 @@
+"""Read tenant groups from OpenNebula over XML-RPC. Read-only.
+
+Uses the standard library XML-RPC client, so it works with any OpenNebula
+version that has one.group.info and one.grouppool.info.
+"""
+
+import http.client
+import xml.etree.ElementTree as ET
+import xmlrpc.client
+
+from django.utils import timezone
+
+from .models import Observation, PlatformStats
+
+HOST_ON, HOST_ERROR = {0, 1, 2, 6}, {3, 5}  # everything else (disabled, offline) counts as off
+VM_ACTIVE, VM_RUNNING_LCM, VM_POWEROFF = 3, 3, 8
+
+TIMEOUT = 20
+
+
+class OneError(Exception):
+    """method: the call; code: OpenNebula's own error code when the reply was an unsuccessful answer (its third value,
+    e.g. NO_EXISTS 0x0400), None for a transport error or an XML-RPC fault (T34 B6, commit-345)."""
+
+    def __init__(self, text, method="", code=None):
+        super().__init__(text)
+        self.method = method
+        self.code = code
+
+
+NO_EXISTS = 0x0400  # OpenNebula: the object does not exist
+
+
+class _TimeoutTransport(xmlrpc.client.Transport):
+    def make_connection(self, host):
+        conn = super().make_connection(host)
+        conn.timeout = TIMEOUT
+        return conn
+
+
+class _TimeoutSafeTransport(xmlrpc.client.SafeTransport):
+    def make_connection(self, host):
+        conn = super().make_connection(host)
+        conn.timeout = TIMEOUT
+        return conn
+
+
+def xml_to_dict(elem):
+    """OpenNebula XML to plain data: repeated tags become lists, leaves become strings."""
+    children = list(elem)
+    if not children:
+        return (elem.text or "").strip()
+    out = {}
+    for child in children:
+        value = xml_to_dict(child)
+        if child.tag in out:
+            if not isinstance(out[child.tag], list):
+                out[child.tag] = [out[child.tag]]
+            out[child.tag].append(value)
+        else:
+            out[child.tag] = value
+    return out
+
+
+# one.zone.raftstatus STATE (OpenNebula: 0 solo, 1 candidate, 2 follower, 3 leader)
+RAFT_STATES = {"0": "solo", "1": "candidate", "2": "follower", "3": "leader"}
+
+
+class OneClient:
+    def __init__(self, url, session):
+        transport = _TimeoutSafeTransport() if url.startswith("https") else _TimeoutTransport()
+        self.proxy = xmlrpc.client.ServerProxy(url, transport=transport, allow_none=True)
+        self.url = url  # commit-536: the endpoint this client talks to (inventory/hostdeploy.py records it)
+        # the endpoint (a platform's VIP) answered at least once: any reply, an API error included, means the address
+        # is up on the leader; only a failed connection does not count (owner 2026-11-15: "vip availability is binary")
+        self.answered = False
+        self.session = session
+
+    def _call(self, method, *args):
+        fn = self.proxy
+        for part in method.split("."):
+            fn = getattr(fn, part)
+        try:
+            result = fn(self.session, *args)
+        except (xmlrpc.client.Fault, xmlrpc.client.ProtocolError) as exc:  # the endpoint answered, with an error
+            self.answered = True
+            raise OneError(f"{method}: {exc}") from exc
+        except (OSError, http.client.HTTPException, xmlrpc.client.Error) as exc:
+            raise OneError(f"{method}: {exc}") from exc
+        self.answered = True
+        if not result[0]:
+            code = result[2] if len(result) > 2 and isinstance(result[2], int) else None
+            raise OneError(f"{method}: {result[1]}", method=method, code=code)
+        return result[1]
+
+    def version(self):
+        return self._call("one.system.version")
+
+    def groups(self):
+        root = ET.fromstring(self._call("one.grouppool.info"))
+        return [(int(g.findtext("ID")), g.findtext("NAME")) for g in root.findall("GROUP")]
+
+    def group(self, gid):
+        return xml_to_dict(ET.fromstring(self._call("one.group.info", gid, False)))
+
+    def vms(self):
+        """[(group name, state, lcm state)] of all VMs that are not done."""
+        root = ET.fromstring(self._call("one.vmpool.info", -2, -1, -1, -1))
+        return [
+            (v.findtext("GNAME") or "", int(v.findtext("STATE") or -1), int(v.findtext("LCM_STATE") or -1))
+            for v in root.findall("VM")
+        ]
+
+    def users(self):
+        """{user id: {"id", "name", "email", "group"}} of every OpenNebula user."""
+        root = ET.fromstring(self._call("one.userpool.info"))
+        out = {}
+        for u in root.findall("USER"):
+            uid = int(u.findtext("ID") or -1)
+            out[uid] = {
+                "id": uid,
+                "name": u.findtext("NAME") or "",
+                "group": u.findtext("GNAME") or "",
+                "email": (u.findtext("TEMPLATE/EMAIL") or "").strip().lower(),
+                "enabled": (u.findtext("ENABLED") or "1") == "1",
+            }
+        return out
+
+    def address_ranges(self):
+        """[(network name, first IPv4 address, size)] of every address range of every virtual network."""
+        root = ET.fromstring(self._call("one.vnpool.info", -2, -1, -1))
+        out = []
+        for v in root.findall("VNET"):
+            for ar in v.findall("AR_POOL/AR"):
+                if ar.findtext("IP"):
+                    out.append([v.findtext("NAME") or "", ar.findtext("IP"), int(ar.findtext("SIZE") or 0)])
+        return out
+
+    def datastore_usage(self):
+        """[{id, name, type, total_mb, used_mb, free_mb, clusters}] of every datastore (read-only); clusters by name."""
+        root = ET.fromstring(self._call("one.datastorepool.info"))
+        try:
+            names = {
+                c.findtext("ID"): c.findtext("NAME") or ""
+                for c in ET.fromstring(self._call("one.clusterpool.info")).findall("CLUSTER")
+            }
+        except Exception:  # noqa: BLE001 - membership is extra information
+            names = None
+        types = {"0": "images", "1": "system", "2": "files", "3": "backups"}
+        out = []
+        for d in root.findall("DATASTORE"):
+            row = {
+                "id": int(d.findtext("ID") or -1),
+                "name": d.findtext("NAME") or "",
+                "type": types.get(d.findtext("TYPE") or "", ""),
+                "total_mb": int(d.findtext("TOTAL_MB") or 0),
+                "used_mb": int(d.findtext("USED_MB") or 0),
+                "free_mb": int(d.findtext("FREE_MB") or 0),
+            }
+            if names is not None:
+                row["clusters"] = sorted(names.get(x.text or "", x.text or "") for x in d.findall("CLUSTERS/ID"))
+            out.append(row)
+        return out
+
+    def clusters(self):
+        """{cluster id: name} of the platform's clusters."""
+        return {
+            c.findtext("ID"): c.findtext("NAME") or ""
+            for c in ET.fromstring(self._call("one.clusterpool.info")).findall("CLUSTER")
+        }
+
+    def frontends(self):
+        """The zone's front-end nodes, each with its own Raft state (owner 2026-11-14, Analysis → Summary):
+        [{id, name, addr, state}]; state leader, follower, candidate, solo, or "unreachable" when the node's own
+        XML-RPC does not answer. A front end without HA is one node: solo."""
+        from urllib.parse import urlsplit
+
+        cfg = ET.fromstring(self._call("one.system.config"))
+        zone = int(cfg.findtext("FEDERATION/ZONE_ID") or 0)
+        z = ET.fromstring(self._call("one.zone.info", zone))
+        out = []
+        for srv in z.findall("SERVER_POOL/SERVER"):
+            endpoint = srv.findtext("ENDPOINT") or ""
+            row = {
+                "id": srv.findtext("ID") or "",
+                "name": srv.findtext("NAME") or "",
+                "addr": urlsplit(endpoint).hostname or "",
+                "state": "unreachable",
+            }
+            if endpoint:
+                try:
+                    raft = ET.fromstring(OneClient(endpoint, self.session)._call("one.zone.raftstatus"))
+                    row["state"] = RAFT_STATES.get(raft.findtext("STATE") or "", "unknown")
+                except (OneError, ET.ParseError):
+                    pass
+            out.append(row)
+        if not out:
+            try:
+                raft = ET.fromstring(self._call("one.zone.raftstatus"))
+                state = RAFT_STATES.get(raft.findtext("STATE") or "", "unknown")
+            except (OneError, ET.ParseError):
+                state = "unreachable"
+            out.append({"id": "0", "name": "", "addr": "", "state": state})
+        return out
+
+    def host_states(self):
+        root = ET.fromstring(self._call("one.hostpool.info"))
+        return [int(h.findtext("STATE") or -1) for h in root.findall("HOST")]
+
+
+def is_tenant_group(name):
+    from tenants.naming import GROUP_RE
+
+    return bool(name) and (name.startswith("tenant-") or bool(GROUP_RE.match(name)))
+
+
+def collect_stats(one, control, now):
+    vms = {"total": 0, "running": 0, "poweroff": 0, "other": 0, "tenant_total": 0, "tenant_running": 0, "by_group": {}}
+    hosts = {"total": 0, "on": 0, "error": 0, "off": 0}
+    errors = []
+    try:
+        for gname, state, lcm in one.vms():
+            running = state == VM_ACTIVE and lcm == VM_RUNNING_LCM
+            bucket = "running" if running else "poweroff" if state == VM_POWEROFF else "other"
+            vms["total"] += 1
+            vms[bucket] += 1
+            if is_tenant_group(gname):
+                vms["tenant_total"] += 1
+                vms["tenant_running"] += running
+                g = vms["by_group"].setdefault(gname, {"total": 0, "running": 0})
+                g["total"] += 1
+                g["running"] += running
+    except OneError as exc:
+        errors.append(str(exc))
+    try:
+        for st in one.host_states():
+            hosts["total"] += 1
+            hosts["on" if st in HOST_ON else "error" if st in HOST_ERROR else "off"] += 1
+    except OneError as exc:
+        errors.append(str(exc))
+    defaults = {"collected_at": now, "vms": vms, "hosts": hosts}
+    try:
+        defaults["address_ranges"] = one.address_ranges()
+    except OneError as exc:
+        errors.append(str(exc))
+    try:
+        defaults["datastores"] = one.datastore_usage()
+    except OneError as exc:
+        errors.append(str(exc))
+    try:
+        defaults["clusters"] = one.clusters()
+    except OneError as exc:
+        errors.append(str(exc))
+    try:
+        defaults["frontends"] = one.frontends()
+    except (OneError, ET.ParseError) as exc:
+        errors.append(f"front ends: {exc}")
+    defaults["error"] = "; ".join(errors)[:2000]
+    PlatformStats.objects.update_or_create(platform_key=control.key, defaults=defaults)
+    note_vip(control.key, now, getattr(one, "answered", True))
+    if defaults.get("frontends"):  # owner 2026-11-15: "prod must store fe nodes ip" - the empty ones from here
+        from inventory.models import Platform
+        from inventory.nodeips import fill
+
+        for p in Platform.objects.filter(key=control.key):
+            fe, changed = fill(p.fe, defaults["frontends"])
+            if changed:
+                p.fe = fe
+                p.save(update_fields=["fe"])
+
+
+def note_vip(key, now, answered):
+    """The platform's VIP after a collection attempt, whatever came of it: it answered (any reply, an API error
+    included) or it did not (owner 2026-11-15: "vip availability is binary"). On the control row, which every
+    platform has, so a first attempt that never connects is recorded too (commit-006), and an attempt that stopped
+    at an API error records the answer (commit-007)."""
+    from inventory.models import PlatformControl
+
+    PlatformControl.objects.filter(key=key).update(vip_answered=answered, vip_checked_at=now)
+
+
+def client_for(control):
+    from inventory.credentials import SecretsError
+
+    try:
+        url, auth = control.credentials()
+    except SecretsError as exc:
+        raise OneError(str(exc)) from exc
+    if not url or auth.endswith(":"):
+        raise OneError(f"{control.key}: endpoint or credentials not set")
+    return OneClient(url, auth)
+
+
+def collect(control):
+    """Replace the observations of one platform. Returns the number of tenant groups seen."""
+    one = client_for(control)
+    now = timezone.now()
+    try:
+        return _collect(one, control, now)
+    except Exception:
+        note_vip(control.key, now, getattr(one, "answered", True))
+        raise
+
+
+def _collect(one, control, now):
+    seen = []
+    try:
+        all_users = one.users()
+    except OneError:
+        all_users = {}
+    for gid, name in one.groups():
+        if not is_tenant_group(name):
+            continue
+        _observe(one, control, gid, name, all_users)
+        seen.append(gid)
+    Observation.objects.filter(platform_key=control.key).exclude(group_id__in=seen).delete()
+    collect_stats(one, control, now)
+    control.last_collected_at = now
+    control.last_error = ""
+    control.save(update_fields=["last_collected_at", "last_error"])
+    return len(seen)
+
+
+def _observe(one, control, gid, name, all_users):
+    """One tenant group as OpenNebula shows it now: its template, quotas and users.
+
+    commit-113: the observation carries the time its read started, and a read is saved only when no read that started
+    later is stored already - a full collection that read the group before a quota change cannot overwrite the re-read
+    made after it (observe_group). Checked and saved under the observation's row lock, also when no observation was
+    stored before (two writers inserting at once: the unique key decides, then the start times)."""
+    from django.db import IntegrityError, transaction
+
+    started = timezone.now()
+    g = one.group(gid)
+    template = g.get("TEMPLATE") if isinstance(g.get("TEMPLATE"), dict) else {}
+    quotas = {k: g.get(k) for k in ("VM_QUOTA", "DATASTORE_QUOTA", "NETWORK_QUOTA", "IMAGE_QUOTA") if g.get(k)}
+    ids = g.get("USERS", {}).get("ID", []) if isinstance(g.get("USERS"), dict) else []
+    ids = ids if isinstance(ids, list) else [ids]
+    admins = g.get("ADMINS", {}).get("ID", []) if isinstance(g.get("ADMINS"), dict) else []
+    admins = {int(a) for a in (admins if isinstance(admins, list) else [admins]) if str(a).isdigit()}
+    users = [
+        {**all_users.get(int(i), {"id": int(i), "name": "", "email": ""}), "admin": int(i) in admins}
+        for i in ids
+        if str(i).isdigit()
+    ]
+    fields = {"group_name": name, "template": template, "quotas": quotas, "users": users, "collected_at": started}
+    with transaction.atomic():
+        # commit-113 again: the row first - get_or_create lets the unique key (platform, group) decide who inserts it, and
+        # a writer that loses the insert gets the row the other one made - then, under its lock, the start times decide
+        # commit-115: found or made under its lock - a full collection cannot delete it between finding and locking
+        try:
+            row, created = Observation.objects.select_for_update().get_or_create(
+                platform_key=control.key, group_id=gid, defaults=fields
+            )
+        except Observation.DoesNotExist:  # removed meanwhile by a collection that no longer lists the group
+            return False
+        except IntegrityError as exc:
+            # commit-116: only the cleanup's removal is let through - the insert lost on the (platform, group) key to
+            # another writer and that row is gone now; anything else (another constraint, a row there) goes to the
+            # caller's error handling (a full collection records it in last_error)
+            if not _duplicate_key(exc) or Observation.objects.filter(platform_key=control.key, group_id=gid).exists():
+                raise
+            return False
+        if created:
+            return True
+        if row.collected_at > started:
+            return False  # a newer read is there
+        for k, v in fields.items():
+            setattr(row, k, v)
+        row.save(update_fields=list(fields))
+    return True
+
+
+def _duplicate_key(exc):
+    """commit-116: an IntegrityError that is a duplicate on Observation's (platform_key, group_id) unique key - the
+    insert lost to another writer - not one on the primary key, nor a NOT NULL, foreign-key or check failure. MySQL
+    (ER_DUP_ENTRY 1062) names the key: "... for key 'adoption_observation.adoption_observation_platform_key_group_id_
+    b5772772_uniq'" (production 8.4), the primary key as 'PRIMARY'; SQLite names the columns: "UNIQUE constraint failed:
+    adoption_observation.platform_key, adoption_observation.group_id"."""
+    cause = exc.__cause__ or exc
+    args = getattr(cause, "args", ()) or ()
+    text = " ".join(str(a) for a in args) or str(cause)
+    duplicate = (args and args[0] == 1062) or "UNIQUE constraint failed" in text or "Duplicate entry" in text
+    return bool(duplicate) and "platform_key" in text and "group_id" in text
+
+
+def observe_group(control, gid, name):
+    """Owner 2026-11-18 17:01 (kvaaka: a quota set at 16:34 compared against the 16:27 read until 16:57): one
+    tenant group read again at once - after the portal changed it - so the project's page compares against what the
+    platform has now, not the last full read. Only that group's observation changes."""
+    if not is_tenant_group(name):
+        return
+    one = client_for(control)
+    try:
+        all_users = one.users()
+    except OneError:
+        all_users = {}
+    _observe(one, control, gid, name, all_users)
+
+
+def ensure_controls():
+    """Every inventory platform has a control row: shared platforms are collected by default, others not."""
+    from inventory.models import Platform, PlatformControl
+
+    known = set(PlatformControl.objects.values_list("key", flat=True))
+    for p in Platform.objects.exclude(key__in=known):
+        PlatformControl.objects.create(key=p.key, collect_enabled=p.kind == "shared")
+
+
+def collect_stats_only():
+    """Owner 2026-10-29 21:10: the numbers (datastores, hosts, VMs) of the platforms not read for tenants (management,
+    portal) too — the dashboard shows every datastore. Read only. Returns {key: "ok" | "error: …"}."""
+    from inventory.models import PlatformControl
+
+    out = {}
+    for c in PlatformControl.objects.filter(collect_enabled=False):
+        if not c.configured:
+            continue
+        try:
+            collect_stats(client_for(c), c, timezone.now())
+            out[c.key] = "ok"
+        except Exception as exc:  # noqa: BLE001 - one platform's error does not stop the rest
+            out[c.key] = f"error: {exc}"[:200]
+    return out
+
+
+def collect_all():
+    from inventory.models import PlatformControl
+
+    ensure_controls()
+    results = {}
+    for c in PlatformControl.objects.filter(collect_enabled=True):
+        if not c.configured:
+            continue
+        try:
+            results[c.key] = collect(c)
+        except Exception as exc:  # noqa: BLE001 - recorded on the control
+            c.last_error = str(exc)[:2000]
+            c.save(update_fields=["last_error"])
+            results[c.key] = f"error: {exc}"
+            continue
+        try:  # owner 2026-11-11: every refresh checks that the portal and the platform agree (Site → Platforms)
+            from tenants import consistency
+
+            consistency.check(c)
+        except Exception:  # noqa: BLE001 - kept on the control by check() itself
+            pass
+    return results

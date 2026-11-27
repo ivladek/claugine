@@ -1,0 +1,1 @@
+{% load i18n %}<p style="margin:0 0 12px">{{ label }} · {{ since|date:"d.m.Y H:i" }} – {{ now|date:"d.m.Y H:i" }}{% if redirected %}<br><span style="color:#a86400">{% blocktrans with w=for_whom %}Redirected: this report is for {{ w }}.{% endblocktrans %}</span>{% endif %}</p>

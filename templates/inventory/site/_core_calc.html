@@ -1,0 +1,15 @@
+{% load i18n ui %}{# The calculated definition of a typed core service: calc, calc_error. #}
+{% if calc_error %}<p style="color:var(--bad)"><small>{{ calc_error }}</small></p>{% else %}
+<dl class="facts"><dt>{% trans "Placement" %}</dt><dd>{{ calc.platform.key }}{% if calc.cluster %} · {% trans "cluster" %} {{ calc.cluster.name }}{% endif %} · {% trans "VM" %}</dd>
+  <dt>{% trans "Image" %}</dt><dd>{{ calc.image.name|default:"—" }}</dd>
+  <dt>{% trans "Template" %}</dt><dd><span class="code">{{ calc.template }}</span></dd>
+  <dt>NIC</dt><dd><small>{% for n, gw in calc.nics %}NIC {{ forloop.counter }} {{ n.name }} <span class="muted">{{ n.cidr }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</small></dd>
+  {% if calc.aliases %}<dt>{% trans "Aliases" %}</dt><dd><small class="code">{{ calc.aliases|join:", " }}</small></dd>{% endif %}
+  <dt>{% trans "Secrets" %}</dt><dd><small>{% for label, ref in calc.secrets %}{{ label }}: <span class="code">{{ ref|secret }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</small></dd>
+  <dt>{% trans "Instances" %}</dt><dd>{{ calc.nodes|length }}</dd></dl>
+<div class="table-wrap"><table class="mini"><thead><tr><th>{% trans "VM name" %}</th><th>{% trans "Host name" %}</th>{% for n, gw in calc.nics %}<th>NIC {{ forloop.counter }}</th>{% endfor %}</tr></thead>
+{% for nd in calc.nodes %}<tr><td><span class="code">{{ nd.name }}</span>{% if nd.target_name and nd.target_name != nd.name %}<br><small class="muted">{% trans "after redeploy" %}: {{ nd.target_name }}</small>{% endif %}</td>
+  <td>{{ nd.hostname }}{% if nd.target_hostname and nd.target_hostname != nd.hostname %}<br><small class="muted">{% trans "after redeploy" %}: {{ nd.target_hostname }}</small>{% endif %}</td>
+  {% for ip in nd.ips %}<td><span class="code">{{ ip|default:"auto" }}</span></td>{% endfor %}</tr>{% endfor %}</table></div>
+{% if calc.notes %}<p style="color:var(--warn);margin-top:6px"><small>{% for x in calc.notes %}{{ x }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</small></p>{% endif %}
+{% endif %}

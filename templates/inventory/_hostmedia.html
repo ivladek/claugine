@@ -1,0 +1,21 @@
+{% load ui %}{% load i18n %}{# the hosts' installation media (Profiles → Baseline, OS; T36 B2); its form posts to the Baseline handler #}
+<section class="card" id="hostmedia">
+  <form method="post" action="{% url 'infra_baseline' %}">{% csrf_token %}
+    <div class="card-top"><h2>{% trans "Installation media" %}</h2><div class="actions">
+      {% if media_timer %}<small class="muted">{% if media_timer.state == 'running' %}{% trans "checking…" %}{% elif media.checked_at %}{% trans "checked" %} {{ media.checked_at|slice:":10" }} {{ media.checked_at|slice:"11:16" }} UTC{% endif %}</small>{% endif %}
+      <button class="btn ghost" name="section" value="hostmedia_check" {% if media_timer.state == 'running' %}disabled{% endif %}>{% trans "Check now" %}</button></div></div>
+  </form>
+  {% with c=media.current %}
+  <dl class="facts" style="max-width:980px">
+    <dt>{% trans "Installer" %}</dt><dd>{% if c %}Ubuntu {{ c.version }} <small class="muted">{% trans "live server, rebuilt to install with no questions" %}</small>{% else %}<span class="muted">{% trans "none yet: Check now downloads it" %}</span>{% endif %}</dd>
+    {% if c %}<dt>{% trans "Rebuilt" %}</dt><dd>{{ c.at|slice:":10" }} {{ c.at|slice:"11:16" }} UTC</dd>
+    <dt>SHA-256</dt><dd><span class="code" style="word-break:break-all">{{ c.sha256 }}</span></dd>
+    <dt>{% trans "Served at" %}</dt><dd>{% for site, u in media_urls %}<div><span class="code">{{ site }}</span> <span class="code">{{ u }}</span></div>{% endfor %}<small class="muted">{% trans "Each site's hosts take it from the portal node of their own site, from their iLO network only." %}</small></dd>
+    {% if media_peer is not None %}<dt>{% trans "Other node" %}</dt><dd>{% if media_peer.sha256 and media_peer.sha256 == c.sha256 %}{% st "ok" _("has it") %}{% else %}{% st "warn" _("not yet") %}{% endif %}{% if media_peer.at %} <small class="muted">{{ media_peer.at|slice:":10" }} {{ media_peer.at|slice:"11:16" }} UTC</small>{% endif %}{% if media_peer.error %}<br><small style="color:var(--bad)">{{ media_peer.error }}</small>{% endif %}</dd>{% endif %}
+    {% if media.previous %}<dt>{% trans "Previous" %}</dt><dd>Ubuntu {{ media.previous.version }} <small class="muted">{{ media.previous.at|slice:":10" }}</small></dd>{% endif %}{% endif %}
+    {% if media.error %}<dt>{% trans "Last check" %}</dt><dd><small style="color:var(--bad)">{{ media.error }}</small></dd>{% endif %}
+  </dl>
+  {% endwith %}
+  {% if media_unserved %}<p class="msg warning" style="margin:8px 0"><small>{% trans "Not served to these iLOs (their address is not IPv4):" %} {% for x in media_unserved %}<span class="code">{{ x.0 }}</span> <span class="code">{{ x.1 }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</small></p>{% endif %}
+  <div class="help">{% trans "Checked every day and before every host deployment: only a newer point release of the base OS (Baseline above) is downloaded from releases.ubuntu.com, its signature and checksum checked, and rebuilt; the previous one is kept." %}</div>
+</section>

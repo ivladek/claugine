@@ -1,0 +1,12 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{% if step == 'sales' %}{% blocktrans with org=org.name %}The organization {{ org }} registered on the portal and the resource manager approved it. It waits for your approval as its sales rep.{% endblocktrans %}{% else %}{% blocktrans with org=org.name %}A new organization registered on the portal and waits for approval: {{ org }}.{% endblocktrans %}<br>
+{% trans "Approve it and assign its sales rep and support engineer (the key account manager is optional)." %}{% endif %}</p>
+<p style="margin:0 0 10px">{% trans "Organization" %}: {{ org.name }}<br>
+{% trans "Country" %}: {{ org.country_name }}<br>
+{{ org.get_tax_id_type_display }}: {{ org.tax_id }}<br>
+{% trans "City" %}: {{ org.city|default:"—" }}<br>
+{% trans "Organization admin" %}: <a href="mailto:{{ admin.email }}" style="color:#0f6b55">{{ admin.full_name }}</a>, {{ admin.phone_display|default:"—" }}<br>
+{% if checks %}{% trans "Check of the entered data" %}: {% trans "score" %} {{ org.reg_check.score }} — {{ checks|join:"; " }}<br>
+{% endif %}</p>
+<p style="margin:14px 0"><a class="btn" href="{{ link }}" style="display:inline-block;background:#0f6b55;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:8px">Open</a> <span style="color:#6b736e;font-size:12px">{{ link }}</span></p>
+{% endblock %}

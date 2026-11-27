@@ -1,0 +1,5 @@
+{% load i18n ui %}{# owner 2026-11-22 17:08 / 17:46 (T34 S1): the service profiles using a template - the last card, only them #}
+<section class="card"><div class="olist-bar"><h2 style="margin:0">{% trans "Service profiles" %}</h2></div>
+<div class="table-wrap"><table class="olist-table nowrap"><thead><tr><th>{% trans "Profile" %}</th><th>{% trans "Name" %}</th><th>{% trans "Type of service" %}</th><th>{% trans "Instances" %}</th></tr></thead><tbody>
+{% for r in rows %}<tr><td><span class="code">{{ r.profile.key }}</span></td><td>{{ r.profile.name }}</td><td>{% tp r.profile.stype %}</td><td><small>{{ r.instances|default:"—" }}</small></td></tr>{% endfor %}
+</tbody></table></div></section>
