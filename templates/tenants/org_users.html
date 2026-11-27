@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Users" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Users" %}</h1>
+<p class="muted">{{ org.name }} · <small>{% trans "Org admins manage everything in the organization; project admins see and manage only their projects; read-only users see every project and change nothing." %}</small></p>
+{% if join_requests %}
+<section class="card"><div class="olist-bar"><h2 style="margin:0">{% trans "Users asking to join" %}</h2></div>
+  <p class="muted">{% trans "They registered with your organization's tax ID. Accept only users you know." %}</p>
+  <div class="table-wrap"><table><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Mobile" %}</th><th>{% trans "Date" %}</th><th></th></tr></thead><tbody>
+  {% for j in join_requests %}<tr><td>{{ j.user.full_name }}</td><td>{{ j.user.email }}</td><td>{{ j.user.phone_display }}</td><td>{{ j.created_at|date:"d.m.Y H:i" }}</td>
+    <td class="row-actions"><form class="inline" method="post" action="{% url 'decide_join' j.pk 'accept' %}">{% csrf_token %}<button class="btn small">{% trans "Accept" %}</button></form>
+    <form class="inline" method="post" action="{% url 'decide_join' j.pk 'reject' %}">{% csrf_token %}<button class="btn danger small">{% trans "Reject" %}</button></form></td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+{% include "ui/people.html" with kind="tenant" role_columns=customer_columns show_org=False %}
+{% endblock %}

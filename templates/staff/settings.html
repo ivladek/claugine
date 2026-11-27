@@ -1,0 +1,352 @@
+{% extends "base.html" %}{% load i18n ui %}{% block title %}{% trans "Settings" %}{% endblock %}
+{% block content %}
+<h1>{% trans "Settings" %}</h1>
+<div class="subnav">{% for k, label in tabs %}<a class="btn {% if tab != k %}ghost{% endif %} small" href="?tab={{ k }}">{{ label }}</a>{% endfor %}</div>
+{% if tab == 'customer' %}{% with b=branding %}
+{% if b.offer %}<div class="msg" style="display:flex;gap:10px 16px;align-items:center;flex-wrap:wrap">{# owner 2026-11-17: offered right after an upload #}
+  <span>{% trans "The logo is uploaded. Its colours:" %} {% for c in b.logo_colours %}<span class="swatch" style="background:{{ c }}" title="{{ c }}"></span>{% endfor %} {% trans "use them for the portal?" %}</span>
+  <form method="post" class="actions">{% csrf_token %}<input type="hidden" name="tab" value="customer"><input type="hidden" name="section" value="colours">
+    <button class="btn small" name="offer" value="use">{% trans "Use the logo's colours" %}</button><button class="btn ghost small" name="offer" value="keep">{% trans "Keep the current colours" %}</button></form>
+</div>{% endif %}
+<section class="card" style="margin-bottom:18px">{# owner 2026-11-17: one block - Name, E-mail, Customer Portal, Admin Portal, the logo and the colours #}
+  <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="customer"><input type="hidden" name="section" value="provider">
+    <div class="card-top"><h2>{% trans "Provider" %}</h2><div class="actions">
+      <button class="btn ghost" type="button" data-open="dlg-logo">{% trans "Upload logo" %}</button>
+      {% if b.has_logo %}<button class="btn ghost" type="button" data-open="dlg-logo-remove">{% trans "Remove logo" %}</button>{% endif %}
+      <button class="btn">{% trans "Save" %}</button></div></div>
+    <div class="settings-cols">
+     <div class="dlg-rows fields-fill">
+      <div class="fld-inline"><label for="pl-name">{% trans "Name" %}</label><input type="text" id="pl-name" name="provider_name" value="{{ obj.provider_name }}" maxlength="100" required></div>
+      <div class="fld-inline"><label for="pl-le">{% trans "E-mail" %}</label><input type="text" id="pl-le" name="le_email" value="{{ le_email }}" placeholder="admin@example.com" title="{% trans "The Let's Encrypt account of the portal's certificates" %}"></div>
+      <div class="fld-inline"><label for="pl-url">{% trans "Customer Portal" %}</label><input type="text" id="pl-url" name="public_url" value="{{ obj.public_url }}" placeholder="{{ default_url }}"></div>
+      <div class="fld-inline"><label for="pl-admin">{% trans "Admin Portal" %}</label><input type="text" id="pl-admin" name="admin_url" value="{{ obj.admin_url }}" placeholder="https://admin.example.com"></div>
+     </div>
+     <div class="dlg-rows">
+      <div class="fld-inline" style="flex-wrap:wrap"><label>{% trans "Logo" %}</label>
+        <span class="logo-frame"><img src="{{ b.logo_src }}" alt=""></span>
+        <small class="muted">{% if b.has_logo %}{% trans "uploaded" %} {{ obj.logo_updated_at|date:"d.m.Y H:i" }}{% else %}{% trans "Claugine's logo: no logo uploaded" %}{% endif %}</small></div>
+      <div class="fld-inline" style="flex-wrap:wrap"><label>{% trans "Browser icon" %}</label>
+        {% for n, u in b.icons %}<img class="icon-prev" src="{{ u }}" width="{% if n == 180 %}48{% else %}{{ n }}{% endif %}" height="{% if n == 180 %}48{% else %}{{ n }}{% endif %}" alt="{{ n }} px" title="{{ n }} px">{% endfor %}
+        <small class="muted">{% trans "cut from the logo by the portal:" %} {{ b.icon_how }}</small></div>
+     </div>
+    </div>
+    <h3 style="margin:14px 0 6px">{% trans "Colours" %}</h3>
+    <div class="schemes">{% for key, label, main, pal in b.schemes %}
+      <label class="scheme{% if b.current == key %} on{% endif %}{% if not main %} off{% endif %}"><span class="scheme-head"><input type="radio" name="colour_scheme" value="{{ key }}"{% if b.current == key %} checked{% endif %}{% if not main %} disabled{% endif %}> <strong>{{ label }}</strong>{% if key == 'claugine' %} <small class="muted">({% trans "default" %})</small>{% endif %}{% if key == 'custom' %} <input type="color" name="colour_custom" value="{{ b.custom }}" title="{% trans 'the main colour:' %}" aria-label="{% trans 'the main colour:' %}">{% endif %}</span>
+        {% if pal %}<span class="scheme-demo" style="--d-accent:{{ pal.light.accent }};--d-ink:{{ pal.light.accent_ink }};--d-soft:{{ pal.light.accent_soft }};--d-dark:{{ pal.dark.accent }}">
+          <i class="d-btn">{% trans "Save" %}</i><i class="d-link">{% trans "a link" %}</i><i class="d-sel">{% trans "selected" %}</i><i class="d-darkdot" title="{% trans 'on a dark page' %}"></i></span>
+        {% else %}<small class="muted">{% trans "after a logo is uploaded" %}</small>{% endif %}</label>{% endfor %}
+    </div>
+    <p class="muted" style="margin:10px 0 0"><small>{% trans "E-mail: the Let's Encrypt account of the portal's certificates. Admin Portal: the address for the platform's users; its name is on the portal's certificate with the Customer Portal's." %}</small></p>
+  </form>
+</section>
+<dialog id="dlg-logo" class="card" style="max-width:520px;width:92%"><h2>{% trans "Upload logo" %}</h2>
+  <form method="post" enctype="multipart/form-data" class="stack">{% csrf_token %}<input type="hidden" name="tab" value="customer"><input type="hidden" name="section" value="logo"><input type="hidden" name="op" value="upload">
+    <input type="file" name="logo" accept="image/png,image/jpeg" required>
+    <p class="muted"><small>{% trans "PNG or JPEG, up to 5 MB. The portal cuts the browser icon from it (the mark beside or above the name; the first letter of the provider's name when there is none) and offers the logo's colours." %}</small></p>
+    <div class="actions"><button class="btn">{% trans "Upload" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% if b.has_logo %}<dialog id="dlg-logo-remove" class="card" style="max-width:520px;width:92%"><h2>{% trans "Remove logo" %}</h2>
+  <form method="post" class="stack">{% csrf_token %}<input type="hidden" name="tab" value="customer"><input type="hidden" name="section" value="logo"><input type="hidden" name="op" value="remove">
+    <p>{% trans "Claugine's logo and its gear are shown instead; colours taken from the logo become Claugine's." %}</p>
+    <div class="actions"><button class="btn">{% trans "Remove" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+{% endwith %}
+<div class="grid-settings">
+<section class="card">
+  <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="customer"><input type="hidden" name="section" value="customers">
+    <div class="card-top"><h2>{% trans "Customers" %}</h2><div class="actions"><button class="btn">{% trans "Save" %}</button></div></div>
+    <div class="fld-inline"><label class="check" style="margin:0"><input type="checkbox" name="users_add" {% if obj.users_add %}checked{% endif %}> {% trans "users can be added before they are invited" %}</label></div>
+    {# owner 2026-11-19: the internal domain - the hosts' FQDN and DNS search domain (T25) #}
+    <div class="fld-inline" style="margin-top:10px"><label for="id_internal_domain">{% trans "Internal domain" %}</label><input id="id_internal_domain" name="internal_domain" value="{{ obj.internal_domain }}" maxlength="100" placeholder="example.cloud" pattern="[a-z0-9.-]*"><small class="muted">{% trans "the hosts' FQDN and DNS search domain" %}</small></div>
+    <div style="margin-top:14px"><div class="card-top" style="margin-bottom:6px"><h3>{% trans "Corporate email domains" %}</h3><span id="pl-domains-add"></span></div>
+      <textarea name="corporate_domains" rows="5" class="mono" data-rows='[{"n": "d", "l": "{% trans "Domain" %}", "p": "corp.example"}]' data-add-label="{% trans "Domain" %}" data-add-in="pl-domains-add">{{ obj.corporate_domains }}</textarea></div>
+    {# T36 B5d (owner 2026-11-26 QB5-2): the external NTP servers of every site's time servers; a list like the domains, after them (owner 2026-11-27 07:40) #}
+    <div style="margin-top:14px"><div class="card-top" style="margin-bottom:6px"><h3>{% trans "External NTP servers" %}</h3><span id="pl-ntp-add"></span></div>
+      <textarea id="id_ntp_external" name="ntp_external" rows="4" class="mono" data-rows='[{"n": "s", "l": "{% trans "NTP server" %}", "p": "0.pool.ntp.org"}]' data-add-label="{% trans "NTP server" %}" data-add-in="pl-ntp-add">{% for x in obj.ntp_external %}{{ x }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}</textarea></div>
+  </form>
+</section>
+<section class="card">
+  <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="customer"><input type="hidden" name="section" value="countries">
+    <div class="card-top"><h2>{% trans "Countries" %}</h2><div class="actions"><button class="btn">{% trans "Save" %}</button></div></div>
+    <div class="fld-inline"><label for="home-country">{% trans "Home country" %}</label><select id="home-country" name="home_country">{% for c, n in all_countries %}<option value="{{ c }}"{% if c == obj.home_country %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+    <div class="duallist" data-duallist>
+      <div class="dl-col"><input type="search" class="dl-filter" placeholder="{% trans "Find a country" %}" aria-label="{% trans "Find a country" %}" data-dl-filter>
+        <select multiple size="9" aria-label="{% trans "Countries" %}" data-dl-from>{% for c, n in all_countries %}{% if c not in obj.allowed_countries and c != obj.home_country %}<option value="{{ c }}">{{ n }}</option>{% endif %}{% endfor %}</select></div>
+      <div class="dl-buttons"><button class="btn small" type="button" data-dl-add title="{% trans "Allow" %}" aria-label="{% trans "Allow" %}">&rarr;</button><button class="btn ghost small" type="button" data-dl-remove title="{% trans "Remove" %}" aria-label="{% trans "Remove" %}">&larr;</button></div>
+      <div class="dl-col"><div class="dl-head">{% trans "Allowed" %}</div>
+        <select id="allowed-countries" name="allowed_countries" multiple size="9" data-dl-to>{% for c, n in all_countries %}{% if c in obj.allowed_countries %}<option value="{{ c }}">{{ n }}</option>{% endif %}{% endfor %}</select></div>
+    </div>
+  </form>
+</section>
+<section class="card full">
+  <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="customer"><input type="hidden" name="section" value="approvals">
+  <div class="card-top"><h2>{% trans "Approvals" %}</h2><div class="actions"><button class="btn">{% trans "Save" %}</button></div></div>
+  <div class="table-wrap"><table>
+  <tr><th>{% trans "Approval" %}</th><th>{% trans "For" %}</th><th>{% trans "Required" %}</th><th>{% trans "Approvers" %}</th></tr>
+  {% for r in table %}<tr><td><strong>{{ r.role }}</strong></td><td>{{ r.scope }}</td>
+    <td><label class="check"{% if not r.can_tick %} title="{% trans 'Nobody active holds this role' %}"{% endif %}><input type="checkbox" name="{{ r.key }}_approval_required" {% if r.switch %}checked{% endif %}{% if not r.can_tick %} disabled{% endif %}> {% trans "required" %}</label></td>
+    <td><details class="usedby"><summary><span class="u-show">▸</span><span class="u-hide">▾</span> {{ r.people|length }}</summary>
+      <ul>{% for u in r.people %}<li>{{ u.full_name|default:u.email }} <small class="muted"><a href="mailto:{{ u.email }}">{{ u.email }}</a>{% if u.is_super_admin %} · {% trans "super admin" %}{% endif %}</small></li>{% empty %}<li class="muted">{% trans "nobody" %}</li>{% endfor %}</ul></details></td></tr>{% endfor %}
+  </table></div>
+  </form>
+</section>
+</div>
+{% endif %}
+{% if tab == 'security' %}
+<section class="card narrow" style="max-width:760px">{# owner 2026-11-17: one row per rule, the checkbox, the igw ssh ports; one Save #}
+  <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="security"><input type="hidden" name="section" value="security">
+    <div class="card-top"><h2>{% trans "Security" %}</h2><div class="actions"><button class="btn">{% trans "Save" %}</button></div></div>
+    <h3 style="margin:0 0 8px">{% trans "Passwords" %}</h3>
+    <div class="dlg-rows">
+      <div class="fld-inline"><label for="pp-length">{% trans "Length, at least" %}</label><input id="pp-length" type="number" name="length" min="{{ limits.length.0 }}" max="{{ limits.length.1 }}" value="{{ policy.length }}" class="short"><small class="muted">{{ limits.length.0 }}–{{ limits.length.1 }}</small></div>
+      <div class="fld-inline"><label for="pp-history">{% trans "Not the last" %}</label><input id="pp-history" type="number" name="history" min="{{ limits.history.0 }}" max="{{ limits.history.1 }}" value="{{ policy.history }}" class="short"><small class="muted">{% blocktrans with a=limits.history.0 b=limits.history.1 %}passwords ({{ a }}–{{ b }}){% endblocktrans %}</small></div>
+      <div class="fld-inline"><label for="pp-lower">{% trans "Small letters" %}</label><input id="pp-lower" type="number" name="lower" min="0" max="20" value="{{ policy.lower }}" class="short"></div>
+      <div class="fld-inline"><label for="pp-upper">{% trans "Capital letters" %}</label><input id="pp-upper" type="number" name="upper" min="0" max="20" value="{{ policy.upper }}" class="short"></div>
+      <div class="fld-inline"><label for="pp-digits">{% trans "Figures" %}</label><input id="pp-digits" type="number" name="digits" min="0" max="20" value="{{ policy.digits }}" class="short"></div>
+      <div class="fld-inline"><label for="pp-special">{% trans "Special symbols" %}</label><input id="pp-special" type="number" name="special" min="0" max="20" value="{{ policy.special }}" class="short"></div>
+      <div class="fld-inline" style="flex-wrap:wrap"><label for="pp-allowed">{% trans "Allowed symbols" %}</label><input id="pp-allowed" name="allowed" class="mono" value="{{ policy.allowed }}" style="width:160px">
+        <small class="muted" style="white-space:nowrap">{% trans "never allowed:" %}</small> <span class="never-list" data-no-copy>{% for c in unsafe_list %}<span class="code">{% if c == ' ' %}{% trans "space" %}{% else %}{{ c }}{% endif %}</span>{% endfor %}</span></div>
+      <div class="fld-inline"><label class="check" style="margin:0"><input type="checkbox" name="names" {% if policy.names %}checked{% endif %}> {% trans "no part of the user's, project's or organization's personal data" %}</label></div>
+    </div>
+    <h3 style="margin:16px 0 8px">{% trans "igw ssh ports" %}</h3>
+    <div class="dlg-rows"><div class="fld-inline"><label for="pl-igw">{% trans "Ports" %}</label><input type="text" id="pl-igw" name="igw_port_min" value="{{ obj.igw_port_min }}" inputmode="numeric" class="short" required aria-label="{% trans "first port" %}"> &ndash; <input type="text" name="igw_port_max" value="{{ obj.igw_port_max }}" inputmode="numeric" class="short" required aria-label="{% trans "last port" %}"><small class="muted">{% trans "the projects' internet gateways take their ssh port from this range" %}</small></div></div>
+    {# owner 2026-11-24 20:54 (T36 N3, mockup m05): the admin VMs' public ports; fail2ban ssh-to-rdp opens RDP after an ssh login #}
+    <h3 style="margin:16px 0 8px">{% trans "Public access ports" %}</h3>
+    <div class="dlg-rows">
+      <div class="fld-inline"><label for="pl-ssh">SSH</label><input type="text" id="pl-ssh" name="public_ssh_port" value="{{ obj.public_ssh_port }}" inputmode="numeric" class="short" required><small class="muted">{% trans "the port the admin VMs answer ssh on from outside" %}</small></div>
+      <div class="fld-inline"><label for="pl-rdp">RDP</label><input type="text" id="pl-rdp" name="public_rdp_port" value="{{ obj.public_rdp_port }}" inputmode="numeric" class="short" required><small class="muted">{% trans "Ubuntu's RDP on the admin VMs, opened for an address only after its ssh login (10 h)" %}</small></div>
+    </div>
+    <p class="muted" style="margin:6px 0 0"><small>{% trans "SSH: the admin VMs take it at their next Redeploy (it replaces the site's core ssh port for them). RDP: read by the admin VMs' RDP and fail2ban from the next release of the admin service." %}</small></p>
+  </form>
+</section>
+{% endif %}
+{% if tab == 'mail' %}
+<section class="card" style="max-width:1080px" id="mail">{# owner 2026-11-17: the nodes' own mail servers only; DKIM key made by the portal #}
+  <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="mail"><input type="hidden" name="section" value="mail">
+    <div class="card-top"><h2>{% trans "Mail" %}</h2><div class="actions"><button class="btn ghost" name="section" value="mail_test" formnovalidate>{% trans "Send test" %}</button><button class="btn">{% trans "Save" %}</button></div></div>
+    <p class="muted" style="margin:0 0 10px"><small>{% trans "Each portal node sends with its own mail server, straight to the recipients' servers, signed with DKIM (the key is made by the portal)." %}{% if obj.mail_via %} {% blocktrans with s=obj.mail_via %}Now all mail leaves from node {{ s }}.{% endblocktrans %}{% endif %}</small></p>
+    <div class="dlg-rows wide-labels">
+      <div class="fld-inline"><label for="ml-from">{% trans "Sender address" %}</label><input type="text" id="ml-from" name="mail_from" value="{{ obj.mail_from }}" placeholder="portal@example.com" style="width:280px"></div>
+      <div class="fld-inline"><label for="ml-sel">{% trans "DKIM selector" %}</label><input type="text" id="ml-sel" name="mail_dkim_selector" value="{{ obj.mail_dkim_selector }}" placeholder="claugine" style="width:160px"><small class="muted">{% if dkim_domain %}{% blocktrans with d=dkim_domain %}signs for {{ d }}{% endblocktrans %}{% endif %}</small></div>
+      {% if mail_nodes %}<div class="fld-inline"><label for="ml-ip-1">{% trans "Mail sender public IPs" %}</label>{% for nd in mail_nodes %}<small class="fld-sub">{{ nd.site }}</small><input type="text" id="ml-ip-{{ forloop.counter }}" name="ip_{{ nd.site }}" value="{{ nd.ip }}" placeholder="203.0.113.10" style="width:150px" aria-label="{% blocktrans with s=nd.site %}{{ s }}: public address{% endblocktrans %}">{% endfor %}</div>{% endif %}
+      {% if mail_nodes|length > 1 %}<div class="fld-inline"><label for="ml-via">{% trans "Send mail from" %}</label><select id="ml-via" name="mail_via" style="width:280px"><option value="">{% trans "each node itself" %}</option>{% for nd in mail_nodes %}<option value="{{ nd.site }}" {% if obj.mail_via == nd.site %}selected{% endif %}>{% blocktrans with s=nd.site %}node {{ s }}{% endblocktrans %}{% if nd.ip %} · {{ nd.ip }}{% endif %}</option>{% endfor %}</select><small class="muted">{% trans "All mail leaves from this node's public address; the other node hands its mail to it over the internal network (e.g. when one address is on a block list)." %}</small></div>{% endif %}{# owner 2026-11-23 (A) #}
+      <div class="fld-inline"><label class="check" style="margin:0"><input type="checkbox" name="client_mail" {% if obj.client_mail %}checked{% endif %}> {% trans "allow e-mail to organization users" %}</label></div>
+      <div class="fld-inline"><label class="check" style="margin:0"><input type="checkbox" name="staff_mail" {% if obj.staff_mail %}checked{% endif %}> {% trans "allow e-mail to platform users" %}</label></div>
+    </div>
+    <p class="muted" style="margin:8px 0 0"><small>{% trans "This node's mail server" %}: {% if relay_ok %}<span class="pill ok">{% trans "answers" %}</span>{% else %}<span class="pill warn">{% trans "not reachable" %}</span>{% endif %} · {% trans "Mail that is not allowed above, or cannot be sent, is kept in files and logged (mail_held, mail_failed)." %}</small></p>
+  </form>
+  <details style="margin-top:12px"><summary>{% trans "DNS records" %}{% if dns_missing.0 or dns_missing.1 %} ({% blocktrans with m=dns_missing.0 o=dns_missing.1 %}{{ m }} missing, {{ o }} other value{% endblocktrans %}){% endif %}</summary>
+    <p class="muted" style="margin:6px 0"><small>{% trans "Add them in the sender's zone and in the reverse zones of the nodes' public addresses; the state is checked when the page opens." %}</small></p>
+    {% if dns_records %}<div class="table-wrap"><table><tr><th>{% trans "Name" %}</th><th>{% trans "Type" %}</th><th>{% trans "Value" %}</th><th>{% trans "Now" %}</th></tr>
+    {% for r in dns_records %}<tr><td class="mono"><small>{{ r.name }}</small></td><td>{{ r.type }}</td><td class="mono" style="max-width:440px;word-break:break-all"><small data-copy>{{ r.value }}</small></td>
+      <td{% if r.state == 'other' %} class="mono" style="max-width:360px;word-break:break-all"{% endif %}>{% if r.state == 'ok' %}{% st "ok" "ok" %}{% if r.external %} <small class="muted" title="{% trans "This node's DNS has no answer (a local copy of the zone?): external DNS answered." %}">{% trans "external DNS" %}</small>{% endif %}{% elif r.state == 'missing' %}{% st "bad" _("missing") %}{% else %}<span class="st warn" style="white-space:normal;word-break:break-all"><small>{{ r.now|join:" | " }}</small></span>{% endif %}</td></tr>{% endfor %}</table></div>
+    {% else %}<p class="muted">{% trans "Set the sender address and the nodes' public addresses first." %}</p>{% endif %}
+  </details>
+</section>
+<section class="card olist" data-key="mailtpl" data-search-in-bar style="max-width:1080px" id="mail-templates">{# owner 2026-11-17: one HTML template per e-mail, shown as the e-mail looks; Edit opens its source #}
+  {% trans "E-mail templates" as title %}{% include "ui/bar.html" %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Description" %}</th></tr></thead><tbody>
+  {% for m in mail_templates %}<tr class="orow" data-id="t-{{ m.id }}"><td><span class="code">{{ m.label|project_word }}</span></td><td>{{ m.what }}{% if m.edited %} {% st "info" _("edited") %}{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a template to see the e-mail." %}</div>
+  {% for m in mail_templates %}<div class="odetail card" data-for="t-{{ m.id }}" hidden><div class="card-top"><h3><span class="code">{{ m.label|project_word }}</span></h3><div class="actions"><button class="btn ghost small" type="button" data-open="dlg-tpl-{{ m.id }}">{% trans "Edit" %}</button></div></div>
+    <p class="muted" style="margin:0 0 8px"><small>{{ m.what }}{% if m.edited %} · {% blocktrans with by=m.edited.updated_by.email|default:"—" at=m.edited.updated_at|date:"d.m.Y H:i" %}edited by {{ by }}, {{ at }}{% endblocktrans %}{% endif %}{% if m.html %} · {% trans "the plain-text part of the e-mail is made from it" %}{% endif %}</small></p>
+    {% if m.html %}<iframe class="mail-preview" sandbox="allow-same-origin" title="{{ m.label }}" srcdoc="{{ m.preview }}"></iframe>{% else %}<pre class="code-block">{{ m.preview }}</pre>{% endif %}
+    <dialog id="dlg-tpl-{{ m.id }}" class="card tpl-dialog">
+      <form method="post" action="{% url 'mail_template' m.id %}" data-tpl-edit data-preview="{% url 'mail_template_preview' m.id %}">{% csrf_token %}
+      <div class="tpl-head"><h2>{% trans "Edit" %}</h2><input type="text" name="title" value="{{ m.label }}" maxlength="80" required aria-label="{% trans "Name" %}">{# owner 2026-11-17 18:55-18:56: the name on the title row, Save and Cancel after it #}
+        <button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button>{% if m.edited %}<button class="btn ghost" name="reset" value="1" formnovalidate>{% trans "Reset to the original" %}</button>{% endif %}</div>
+      <div class="tpl-edit"><div class="tpl-src"><pre class="tpl-hl" aria-hidden="true"></pre><textarea name="body" spellcheck="false" aria-label="{% trans "Template source" %}">{{ m.text }}</textarea></div>
+        <iframe class="tpl-live" sandbox="allow-same-origin" title="{% trans "Preview" %}"></iframe></div>
+      <p class="muted" style="margin:6px 0 0"><small>{% trans "A Django template: variables are written {{ name }}; a template that does not compile is not saved." %} {% trans "The preview on the right is redrawn as you type." %}</small></p>
+      </form></dialog>
+  </div>{% endfor %}</div>
+</section>
+<script>(function () {  // the e-mail drawn at its own height
+  function fit() { document.querySelectorAll("iframe.mail-preview").forEach(function (f) {
+    try { var d = f.contentDocument; if (d && d.documentElement && f.offsetParent) { f.style.height = "0"; f.style.height = (d.documentElement.scrollHeight + 4) + "px"; } } catch (e) {}
+  }); }
+  document.addEventListener("click", function () { setTimeout(fit, 0); });
+  document.querySelectorAll("iframe.mail-preview").forEach(function (f) { f.addEventListener("load", fit); });
+  window.addEventListener("resize", fit); setTimeout(fit, 0);
+  // the Edit dialog: the source with its tags coloured, the e-mail drawn beside it as it is typed
+  function esc(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  var TOK = /(\{%[\s\S]*?%\}|\{\{[\s\S]*?\}\}|<\/?[a-zA-Z!][^<>]*>)/;
+  function paint(f) {
+    var ta = f.querySelector("textarea"), hl = f.querySelector(".tpl-hl");
+    hl.innerHTML = ta.value.split(TOK).map(function (p, i) {
+      if (i % 2 === 0) return esc(p);
+      var c = p.charAt(1) === "%" ? "hl-tag" : p.charAt(1) === "{" ? "hl-var" : "hl-html";
+      return '<span class="' + c + '">' + esc(p) + "</span>";
+    }).join("") + "\n ";
+    hl.scrollTop = ta.scrollTop;
+  }
+  function draw(f) {
+    var fd = new FormData(); fd.append("body", f.querySelector("textarea").value);
+    fd.append("csrfmiddlewaretoken", f.querySelector("[name=csrfmiddlewaretoken]").value);
+    fetch(f.dataset.preview, { method: "POST", body: fd, credentials: "same-origin" }).then(function (r) { return r.text(); })
+      .then(function (h) { f.querySelector(".tpl-live").srcdoc = h; }).catch(function () {});
+  }
+  document.querySelectorAll("form[data-tpl-edit]").forEach(function (f) {
+    var ta = f.querySelector("textarea"), t = null, hl = f.querySelector(".tpl-hl");
+    paint(f);
+    ta.addEventListener("input", function () { paint(f); clearTimeout(t); t = setTimeout(function () { draw(f); }, 400); });
+    ta.addEventListener("scroll", function () { hl.scrollTop = ta.scrollTop; });
+    var d = f.closest("dialog");
+    document.addEventListener("click", function (e) { var o = e.target.closest("[data-open]"); if (o && o.dataset.open === d.id) { paint(f); draw(f); } });
+  });
+})();</script>
+{% endif %}
+{% if tab == 'reports' %}
+<section class="card" style="max-width:1080px">
+  <form method="post" class="fld-inline" style="margin:0">{% csrf_token %}<input type="hidden" name="tab" value="reports"><input type="hidden" name="section" value="report_redirect_to">
+    <label for="rp-to">{% trans "Redirect e-mail" %}</label><input type="text" id="rp-to" name="redirect_to" value="{{ report_conf.redirect_to }}" placeholder="reports@example.com" style="width:280px">
+    <button class="btn small">{% trans "Save" %}</button><small class="muted">{% trans "the reports with redirect on go only to this address" %}</small></form>
+</section>
+<section class="card olist" data-key="reports" style="max-width:1080px">{# owner 2026-11-17: a standard list; the selected report's details with its actions #}
+  {% trans "Reports" as title %}{% include "ui/bar.html" %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Template" %}</th><th>{% trans "Day" %}</th><th>{% trans "Roles" %}</th><th>{% trans "On" %}</th><th>{% trans "Redirect" %}</th><th>{% trans "Last sent" %}</th></tr></thead><tbody>
+  {% for r in report_rows %}<tr class="orow" data-id="r-{{ r.id }}"><td>{{ r.name }}</td><td><span class="code">{{ r.template_name }}</span></td><td>{% for v, l in report_days %}{% if v == r.day %}{{ l }}{% endif %}{% endfor %}</td>
+    <td><small>{% for k, _f, l in report_roles %}{% if k in r.roles %}{{ l }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}</small></td>
+    <td>{% if r.on %}{% st "ok" _("on") %}{% else %}{% st "muted" _("off") %}{% endif %}</td><td>{% if r.redirect %}{% st "ok" _("on") %}{% else %}{% st "muted" _("off") %}{% endif %}</td>
+    <td><small>{{ r.last|date:"d.m.Y H:i"|default:"—" }}</small></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a report to see its details." %}</div>
+  {% for r in report_rows %}<div class="odetail card" data-for="r-{{ r.id }}" hidden>
+    <div class="card-top"><h3>{{ r.name }}</h3><div class="actions">
+      <button class="btn ghost small" type="button" data-open="dlg-rep-{{ r.id }}">{% trans "Edit" %}</button>
+      <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="tab" value="reports"><input type="hidden" name="section" value="report_on"><input type="hidden" name="report" value="{{ r.id }}"><button class="btn ghost small">{% if r.on %}{% trans "Turn off" %}{% else %}{% trans "Turn on" %}{% endif %}</button></form>
+      <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="tab" value="reports"><input type="hidden" name="section" value="report_redirect"><input type="hidden" name="report" value="{{ r.id }}"><button class="btn ghost small">{% if r.redirect %}{% trans "Redirect off" %}{% else %}{% trans "Redirect on" %}{% endif %}</button></form>
+      <form method="post" class="inline" onsubmit="return confirm('{% trans "Send it now (redirect as set)?" %}')">{% csrf_token %}<input type="hidden" name="tab" value="reports"><input type="hidden" name="section" value="report_send"><input type="hidden" name="report" value="{{ r.id }}"><button class="btn small">{% trans "Send now" %}</button></form>
+    </div></div>
+    <dl class="facts"><dt>{% trans "Template" %}</dt><dd><span class="code">{{ r.template_name }}</span></dd>
+      <dt>{% trans "When" %}</dt><dd>{% for v, l in report_days %}{% if v == r.day %}{{ l }}{% endif %}{% endfor %} {{ r.time }}</dd>
+      <dt>{% trans "Roles" %}</dt><dd>{% for k, _f, l in report_roles %}{% if k in r.roles %}{{ l }}{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}</dd>
+      <dt>{% trans "On" %}</dt><dd>{% if r.on %}{% st "ok" _("on") %}{% else %}{% st "muted" _("off") %}{% endif %}</dd>
+      <dt>{% trans "Redirect" %}</dt><dd>{% if r.redirect %}{% st "ok" _("on") %}{% if report_conf.redirect_to %} · {% blocktrans with to=report_conf.redirect_to %}to {{ to }}{% endblocktrans %}{% endif %}{% else %}{% st "muted" _("off") %}{% endif %}</dd>
+      <dt>{% trans "Last sent" %}</dt><dd>{{ r.last|date:"d.m.Y H:i"|default:"—" }}</dd></dl>
+    <details{% if request.GET.report == r.id %} open{% endif %}><summary>{% trans "Sent history" %} ({{ r.history|length }})</summary>
+      {% if r.history %}<table class="compact"><thead><tr><th>{% trans "When" %}</th><th>{% trans "How" %}</th><th>{% trans "To" %}</th><th>{% trans "Result" %}</th></tr></thead><tbody>
+      {% for h in r.history %}<tr><td><small>{{ h.at|date:"d.m.Y H:i" }}</small></td><td><small>{% if h.how == 'now' %}{% trans "Send now" %}{% if h.by %} · {{ h.by.email }}{% endif %}{% else %}{% trans "schedule" %}{% endif %}</small></td><td><small>{{ h.to|default:"—" }}</small></td><td>{% if h.ok %}<small>{{ h.detail }}</small>{% else %}{% st "bad" h.detail %}{% endif %}</td></tr>{% endfor %}
+      </tbody></table>{% else %}<p class="muted"><small>{% trans "Not sent yet." %}</small></p>{% endif %}</details>
+    <dialog id="dlg-rep-{{ r.id }}" class="card" style="max-width:560px;width:92%"><h2>{% trans "Edit report" %}</h2>
+      <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="reports"><input type="hidden" name="section" value="report"><input type="hidden" name="report" value="{{ r.id }}">
+      <div class="dlg-rows">
+        <div class="fld-inline"><label>{% trans "Name" %}</label><input type="text" name="name" value="{{ r.name }}" maxlength="80" style="width:300px"></div>
+        <div class="fld-inline"><label>{% trans "Template" %}</label><select name="template" style="width:auto">{% for tid, tname in report_templates %}<option value="{{ tid }}"{% if tid == r.template %} selected{% endif %}>{{ tname }}</option>{% endfor %}</select></div>
+        <div class="fld-inline"><label>{% trans "Day, time" %}</label><select name="day" style="width:auto">{% for v, l in report_days %}<option value="{{ v }}"{% if v == r.day %} selected{% endif %}>{{ l }}</option>{% endfor %}</select><input type="text" name="time" value="{{ r.time }}" pattern="[0-2][0-9]:[0-5][0-9]" class="short"></div>
+        <div class="fld-inline" style="align-items:flex-start"><label>{% trans "Roles" %}</label><div>{% for k, _f, l in report_roles %}<label class="check" style="display:block;margin:0 0 4px"><input type="checkbox" name="roles" value="{{ k }}"{% if k in r.roles %} checked{% endif %}> {{ l }}</label>{% endfor %}</div></div>
+      </div>
+      <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+  </div>{% endfor %}</div>
+</section>
+{% endif %}
+{% if tab == 'backups' %}
+{# owner 2026-11-17: the buttons on the top row at the right; one row "Use password ... for backup at ... and keep for ... days"; #}
+{# the targets as checkboxes; the folder; S3 (Enterprise); the backups under an arrow. The Platforms block the same, with the platforms #}
+{# picked like the countries on the left and the front-end nodes' folders on the right. #}
+<section class="card backups-card" id="backups">
+  <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="backups"><input type="hidden" name="part" value="backups">{% url 'portal_settings_values' as values_url %}{% include "ui/show_values.html" with url=values_url %}
+    <div class="card-top"><h2>{% trans "Portal" %}</h2><div class="actions">
+      {% if backup_pending %}<small class="muted">{% trans "requested" %} {{ obj.backup_requested_at|date:"H:i" }}</small>{% endif %}
+      <button class="btn ghost" name="section" value="backup_now" {% if not has_backup_password %}disabled{% endif %}>{% trans "Back up now" %}</button>
+      <button class="btn" name="section" value="appliance">{% trans "Save" %}</button></div></div>
+    {% with f=appliance_form %}
+    <div class="dlg-rows">
+      <div class="fld-inline settings-sentence">{% trans "Use password" %} {{ f.backup_password }} {% trans "for backup at" %} {{ f.backup_start }} {% trans "and keep for" %} {{ f.backup_keep_days }} {% trans "days" %}</div>
+      {% for fld in f %}{% if fld.errors and fld.name|slice:":7" == "backup_" %}<div class="err">{{ fld.label }}: {{ fld.errors|join:" " }}</div>{% endif %}{% endfor %}
+      <div class="fld-inline"><label>{% trans "Targets" %}</label><label class="check" style="margin:0">{{ f.backup_local }} {% trans "folder" %}</label>{% if s3_ui %}<label class="check" style="margin:0 0 0 16px">{{ f.backup_s3 }} {% trans "S3 bucket" %}</label>{% endif %}</div>
+      <div class="fld-inline"><label for="{{ f.backup_path.id_for_label }}">{% trans "Folder" %}</label>{{ f.backup_path }}<label style="width:auto;margin-left:12px" for="{{ f.backup_owner.id_for_label }}">{% trans "owner" %}</label>{{ f.backup_owner }}</div>
+      {% trans "Each backup is a folder claugine_<name>_<edition>_<date>; the owner (user:group, empty: the folder's own) is set on the portal's and the platforms' local backups." as po_hint %}<div class="help" style="margin:-4px 0 6px">{{ po_hint|force_escape }}</div>
+      {% if s3_ui %}<div class="fld-inline s3-row"><label>S3</label>{{ f.backup_s3_endpoint }}{{ f.backup_s3_bucket }}{{ f.backup_s3_region }}{{ f.backup_s3_style }}</div>
+      <div class="fld-inline"><label>{% trans "Keys" %}</label>{{ f.backup_s3_access_key }}{{ f.backup_s3_secret }}<small class="muted">{% trans "access · secret" %}</small></div>{% endif %}
+    </div>
+    {% endwith %}
+  </form>
+  <details style="margin-top:10px"><summary>{% trans "Backups" %} ({{ portal_backup_rows|length }}){% if obj.backup_last_at %} · {% trans "last" %} {{ obj.backup_last_at|date:"d.m.Y H:i" }} {% if obj.backup_last_result|slice:":2" == "ok" %}ok{% else %}{% trans "failed" %}{% endif %}{% endif %}</summary>
+    <div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Date" %}</th><th>{% trans "Time" %}</th><th>{% trans "Target" %}</th><th class="num">{% trans "Size" %}</th><th>{% trans "Status" %}</th></tr></thead><tbody>
+      {% for r in portal_backup_rows %}<tr title="{{ r.name }}"><td>{{ r.date }}</td><td>{{ r.time }}</td><td>{{ r.target }}</td><td class="num">{% if r.size %}{{ r.size|filesizeformat }}{% else %}—{% endif %}</td><td>{% if r.ok %}{% st "ok" "ok" %}{% else %}<span title="{{ r.name }}">{% st "bad" _("failed") %}</span>{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="5" class="muted">{% trans "none yet" %}</td></tr>{% endfor %}</tbody></table></div>
+    {% if obj.backup_last_result %}<p class="muted" style="margin:6px 0"><small>{{ obj.backup_last_result }}</small></p>{% endif %}
+    <details style="margin-top:6px"><summary><small>{% trans "Restore" %}</small></summary>
+      <ol style="margin:4px 0 0 18px;padding:0">{% for text, cmd in restore_steps %}<li><small>{{ text }}</small><br><code style="font-size:12px">{{ cmd }}</code></li>{% endfor %}</ol></details>
+  </details>
+</section>
+<section class="card backups-card" id="fe-backups">{# u04/u07: the platforms' front ends #}
+  <form method="post" data-listedit>{% csrf_token %}<input type="hidden" name="tab" value="backups">
+    <div class="card-top"><h2>{% trans "Platforms" %}</h2><div class="actions">
+      {% if obj.fe_backup_requested_at %}<small class="muted">{% trans "requested" %} {{ obj.fe_backup_requested_at|date:"H:i" }}</small>{% endif %}
+      <button class="btn ghost" name="section" value="fe_backup_now" {% if not obj.fe_backup_password_encrypted and not has_backup_password %}disabled{% endif %}>{% trans "Back up now" %}</button>
+      <button class="btn" name="section" value="fe_backup">{% trans "Save" %}</button></div></div>
+    <div class="dlg-rows">
+      <div class="fld-inline settings-sentence">{% trans "Use password" %} <input type="password" name="fe_backup_password" autocomplete="new-password" style="width:170px" data-secret="{% if obj.fe_backup_password_encrypted %}set{% else %}empty{% endif %}" placeholder="{% if obj.fe_backup_password_encrypted %}{% trans '●●●●●●●● set — empty keeps it' %}{% elif has_backup_password %}{% trans "●●●●●●●● the Portal's" %}{% else %}{% trans "not set" %}{% endif %}">
+        {% trans "for backup at" %} <input type="text" name="fe_backup_time" value="{{ obj.fe_backup_time|time:'H:i' }}" pattern="[0-2][0-9]:[0-5][0-9]" class="short">
+        {% trans "and keep for" %} <input type="number" name="fe_backup_keep_days" min="1" max="3650" value="{{ obj.fe_backup_keep_days }}" class="short"> {% trans "days" %}</div>
+      {# owner 2026-11-18 (mockup 70b): the SA secret logs in to every host and VM - the platforms' backups too #}
+      <div class="fld-inline settings-sentence">{% trans "Connect to Front-Ends using" %} <select name="fe_backup_login" style="width:260px"><option value="">{% trans "each platform's SA secret" %}</option>{% for ref, label in fe_login_choices %}<option value="{{ ref }}" {% if ref == obj.fe_backup_login %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="settings-cols" style="margin:8px 0 12px">
+      <div><div style="margin-bottom:4px"><strong>{% trans "Platforms" %}</strong> <small class="muted">{% trans "none chosen: every platform with a front end" %}</small></div>
+        <div class="duallist dl-narrow" data-duallist>
+          <div class="dl-col"><input type="search" class="dl-filter" placeholder="{% trans "Find a platform" %}" aria-label="{% trans "Find a platform" %}" data-dl-filter>
+            <select multiple size="6" aria-label="{% trans "Platforms" %}" data-dl-from>{% for p in fe_platforms %}{% if obj.fe_backup_platforms and p.key not in obj.fe_backup_platforms %}<option value="{{ p.key }}">{{ p.key }}</option>{% endif %}{% endfor %}</select></div>
+          <div class="dl-buttons"><button class="btn small" type="button" data-dl-add title="{% trans "Back up" %}" aria-label="{% trans "Back up" %}">&rarr;</button><button class="btn ghost small" type="button" data-dl-remove title="{% trans "Remove" %}" aria-label="{% trans "Remove" %}">&larr;</button></div>
+          <div class="dl-col"><div class="dl-head">{% trans "Backed up" %}</div>
+            <select name="fe_backup_platforms" multiple size="6" data-dl-to>{% for p in fe_platforms %}{% if not obj.fe_backup_platforms or p.key in obj.fe_backup_platforms %}<option value="{{ p.key }}">{{ p.key }}</option>{% endif %}{% endfor %}</select></div>
+        </div></div>
+      <div class="field"><div class="card-top" style="margin-bottom:4px"><strong>{% trans "Folders on each front-end node" %}</strong><button type="button" class="btn ghost small li-add">+ {% trans "Folder" %}</button></div>
+        <div class="li-rows">{% for d in obj.fe_backup_dir_list %}<div class="li-row"><input type="text" class="li-item" value="{{ d }}"><button type="button" class="btn ghost small li-del">−</button></div>{% endfor %}</div>
+        <textarea name="fe_backup_dirs" hidden>{{ obj.fe_backup_dirs }}</textarea></div>
+    </div>
+    <div class="dlg-rows">
+      <div class="fld-inline"><label>{% trans "Targets" %}</label><label class="check" style="margin:0"><input type="checkbox" name="fe_backup_local" {% if obj.fe_backup_local %}checked{% endif %}> {% trans "folder" %}</label>{% if s3_ui %}<label class="check" style="margin:0 0 0 16px"><input type="checkbox" name="fe_backup_s3" {% if obj.fe_backup_s3 %}checked{% endif %}> {% trans "S3 bucket" %}</label>{% endif %}</div>
+      <div class="fld-inline"><label>{% trans "Folder" %}</label><input type="text" name="fe_backup_path" value="{{ obj.fe_backup_path }}" placeholder="/home/portal/one/backups" style="width:320px">{% trans "each backup: a folder platform_<name>_<address>_<date>" as fe_hint %}<small class="muted">{{ fe_hint|force_escape }}</small></div>
+      {% if s3_ui %}<div class="fld-inline"><label class="check" style="margin:0"><input type="checkbox" name="fe_backup_s3_use_portal" {% if obj.fe_backup_s3_use_portal %}checked{% endif %}> {% trans "the Portal's S3 settings" %}</label></div>
+      <div class="fld-inline s3-row"><label>S3</label><input type="text" name="fe_backup_s3_endpoint" value="{{ obj.fe_backup_s3_endpoint }}" placeholder="https://s3.example.com" ><input type="text" name="fe_backup_s3_bucket" value="{{ obj.fe_backup_s3_bucket }}" placeholder="{% trans "bucket" %}"><input type="text" name="fe_backup_s3_region" value="{% if obj.fe_backup_s3_region != 'us-east-1' %}{{ obj.fe_backup_s3_region }}{% endif %}" placeholder="{% trans "region" %}" title="{% trans "Region: empty - taken from the endpoint (s3.<region>.<host>), else us-east-1" %}" aria-label="{% trans "Region" %}"><select name="fe_backup_s3_style" title="{% trans "path style: https://endpoint/bucket/… · virtual-hosted: https://bucket.endpoint/…" %}"><option value="path" {% if obj.fe_backup_s3_style == 'path' %}selected{% endif %}>{% trans "path style" %}</option><option value="virtual" {% if obj.fe_backup_s3_style == 'virtual' %}selected{% endif %}>{% trans "virtual-hosted" %}</option></select></div>
+      <div class="fld-inline"><label>{% trans "Keys" %}</label><input type="text" name="fe_backup_s3_access_key" value="{{ obj.fe_backup_s3_access_key }}" placeholder="{% trans "access key" %}"><input type="password" name="fe_backup_s3_secret" autocomplete="new-password" placeholder="{% if obj.fe_backup_s3_secret_encrypted %}{% trans '●●●●●●●● set — empty keeps it' %}{% else %}{% trans "secret key" %}{% endif %}"><small class="muted">{% trans "access · secret" %}</small></div>{% endif %}
+    </div>
+  </form>
+  <details style="margin-top:10px"><summary>{% trans "Backups" %} ({{ fe_backup_rows|length }}){% if obj.fe_backup_last_at %} · {% trans "last" %} {{ obj.fe_backup_last_at|date:"d.m.Y H:i" }} {% if obj.fe_backup_last_result|slice:":2" == "ok" %}ok{% else %}{% trans "failed" %}{% endif %}{% endif %}</summary>
+    <div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Date" %}</th><th>{% trans "Time" %}</th><th>{% trans "Target" %}</th><th class="num">{% trans "Size" %}</th><th>{% trans "Status" %}</th></tr></thead><tbody>
+      {% for r in fe_backup_rows %}<tr title="{{ r.name }}"><td>{{ r.date }}</td><td>{{ r.time }}</td><td>{{ r.target }}</td><td class="num">{% if r.size %}{{ r.size|filesizeformat }}{% else %}—{% endif %}</td><td>{% if r.ok %}{% st "ok" "ok" %}{% else %}<span title="{{ r.name }}">{% st "bad" _("failed") %}</span>{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="5" class="muted">{% trans "none yet" %}</td></tr>{% endfor %}</tbody></table></div>
+    {% if obj.fe_backup_last_result %}<p class="muted" style="margin:6px 0"><small>{{ obj.fe_backup_last_result|truncatechars:600 }}</small></p>{% endif %}
+  </details>
+</section>
+<script>(function () {  /* u06: +/- list editor; the hidden textarea in the same .field is filled on submit */
+  function addRow(rows) { var r = document.createElement("div"); r.className = "li-row";
+    r.innerHTML = '<input type="text" class="li-item"><button type="button" class="btn ghost small li-del">−</button>';
+    rows.appendChild(r); r.querySelector("input").focus(); }
+  document.querySelectorAll(".li-add").forEach(function (a) { var f = a.closest(".field");
+    a.addEventListener("click", function () { addRow(f.querySelector(".li-rows")); }); });
+  document.addEventListener("click", function (e) { if (e.target.classList && e.target.classList.contains("li-del")) e.target.closest(".li-row").remove(); });
+  document.querySelectorAll("form[data-listedit]").forEach(function (f) { f.addEventListener("submit", function () {
+    f.querySelectorAll(".field").forEach(function (field) { var rows = field.querySelector(".li-rows"), ta = field.querySelector("textarea[hidden]");
+      if (rows && ta) ta.value = Array.prototype.map.call(rows.querySelectorAll(".li-item"), function (i) { return i.value.trim(); }).filter(Boolean).join("\n"); }); }); });
+})();</script>
+{% endif %}
+{% if tab == 'portal' %}
+{% include "staff/_portal_nodes.html" %}
+<section class="card">{# owner 2026-11-17: a block without a name - items per page and the history days, one per row; the timers on the right #}
+  <form method="post">{% csrf_token %}<input type="hidden" name="tab" value="portal"><input type="hidden" name="section" value="portal_general">
+  <div class="settings-cols" style="grid-template-columns:minmax(0,.8fr) minmax(0,1.6fr)">
+    <div><div class="dlg-rows wide-labels">
+      <div class="fld-inline"><label for="id_list_rows">{% trans "Items per page" %}</label><input id="id_list_rows" type="number" name="list_rows" min="5" max="100" value="{{ obj.list_rows }}" class="short"></div>
+      <div class="fld-inline"><label for="kh-tasks">{% trans "Tasks, days" %}</label><input id="kh-tasks" type="number" name="task_days" min="1" max="3650" value="{{ obj.task_days }}" class="short"></div>
+      <div class="fld-inline"><label for="kh-log">{% trans "Log, days" %}</label><input id="kh-log" type="number" name="log_days" min="30" max="36500" value="{{ obj.log_days }}" class="short"></div>
+      <div class="fld-inline"><label for="kh-res">{% trans "Resource tracking, days" %}</label><input id="kh-res" type="number" name="tenant_history_days" min="90" max="36500" value="{{ obj.tenant_history_days }}" class="short"></div></div>
+      <p class="muted" style="margin:6px 0 0"><small>{% trans "Older entries are removed every night; projects and organizations never." %}</small></p></div>
+    <div id="timers"><div class="card-top" style="margin-bottom:4px"><strong>{% trans "Timers" %}</strong><div class="actions"><button class="btn">{% trans "Save" %}</button></div></div>
+  <div class="table-wrap"><table>
+  <tr><th>{% trans "Name" %}</th><th>{% trans "Minutes" %}</th><th>{% trans "Last refresh" %}</th><th>{% trans "Status" %}</th><th></th></tr>
+  {% for t in timers %}<tr><td><strong>{{ t.label }}</strong><br><small class="muted">{{ t.what }}</small></td>
+    <td><input type="number" name="minutes_{{ t.key }}" min="1" max="10080" value="{{ t.minutes }}" style="width:6em"></td>
+    <td><small>{{ t.last_at|date:"d.m.Y H:i"|default:"—" }}</small></td>
+    <td>{% if t.state == 'running' %}{% st "running" _("in progress") %}{% elif t.state == 'ok' %}{% st "ok" "ok" %}{% elif t.state == 'error' %}{% st "bad" _("error") %}{% else %}—{% endif %}{% if t.detail %}<br><small class="muted">{{ t.detail|truncatechars:160 }}</small>{% endif %}</td>
+    <td class="row-actions"><button class="btn ghost small" name="refresh" value="{{ t.key }}"{% if t.state == 'running' %} disabled{% endif %}>↻ {% trans "Refresh" %}</button></td></tr>{% endfor %}
+  </table></div></div>
+  </div></form>
+</section>
+{% endif %}
+{% endblock %}

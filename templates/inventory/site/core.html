@@ -1,0 +1,192 @@
+{% load i18n ui %}<section class="card olist" data-key="site-core-{{ site.code }}" data-autoselect>
+  <div class="olist-bar"><div class="olist-tools"><input type="search" class="olist-search" placeholder="{% trans 'Filter' %}" aria-label="{% trans 'Filter' %}">
+    {% if can_edit %}<a class="btn small" href="{% url 'core_add' site.code %}">+ {% trans "Add a service" %}</a>{% endif %}{# T34 S3c: a page (ui-19) #}</div></div>
+  <p class="muted" style="margin:0 0 8px"><small>{% trans "What the site itself runs, by type: each type has its own form, the rest of its definition is calculated. Each VM starts planned; a Deploy or Redeploy that passes its checks makes it deployed; Read marks a VM that differs from its service non-compliant - only a Redeploy brings it back." %}
+    {% if core_vms_at %}{% blocktrans with t=core_vms_at|date:"d.m.Y H:i" %}Platforms read {{ t }}.{% endblocktrans %}{% else %}{% trans "Not read yet." %}{% endif %}</small></p>
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Profile" %}</th><th>{% trans "Platform" %}</th><th class="num">{% trans "VMs" %}</th><th class="num">vCPU</th><th class="num">{% trans "RAM, GB" %}</th><th class="num">{% trans "Disk, GB" %}</th><th>{% trans "State" %}</th></tr></thead><tbody>
+  {# owner 2026-11-23 16:01 (U9, U10, mockup p05): name, profile, platform, vms, vcpu, ram, disk, state; the profile one value (its Name) - Serves in the details #}
+  {% for s in core_services %}<tr class="orow" data-id="cs-{{ s.pk }}"><td><span class="code">{{ s.name }}</span></td>
+    <td>{% if s.profile %}{{ s.profile.key }}{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td>{{ s.platform.key|default:"—" }}</td>
+    <td class="num">{{ s.node_list|length }}</td>
+    {% if s.kind == 'vm' %}<td class="num">{{ s.vcpu|default:"?" }}</td><td class="num">{{ s.ram_gb|gb|default:"?" }}</td><td class="num">{{ s.disk_gb|default:"?" }}</td>{% else %}<td class="num muted">—</td><td class="num muted">—</td><td class="num muted">—</td>{% endif %}
+    <td>{% st s.state s.get_state_display %}{% if s.noncompliant %} <small class="muted">{{ s.noncompliant }}/{{ s.node_list|length }} {% trans "VMs non-compliant" %}</small>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="8" class="muted">{% trans "No services yet." %}{% if can_edit %} {% trans "Add them by type." %}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {% for s in core_services %}<div class="odetail card" data-for="cs-{{ s.pk }}" hidden><div class="card-top"><h3><span class="code">{{ s.name }}</span> {% if s.profile %}<small class="muted">{% trans "profile" %} {{ s.profile.key }}</small> {% endif %}{% tp s.stype %}{% if s.serves_text %} <small class="muted">{{ s.serves_text }}</small>{% endif %}</h3>
+    {# owner 2026-11-21 13:01 (T34): every action on the top row of the details - the service's here, the VM's below #}
+    {% if can_edit or can_read_core %}<span class="to-bar">
+      {% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-cs-{{ s.pk }}">{% trans "Edit" %}</button>{% endif %}
+      {% if s.kind == 'vm' and s.node_list %}<a class="btn ghost small" href="{% url 'core_check' site.code s.pk %}" title="{% trans 'Every VM against its definition (reads the platform; nothing changes)' %}">{% trans "Check" %}</a>{% endif %}{# T34 S3a: core_check linked again; commit-403: for whoever may read it #}
+      {% if can_edit and s.split_ok %}<form class="inline" method="post" action="{% url 'core_ns_split' site.code s.pk %}" onsubmit="return confirm('{% trans "Split it into ns-primary (the VM of the 1st DNS server) and ns-secondary (the VM of the 2nd)? Only the records in the portal change; the VMs run on as they are." %}')">{% csrf_token %}<button class="btn ghost small">{% trans "Split" %}</button></form>{% endif %}{# commit-506 #}
+      {% if can_edit %}
+      {% if s.stype == 'onefe' %}{% if s.recovery_rec %}<button class="btn danger small" type="button" data-open="dlg-ferr-{{ s.pk }}" {% if s.restore_running and s.recovery_rec.phase != 'incomplete' %}disabled title="{% trans 'the Restore all is still running' %}"{% endif %}>{% trans "Retry the rollback" %}</button>{# commit-350 #}
+      {% else %}<button class="btn ghost small" type="button" data-open="dlg-fere-{{ s.pk }}" {% if not s.restore_ok or s.any_busy %}disabled title="{{ s.restore_why|join:'; '|default:_('a task runs or an old VM is kept') }}"{% endif %}>{% trans "Restore all from a backup" %}</button>{% endif %}{% endif %}
+      <form class="inline" method="post" action="{% url 'core_delete' site.code s.pk %}" onsubmit="return confirm('{% trans "Delete this service from the portal? Its hosts and VMs are not touched." %}')">{% csrf_token %}<button class="btn danger small">{% trans "Delete" %}</button></form>{% endif %}
+    </span>{% endif %}</div>
+    <div class="grid two"><dl class="facts">
+      <dt>{% trans "Name" %}</dt><dd><span class="code">{{ s.name }}</span></dd>
+      <dt>{% trans "Type" %}</dt><dd>{{ s.get_stype_display }}</dd>
+      <dt>{% trans "Deployment type" %}</dt><dd>{{ s.get_kind_display }}</dd>
+      <dt>{% trans "Description" %}</dt><dd><small>{{ s.description|linebreaksbr|default:"—" }}</small></dd>
+      {% if s.kind == 'vm' %}<dt>{% trans "Platform hosting the VMs" %}</dt><dd>{{ s.platform.key|default:"—" }}</dd>{% endif %}
+      <dt>{% trans "Platform served" %}</dt><dd>{% if s.serves %}{{ s.serves.key }}{% else %}{% trans "core (common)" %}{% endif %}</dd>
+      <dt>{% trans "Secret for ssh" %}</dt><dd><span class="code">{{ s.ssh_secret|secret|default:"—" }}</span></dd>
+      <dt>{% trans "Secret for the service" %}</dt><dd><span class="code">{{ s.service_secret|secret|default:"—" }}</span></dd>
+      {% if s.peer_groups %}<dt>{% trans "BGP peer groups" %}</dt><dd>{% include "inventory/site/_core_peer_secrets.html" with groups=s.peer_groups net=s.peer_net %}</dd>{% endif %}
+      {% if s.base_profile %}<dt>{% trans "Profile" %}</dt><dd>{{ s.profile.name }} <small class="muted">{{ s.profile_parts|join:" → " }} (Profiles → Services)</small></dd>{# T34 B4: an instance of its service profile #}
+      <dt>{% trans "Instance's own secrets" %}</dt><dd><small>{% for name, ref in s.own_secrets %}{{ name }}: <span class="code">{{ ref|secret }}</span>{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">{% trans "none" %}</span>{% endfor %}</small></dd>
+      {% if s.stype == 'onefe' %}<dt>{% trans "Latest backup" %}</dt><dd>{% if s.latest_backup %}<span class="code">{{ s.latest_backup }}</span> <small class="muted">{% trans "local folder" %}</small>{% else %}<span class="muted">{% trans "none in the local folder" %}</span>{% endif %}</dd>{% endif %}{# T34 B6 #}
+      {% if s.recovery_rec %}<dt>{% trans "Restore all" %}</dt><dd><small style="color:var(--warn)">{% if s.recovery_rec.phase == 'incomplete' %}{% trans "not rolled back completely - every node action waits for Retry the rollback:" %} {{ s.recovery_rec.problems|join:"; " }}{% for pk, name, tag in s.recovery_unresolved %}<br>{% blocktrans %}OpenNebula did not answer the creation of {{ name }}'s new VM.{% endblocktrans %} {% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-feab-{{ s.pk }}-{{ pk }}">{% trans "Confirm no VM was made" %}</button>{% endif %}{% endfor %}{% else %}{% blocktrans with p=s.recovery_rec.phase b=s.recovery_rec.backup %}{{ p }} from {{ b }} - node actions wait until it ends{% endblocktrans %}{% endif %}</small></dd>{% endif %}{# commit-350 #}
+      {% else %}<dt>{% trans "Template" %}</dt><dd>{{ s.template.name|default:"—" }}{% if s.diff_lines %} · {% blocktrans count n=s.diff_lines %}{{ n }} line of differences{% plural %}{{ n }} lines of differences{% endblocktrans %}{% endif %}</dd>{% endif %}
+    </dl>
+    <div>{% if s.kind == 'vm' %}
+      <table class="mini"><thead><tr><th>vCPU</th><th>{% trans "RAM, GB" %}</th><th>{% trans "Disk, GB" %}</th><th>{% trans "Image" %}</th><th>{% trans "ssh port" %}</th></tr></thead>
+        <tr><td>{{ s.vcpu|default:"?" }}</td><td>{{ s.ram_gb|gb|default:"?" }}</td><td>{{ s.disk_gb|default:"?" }}</td><td>{% if s.image %}{{ s.image.name }} <small class="muted">{{ s.image.get_customization_display }}</small>{% else %}—{% endif %}</td><td>{{ s.ssh_port }}</td></tr></table>
+      <table class="mini" style="margin-top:6px"><thead><tr><th>NIC</th><th>{% trans "Subnet" %}</th><th>{% trans "Gateway" %}</th></tr></thead>
+        {% for net, gw in s.nics %}<tr><td>{{ forloop.counter }}</td><td>{{ net.name|default:"?" }} <small class="code">{{ net.cidr }}</small></td><td><span class="code">{{ gw|default:net.gateway|default:"—" }}</span>{% if not gw and net.gateway %} <small class="muted">({% trans "the subnet's" %})</small>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="3" class="muted">—</td></tr>{% endfor %}</table>
+      {% if s.routes %}<table class="mini" style="margin-top:6px"><thead><tr><th>NIC</th><th>{% trans "Subnet" %}</th><th>{% trans "Next hop" %}</th><th>{% trans "Metric" %}</th></tr></thead>
+        {% for r in s.routes %}<tr><td>{{ r.nic }}</td><td><span class="code">{{ r.subnet }}</span></td><td><span class="code">{{ r.via|default:"—" }}</span></td><td>{{ r.metric|default_if_none:"—" }}</td></tr>{% endfor %}</table>{% endif %}
+      {% endif %}{% if s.firewall and not s.vyos_image %}<table class="mini" style="margin-top:6px"><thead><tr><th>ufw</th><th>{% trans "Port" %}</th><th>{% trans "Protocol" %}</th><th>{% trans "From" %}</th></tr></thead>
+        {% for r in s.firewall %}<tr><td>allow</td><td>{{ r.port }}</td><td>{{ r.proto }}</td><td><span class="code">{{ r.source|default:"any" }}</span></td></tr>{% endfor %}</table>{% endif %}
+    </div></div>
+    {% if s.typed %}<details style="margin-top:8px"><summary>{% trans "Calculated definition" %}</summary>{% include "inventory/site/_core_calc.html" with calc=s.calc calc_error=s.calc_error %}</details>{% endif %}
+    {% if s.problems %}<p><small style="color:var(--warn)">{% for node, text in s.problems %}{{ node }}: {{ text }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</small></p>{% endif %}
+    <h4 style="margin:12px 0 4px">{% if s.kind == 'vm' %}{% trans "VMs" %}{% else %}{% trans "Hosts" %}{% endif %}</h4>
+    {# T34 B4 (owner 13:01): a VM is selected; its actions are on the top row of its details, none on the rows #}
+    <div class="olist" data-key="site-core-{{ site.code }}-cs{{ s.pk }}" data-size="25">
+    <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% if s.kind == 'vm' %}{% trans "VM name" %}{% else %}{% trans "Host" %}{% endif %}</th><th>{% if s.kind == 'vm' and s.vyos_tpl %}{% trans "Management IP" %}{% elif s.kind == 'vm' %}{% trans "NIC 1 IP" %}{% else %}{% trans "Address" %}{% endif %}</th><th>{% trans "Status" %}</th></tr></thead><tbody>
+    {% for n in s.node_list %}<tr class="orow" data-id="cn-{{ n.pk }}"><td><span class="code">{{ n.name }}</span></td>
+      <td><span class="code">{{ n.nic1_ip|default:"—" }}</span></td>
+      <td>{% if s.kind == 'vm' %}{% if n.deployed %}{% st n.deployed.status %}{% else %}<span class="muted">{% trans "not on the platforms" %}</span>{% endif %}{% endif %}
+        {% if n.busy %} {% st "running" _("task running") %}{% endif %}
+        {% if n.old_vm %} {% st "warn" _("old VM kept") %}{% endif %}
+        {% if n.deployed.init_script %} {% st "warn" _("init script in the context") %}{% endif %}
+        {% st n.state n.get_state_display %}</td></tr>{% endfor %}</tbody></table></div>
+    <div class="olist-detail"><div class="empty">{% trans "Select a VM to see its details." %}</div>
+    {% for n in s.node_list %}<div class="odetail card" data-for="cn-{{ n.pk }}" hidden><div class="card-top"><h3><span class="code">{{ n.name }}</span> <small class="muted">{{ s.name }}{% if s.kind == 'vm' and n.deployed %} · {% trans "VM" %} #{{ n.deployed.id }}{% endif %}</small></h3>
+      <span class="to-bar">
+        {% if s.vyos_tpl %}<a class="btn ghost small" href="{% url 'core_config' site.code s.pk n.pk %}">{% trans "Configuration" %}</a>{% endif %}
+        {# owner 2026-11-21 11:58 "service VMs now" (T33): Check logging, then Apply logging, as on hosts #}
+        {% if n.base_os %}<form class="inline" method="post" action="{% url 'core_logging_check' site.code s.pk n.pk %}">{% csrf_token %}<button class="btn ghost small" title="{% trans 'Compare the logging of the VM with Infrastructure → Services (read only)' %}">{% trans "Check logging" %}</button></form>
+        {% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-cnlog-{{ n.pk }}" {% if n.busy %}disabled{% endif %}>{% trans "Apply logging" %}</button>{% endif %}{% endif %}
+        {% if can_edit and n.old_vm and not n.busy %}{% if s.redeployable or n.is_base %}<form class="inline" method="post" action="{% url 'core_finish' site.code s.pk n.pk %}" onsubmit="return confirm('{% trans "Remove the old VM? The new one stays." %}')">{% csrf_token %}<button class="btn ghost small">{% trans "Remove the old VM" %}</button></form>
+          <form class="inline" method="post" action="{% url 'core_rollback' site.code s.pk n.pk %}" onsubmit="return confirm('{% trans "Remove the new VM and bring the old one back?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Roll back" %}</button></form>{% endif %}{% endif %}
+        {% if can_edit and n.rollback_retry and not n.busy %}<form class="inline" method="post" action="{% url 'core_rollback' site.code s.pk n.pk %}" onsubmit="return confirm('{% trans "A rollback stopped before it ended: finish bringing the old VM back?" %}')">{% csrf_token %}<button class="btn danger small">{% trans "Roll back" %}</button></form>{% endif %}{# commit-314 #}
+        {% if can_edit and n.deployed.init_script and not n.busy %}{% if s.vyos_tpl or n.is_base %}<form class="inline" method="post" action="{% url 'core_clean' site.code s.pk n.pk %}" onsubmit="return confirm('{% trans "Remove the one-time init script (the first configuration, secrets included) from the context of the VM on the platform? The VM keeps running as it is." %}')">{% csrf_token %}<button class="btn ghost small">{% trans "Remove the init script" %}</button></form>{% endif %}{% endif %}
+        {% if can_edit and n.snapd and not n.busy %}<form class="inline" method="post" action="{% url 'core_snapd' site.code s.pk n.pk %}" onsubmit="return confirm('{% trans "Remove snapd and every snap from the VM, in place? Nothing else changes." %}')">{% csrf_token %}<button class="btn ghost small">{% trans "Remove snapd" %}</button></form>{% endif %}{# T36 B3c #}
+        {% if can_edit and not n.busy and not n.old_vm and not n.rollback_retry %}{% if s.redeployable %}<a class="btn ghost small" href="{% url 'core_plan' site.code s.pk n.pk %}">{% trans "Redeploy…" %}</a>{% elif n.is_base and n.redeploy_ok %}<button class="btn ghost small" type="button" data-open="dlg-cnre-{{ n.pk }}">{% if n.deployed %}{% trans "Redeploy" %}{% else %}{% trans "Deploy" %}{% endif %}</button>{% endif %}{# T34 S3a: a VM not on the platform is deployed #}{% endif %}
+      </span></div>
+      <dl class="facts">
+        <dt>{% trans "Host name" %}</dt><dd>{{ n.hostname|default:"—" }}</dd>
+        <dt>{% trans "State" %}</dt><dd>{% st n.state n.get_state_display %} <small class="muted">{% if n.state == 'planned' %}{% trans "not made yet: Deploy" %}{% elif n.state == 'deployed' %}{% trans "made from its service" %}{% if n.deployed_vm_id %} (#{{ n.deployed_vm_id }}){% endif %}{% elif n.state == 'non-compliant' %}{% if n.why %}{{ n.why|join:"; " }}{% else %}{% trans "not made from its service" %}{% endif %} — {% trans "only a Redeploy makes it deployed" %}{% endif %}</small></dd>
+        {% if s.kind == 'vm' %}<dt>{% trans "Definition" %}</dt><dd><small>{% for i, net, ip in n.def_ips %}NIC {{ i }} {{ net }}: <span class="code">{{ ip|default:_("assigned when the VM is made") }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}</small></dd>
+        {% if n.deployed %}<dt>{% trans "Platform" %}</dt><dd>{{ n.deployed.platform }} · {% trans "VM" %} #{{ n.deployed.id }} · {% trans "cluster" %} {{ n.deployed.cluster|default:"—" }} · {% trans "host" %} {{ n.deployed.host|default:"—" }}</dd>
+        <dt>{% trans "Status" %}</dt><dd>{% st n.deployed.status %}{% if n.busy %} {% st "running" _("task running") %}{% endif %}</dd>
+        <dt>{% trans "Size on the platform" %}</dt><dd><small>{{ n.deployed.vcpu|default:"?" }} vCPU · {{ n.deployed.ram_gb|gb|default:"?" }} GB · {% trans "disks" %} {{ n.deployed.disks_gb|join:" + "|default:"—" }} GB{% if n.deployed.images %} · {{ n.deployed.images|join:", " }}{% endif %}</small></dd>
+        <dt>{% trans "NICs on the platform" %}</dt><dd>{% for net, ip in n.deployed.nics %}<small>NIC {{ forloop.counter }} {{ net }} <span class="code">{{ ip|default:"—" }}</span></small>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
+        <dt>{% trans "Init script" %}</dt><dd><small>{% if n.deployed.init_script %}<span style="color:var(--warn)">{% trans "still in the VM's context on the platform (the first configuration, secrets included)" %}</span>{% elif n.deployed.init_script is None %}<span class="muted">{% trans "not read (Read reads it)" %}</span>{% else %}{% trans "not in the context" %}{% endif %}</small></dd>
+        {% else %}<dt>{% trans "Status" %}</dt><dd class="muted">{% trans "not on the platforms (last read)" %}</dd>{% endif %}
+        {% if n.old_vm %}<dt>{% trans "Old VM" %}</dt><dd><small><span class="code">{{ n.name }}-old</span> #{{ n.old_vm.id }} · {% st n.old_vm.status %} · {% trans "host" %} {{ n.old_vm.host|default:"—" }}</small></dd>{% endif %}
+        {% elif n.host %}<dt>{% trans "Host" %}</dt><dd>{{ n.host.name }}</dd>{% endif %}
+        <dt>{% trans "Login" %}</dt><dd><span class="code">{{ n.address }}:{{ n.ssh_port }}</span> · <span class="code">{{ n.secret|secret|default:"—" }}</span></dd>
+        {% if n.is_base and can_edit and not n.redeploy_ok %}<dt>{% trans "Redeploy" %}</dt><dd><small style="color:var(--warn)">{% trans "not offered:" %} {{ n.redeploy_why|join:"; " }}</small></dd>{% endif %}
+      </dl>
+      {% if n.base_os %}{% include "inventory/site/_host_logging.html" with h=n node=1 %}{% endif %}
+    </div>{% endfor %}</div></div>
+    {% for n in s.node_list %}{% if can_edit and n.is_base and n.redeploy_ok %}<dialog id="dlg-cnre-{{ n.pk }}" class="card" style="max-width:620px;width:94%"><h2>{% if n.deployed %}{% trans "Redeploy" %}{% else %}{% trans "Deploy" %}{% endif %} <span class="code">{{ n.name }}</span>?</h2>
+      <p>{% blocktrans with p=s.profile.name img=s.platform.key %}A new VM from the {{ p }} profile with this instance's data: its name, host name and addresses, the service's size and NICs, its secrets, the site's storage; the base-os image of {{ img }} (Settings / Platforms). The profile's recipe runs at its first boot.{% endblocktrans %}</p>
+      {% if s.stype == 'onefe' %}<p>{% trans "Its data from the zone's leader: the configuration, its own server id, the database; the leader resets its log, oned starts; ready when it is a follower that has caught up. Only while the two other nodes serve. The leader is not redeployed as it is: its oned stops first and the leadership moves." %}</p>{% endif %}{# T34 B6 #}
+      <ul>{% if n.deployed %}<li>{% blocktrans with o=n.name %}The old VM is powered off, gives up the addresses the new one takes and is kept as {{ o }}-old.{% endblocktrans %}</li>{% else %}<li>{% trans "Not on the platform yet: the VM is made for the first time." %}</li>{% endif %}
+      {% if n.deployed %}<li>{% trans "Ready when the first boot ends and the profile's checks pass; until then a failure brings the old VM back by itself. Progress: Tasks." %}</li>
+      <li>{% trans "Then on its details: Remove the old VM, Roll back, Remove the init script." %}</li>{% else %}<li>{% trans "Ready when the first boot ends and the profile's checks pass; until then a failure removes the new VM. Progress: Tasks." %}</li>
+      <li>{% trans "Then on its details: Remove the init script." %}</li>{% endif %}</ul>
+      <form method="post" action="{% url 'core_redeploy' site.code s.pk n.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="keep_old" value="1">{% if not n.deployed %}<input type="hidden" name="first" value="1">{% endif %}{# commit-402 #}
+        {% if s.stype == 'ns' %}{# owner 2026-11-22 11:51: make it the primary during the deployment #}
+        <label class="check"><input type="checkbox" name="primary" value="1" {% if not s.dns_primary_id or s.dns_primary_id == n.pk %}checked{% endif %} {% if not s.dns_primary_id or s.dns_primary_id == n.pk %}disabled{% endif %}> {% trans "Make it the primary DNS server (one for all sites)" %}</label>
+        {% if not s.dns_primary_id or s.dns_primary_id == n.pk %}<input type="hidden" name="primary" value="1">{% endif %}
+        <p class="muted"><small>{% if not s.dns_primary_id %}{% trans "There is no primary yet: this server becomes it when its redeploy passes." %}{% elif s.dns_primary_id == n.pk %}{% trans "It is the primary." %}{% else %}{% trans "Ticked: the zones are written on it, it becomes the primary when its redeploy passes, and Apply then makes every other name server its secondary (the present primary included)." %}{% endif %}</small></p>{% endif %}
+        <label>{% trans "Type the VM's name to confirm" %}<input name="confirm" autocomplete="off" required></label>
+        <div class="actions"><button class="btn">{% if n.deployed %}{% trans "Redeploy" %}{% else %}{% trans "Deploy" %}{% endif %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+    {% if can_edit and n.base_os %}<dialog id="dlg-cnlog-{{ n.pk }}" class="card" style="max-width:600px;width:94%"><h2>{% trans "Apply logging to" %} <span class="code">{{ n.name }}</span></h2>
+      <p>{% trans "The files of the VM's services (Infrastructure → Services) are written, checked first (rsyslogd -N1, logrotate -d) and rsyslog is restarted; then the services' config changes are made (each file kept before a change, checked, put back if the check fails)." %}</p>
+      <ul><li>{% trans "The previous logging files are saved; if the install fails they are put back and rsyslog is restarted with them." %}</li>
+      <li>{% trans "Files of other origin are moved to /etc/claugine/dist (kept)." %}</li>
+      {% if n.restarts %}<li><b>{% trans "Restarted when their config changes:" %}</b> {{ n.restart_names|join:"; " }}</li>{% endif %}
+      <li>{% trans "Then a test message is sent to the site's log collector." %}</li>
+      <li>{% trans "If the VM's services changed since this page was shown, nothing is done and the services to be restarted are named: confirm again." %}</li>
+      <li>{% trans "Refused while a redeploy of the VM runs, or while another logging install runs on it." %}</li></ul>
+      <form method="post" action="{% url 'core_logging_apply' site.code s.pk n.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="restarts" value="{{ n.restarts|join:',' }}">
+        <label>{% trans "Type the VM's name to confirm" %}<input name="confirm" autocomplete="off" required></label>
+        <div class="actions"><button class="btn">{% trans "Apply logging" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}{% endfor %}
+    {% if can_edit %}{% for pk, name, tag in s.recovery_unresolved %}<dialog id="dlg-feab-{{ s.pk }}-{{ pk }}" class="card" style="max-width:600px;width:94%"><h2>{% trans "Confirm no VM was made?" %}</h2>{# commit-351 #}
+      <p>{% blocktrans %}The Restore all asked OpenNebula for a new VM of {{ name }} and got no answer. Look on the platform for a VM carrying the attribute CLAUGINE_RESTORE = {{ tag }}: confirm only when there is none. Then Retry the rollback.{% endblocktrans %}</p>
+      <form method="post" action="{% url 'core_fe_absent' site.code s.pk pk %}" class="stack">{% csrf_token %}<input type="hidden" name="tag" value="{{ tag }}">
+        <label>{% trans "Type the VM's name to confirm" %}<input name="confirm" autocomplete="off" required></label>
+        <div class="actions"><button class="btn danger">{% trans "Confirm no VM was made" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}{% endif %}
+    {% if can_edit and s.stype == 'onefe' and s.recovery_rec %}<dialog id="dlg-ferr-{{ s.pk }}" class="card" style="max-width:640px;width:94%"><h2>{% trans "Retry the rollback?" %}</h2>{# commit-350 #}
+      <ul><li>{% trans "Every new VM the Restore all made is removed and must be confirmed gone; if one is not, every old VM stays off." %}</li>
+      <li>{% trans "Then the old VMs are put back (names, addresses, running) and the old zone is checked for a leader. Progress: Tasks." %}</li></ul>
+      <form method="post" action="{% url 'core_fe_retry' site.code s.pk %}" class="stack">{% csrf_token %}
+        <label>{% trans "Type the service's name to confirm" %}<input name="confirm" autocomplete="off" required></label>
+        <div class="actions"><button class="btn danger">{% trans "Retry the rollback" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+    {% if can_edit and s.stype == 'onefe' and s.restore_ok %}<dialog id="dlg-fere-{{ s.pk }}" class="card" style="max-width:640px;width:94%"><h2>{% trans "Restore all from a backup?" %}</h2>{# T34 B6, mockup 05 #}
+      <p>{% trans "Backup:" %} <span class="code">{{ s.latest_backup }}</span></p>
+      <ul><li>{% trans "Every old VM is powered off first (kept as -old); three new VMs from the profile; each node from its own folder of the backup, every node the backup's database." %}</li>
+      <li>{% trans "Ready when the zone has a leader and the other nodes follow it; any failure removes every new VM and brings the old ones back. Progress: Tasks." %}</li>
+      <li><b>{% trans "Everything after the backup's time is lost. Prometheus starts empty." %}</b></li></ul>
+      <form method="post" action="{% url 'core_fe_restore' site.code s.pk %}" class="stack">{% csrf_token %}<input type="hidden" name="backup" value="{{ s.latest_backup }}">
+        <label>{% trans "Type the service's name to confirm" %}<input name="confirm" autocomplete="off" required></label>
+        <div class="actions"><button class="btn danger">{% trans "Restore" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endif %}
+  </div>{% endfor %}</div>
+</section>
+
+{% if can_edit %}
+{% for s in core_services %}<dialog id="dlg-cs-{{ s.pk }}" class="card" style="max-width:{% if s.typed %}820px{% else %}1000px{% endif %};width:96%"><h2>{% trans "Edit" %} <span class="code">{{ s.name }}</span> <small class="muted">{{ s.stype }}</small></h2>
+  <form method="post" action="{% url 'core_save' site.code s.pk %}" class="stack">{% csrf_token %}{% if s.typed %}{% include "inventory/site/_core_type_form.html" with f=s.tform calc=s.calc calc_error=s.calc_error %}{% else %}{% include "inventory/site/_core_form.html" with f=s.form vyos=s.vyos_image groups=s.peer_groups net=s.peer_net %}{% endif %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+<style>
+.cs-row3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0 12px; }
+.cs-row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 12px; }
+/* one size for every control of the form, the row editors included */
+.cs-form input[type=text], .cs-form input[type=number], .cs-form select, .cs-form textarea,
+.cs-form .rowlist-table input, .cs-form .rowlist-table select { box-sizing: border-box; width: 100%; min-width: 0;
+  padding: 6px 9px; font-size: .9rem; line-height: 1.35; font-family: inherit; }
+.cs-form textarea.mono, .cs-form .rowlist-table input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+.cs-form .field { margin-bottom: 12px; }
+.cs-grid { display: grid; gap: 8px 12px; }
+.cs-res1 { grid-template-columns: repeat(4, minmax(110px, 160px)); }
+.cs-res2 { grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(140px, 2fr); margin-top: 8px; }
+.cs-sub label, .cs-form .rowlist-table th { font-size: .75rem; font-weight: 600; color: var(--ink-2); text-transform: uppercase;
+  letter-spacing: .02em; margin-bottom: 3px; }
+/* further NICs: subnet and gateway right under NIC 1's (the second and third columns of the row above) */
+.cs-nics { margin-bottom: 12px; }
+.cs-nics-rows { grid-column: 2 / 4; }
+.cs-nics-rows > .field { margin: 0; }
+.cs-nics-rows > .field > label { display: none; }
+.cs-nics-rows .rowlist-table { table-layout: fixed; border-spacing: 0; width: calc(100% + 28px); margin-right: -28px; }
+.cs-nics-rows .rowlist-table th, .cs-nics-rows .rowlist-table td { padding: 2px 0; }
+.cs-nics-rows .rowlist-table th:first-child, .cs-nics-rows .rowlist-table td:first-child { width: 58%; padding-right: 12px; box-sizing: border-box; }
+.cs-nics-rows .rowlist-table th:last-child, .cs-nics-rows .rowlist-table td:last-child { width: 28px; text-align: right; }
+.cs-form.host .cs-vm, .cs-form:not(.host) .cs-host { display: none; }
+@media (max-width: 760px) { .cs-res1 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cs-res2 { grid-template-columns: 1fr; } .cs-nics-rows { grid-column: auto; } }
+.cs-form.vyos .cs-fw { display: none; }
+@media (max-width: 640px) { .cs-row3 { grid-template-columns: 1fr; } }
+</style>
+<script>
+document.querySelectorAll("[data-cs-form]").forEach(function (box) {
+  var kind = box.querySelector("select[name=kind]"), image = box.querySelector("select[name=image]");
+  var vyos = (box.dataset.vyosImages || "").split(" ");
+  function sync() {
+    box.classList.toggle("host", !!kind && kind.value === "host");
+    box.classList.toggle("vyos", !!image && vyos.indexOf(image.value) >= 0);
+  }
+  if (kind) kind.addEventListener("change", sync);
+  if (image) image.addEventListener("change", sync);
+  sync();
+});
+</script>
+{% endif %}
+

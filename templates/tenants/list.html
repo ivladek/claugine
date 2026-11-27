@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load i18n %}{% block title %}{% trans "Projects" %}{% endblock %}
+{% block content %}
+<div class="olist-bar" style="margin-bottom:12px">
+  <h1 style="margin:0">{{ tenants|length }} {% trans "Projects" %}</h1>
+  <form id="pfilter" method="get" class="filters" data-auto data-focus="no" style="margin:0">
+    <input type="hidden" name="tab" value="active">{% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
+    <input type="search" name="q" value="{{ f.q }}" placeholder="{% trans 'Filter' %}">
+    {% if can_add %}<a class="btn small" href="{% url 'tenant_new' %}">+ {% trans "new" %}</a>{% endif %}
+    <a class="btn {% if not show_archived %}ghost {% endif %}small" href="?{% if not show_archived %}archived=1{% endif %}">{% trans "archived" %}</a>
+  </form>
+</div>
+<section class="card">{% include "tenants/_table.html" with list_key="active" list_filters=1 filter_form="pfilter" %}</section>
+{% endblock %}

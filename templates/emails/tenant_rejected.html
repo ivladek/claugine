@@ -1,0 +1,4 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{% blocktrans with t=tenant.title|default:tenant.name %}The request for project {{ t }} on the Example Cloud portal was not approved.{% endblocktrans %}</p>
+<p style="margin:0 0 10px">{% trans "Reason" %}: {{ tenant.rejection_reason }}</p>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% load i18n %}<!doctype html><html lang="{{ LANGUAGE_CODE|default:'en' }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% trans "No portal node is serving" %} · {% provider_name %}</title>{% if done %}<meta http-equiv="refresh" content="60;url=/">{% endif %}
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f7f9;color:#1d2433;margin:0;display:grid;place-items:center;min-height:100vh}
+main{max-width:620px;padding:28px 32px;background:#fff;border:1px solid #e3e6eb;border-radius:12px;margin:16px}h1{font-size:22px;margin:0 0 6px}p{color:#5b6475;line-height:1.5;margin:6px 0 14px}
+table{width:100%;border-collapse:collapse;margin:8px 0 18px;font-size:14px}td,th{padding:7px 8px;border-bottom:1px solid #e3e6eb;text-align:left}th{color:#6b7385;font-weight:600;font-size:12px;text-transform:uppercase}
+.dot{display:inline-block;width:8px;height:8px;border-radius:4px;margin-right:6px;vertical-align:1px}.y{background:#e0a83a}.r{background:#d9534f}.g{background:#3fbf7f}.s{background:#8a948f}
+code{background:#eef0f3;padding:1px 5px;border-radius:4px}.box{border:1px solid #f0d7a8;background:#fff6e6;border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.5;margin-bottom:16px}
+.err{border:1px solid #e9b4b0;background:#fdecea;border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:14px}.ok{border:1px solid #b5dfc7;background:#eaf7ef;border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:14px}
+.frow{display:flex;gap:12px;align-items:center;margin:8px 0}.frow label{width:160px;color:#5b6475;font-size:14px}
+input[type=text],input[type=email],input[type=password]{flex:1;border:1px solid #cfd4dc;border-radius:6px;padding:8px 10px;font-size:14px;background:inherit;color:inherit}
+.chk{display:flex;gap:10px;align-items:flex-start;margin:14px 0;font-size:14px;line-height:1.45}.btns{display:flex;gap:10px;margin-bottom:18px}
+.btn{background:#c0392b;color:#fff;border:0;border-radius:6px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer}.btn2{color:#5b6475;border:1px solid #cfd4dc;border-radius:6px;padding:8px 14px;font-size:14px;text-decoration:none}
+.muted{color:#7f8899;font-size:13px}
+@media (prefers-color-scheme:dark){body{background:#12151b;color:#e6e9ef}main{background:#1a1e26;border-color:#2a303b}p{color:#a7afbd}td,th{border-color:#2a303b}code{background:#232833}
+.box{border-color:#5a4a24;background:#2a2416;color:#e8d8b0}.err{border-color:#6b2f2a;background:#2c1a19}.ok{border-color:#2f5a42;background:#17271e}input[type=text],input[type=email],input[type=password]{border-color:#2a303b}.btn2{color:#a7afbd;border-color:#2a303b}}</style></head>
+<body><main>
+{% if done %}
+<div class="ok">{% trans "Started: this node serves the portal in about a minute. The page opens the portal by itself." %}</div>
+<h1>{% trans "This node takes over" %}</h1>
+<p>{% trans "When the other node is back, it copies this node's database and follows it as the standby." %}</p>
+{% else %}
+<form method="post">{% csrf_token %}
+<div class="btns"><button class="btn" type="submit">{% trans "Serve from this node" %}</button><a class="btn2" href="/recovery">{% trans "Cancel" %}</a></div>
+{% if error %}<div class="err">{{ error }}</div>{% endif %}
+<h1>{% trans "No portal node is serving" %}</h1>
+<p>{% trans "A switch over stopped and the other node did not answer, so it is not known whether it took over. This node stays out of service until that is known. It asks the other node again every 5 minutes, and serves again by itself as soon as the other node answers." %}</p>
+<table>
+<tr><th>{% trans "Node" %}</th><th>{% trans "Role" %}</th><th>{% trans "Database" %}</th></tr>
+<tr><td>{{ node.SITE }} <code>{{ node.ADDR }}</code> · {% trans "this node" %}</td><td><span class="dot y"></span>{% trans "maintenance" %}</td><td>{% trans "read-only" %}</td></tr>
+<tr><td>{% firstof peer.site node.PEER_SITE %} <code>{{ node.PEER_ADDR }}</code> · {% trans "the other node" %}</td>
+{% if peer %}<td><span class="dot {% if peer.role == 'active' %}g{% else %}s{% endif %}"></span>{{ peer.role }}</td><td>{% if peer.db.read_only %}{% trans "read-only" %}{% else %}{% trans "writable" %}{% endif %}</td>
+{% else %}<td><span class="dot r"></span>{% trans "no answer" %}</td><td>{% trans "unknown" %}</td>{% endif %}</tr>
+</table>
+<p class="muted">{% blocktrans with at=since %}Out of service since {{ at }} (UTC).{% endblocktrans %}</p>
+<div class="box"><b>{% trans "Serve from this node anyway" %}</b> {% trans "only when you know the other node is down (switched off, or its VM is gone). If it is still running and serving users somewhere, both nodes would accept changes, and the changes made on one of them would be lost." %}</div>
+<div class="frow"><label for="r-email">{% trans "Super admin e-mail" %}</label><input id="r-email" type="email" name="email" autocomplete="username" required></div>
+<div class="frow"><label for="r-pw">{% trans "Password" %}</label><input id="r-pw" type="password" name="password" autocomplete="current-password" required></div>
+<div class="frow"><label for="r-code">{% trans "Authenticator code" %}</label><input id="r-code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" style="max-width:140px;flex:none" required></div>
+<label class="chk"><input type="checkbox" name="confirm" value="1"> <span>{% blocktrans with addr=node.PEER_ADDR %}I confirm that the other node ({{ addr }}) is down and serves nobody.{% endblocktrans %}</span></label>
+<p class="muted">{% trans "The action is logged with your name. When the other node comes back, it becomes the standby: it copies this node's database and follows it." %}</p>
+</form>
+{% endif %}
+</main></body></html>

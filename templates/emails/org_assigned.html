@@ -1,0 +1,4 @@
+{% extends "emails/_base.html" %}{% load i18n %}{% block body %}
+<p style="margin:0 0 10px">{% blocktrans with org=org.name %}You are now the sales rep for {{ org }} and all its projects.{% endblocktrans %}</p>
+<p style="margin:14px 0"><a class="btn" href="{{ link }}" style="display:inline-block;background:#0f6b55;color:#ffffff;text-decoration:none;padding:9px 16px;border-radius:8px">Open</a> <span style="color:#6b736e;font-size:12px">{{ link }}</span></p>
+{% endblock %}

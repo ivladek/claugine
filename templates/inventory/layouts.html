@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load ui %}{% load i18n %}{% block title %}{% trans "Boot storage" %}{% endblock %}
+{% block content %}
+{# owner 2026-11-18 12:17 / 12:40 (T25): the boot-device layouts, a list attached to the server profiles (one each); 2026-11-24 08:54 (mockup 13): Name editable, found by its id #}
+{% include "inventory/_hw_tabs.html" with hw_tab="boot" %}
+<section class="card olist" data-key="layouts" data-autoselect>
+  {# T34 S4 (ui-12, R1): count + title, "+ new"; what the page is: Documentation (the ? next to the title) #}
+  {% blocktrans count n=layouts|length asvar title %}{{ n }} Boot storage{% plural %}{{ n }} Boot storages{% endblocktrans %}{% trans "new" as add_label %}{% if can_edit %}{% include "ui/bar.html" with add_dialog="dlg-layout" help_url=docs.staff %}{% else %}{% include "ui/bar.html" with help_url=docs.staff %}{% endif %}
+  <div class="table-wrap"><table class="olist-table"><thead><tr><th>{% trans "Name" %}</th><th>{% trans "Description" %}</th><th>{% trans "Volumes" %}</th><th class="num">{% trans "Fixed, GiB" %}</th><th>{% trans "Server profiles" %}</th><th>{% trans "Check" %}</th><th></th></tr></thead><tbody>
+  {% for l in layouts %}<tr class="orow" data-id="dl-{{ l.pk }}"><td><span class="code">{{ l.code }}</span></td><td>{{ l.title|default:"—" }}</td>
+    <td><small>{% for v in l.volumes %}<span class="code">{{ v.path }}</span> {% if v.size_gib is None %}{% trans "rest" %}{% else %}{{ v.size_gib }}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</small></td>
+    <td class="num">{{ l.fixed_gib|floatformat:"0" }}</td>
+    <td>{% for p in l.profile_list %}<a href="{% url 'infra_profiles' %}?sel=pr-{{ p.code }}"><span class="code">{{ p.code }}</span></a> {% empty %}<span class="muted">—</span>{% endfor %}</td>
+    <td>{% if l.issues %}<span title="{{ l.issues|join:'; ' }}">{% st "bad" _("problem") %}</span>{% else %}{% st "ok" "ok" %}{% endif %}</td>
+    <td class="row-actions"><span class="stack-right">{% if can_edit %}<button class="btn ghost small" type="button" data-open="dlg-dl-{{ l.pk }}">{% trans "Edit" %}</button>
+      {% if not l.profile_list %}<form class="inline" method="post" action="{% url 'inv_layout_delete' l.pk %}" onsubmit="return confirm('{% trans "Delete this boot storage?" %}')">{% csrf_token %}<button class="btn danger small" style="width:100%">{% trans "Delete" %}</button></form>{% endif %}{% endif %}</span></td></tr>
+  {% empty %}<tr><td colspan="7" class="muted">{% trans "No boot storage defined." %}</td></tr>{% endfor %}</tbody></table></div>
+  {% include "ui/foot.html" %}
+  <div class="olist-detail"><div class="empty">{% trans "Select a row to see its details." %}</div>
+  {# commit-422 (R7): the summary line, then two cards - the volumes, and last the server profiles using it #}
+  {% for l in layouts %}<div class="odetail" data-for="dl-{{ l.pk }}" hidden><h3><span class="code">{{ l.code }}</span> {{ l.title }}</h3>
+    <section class="card compact"><div class="card-top"><h4 style="margin:0">{% trans "Volumes" %}</h4></div>
+    <div class="table-wrap"><table class="compact"><thead><tr><th>{% trans "Partition / volume" %}</th><th>{% trans "Mount point" %}</th><th class="num">{% trans "Size" %}</th><th>{% trans "File system" %}</th></tr></thead><tbody>
+      <tr class="muted"><td>{% trans "partition 1" %}</td><td><span class="code">/boot/efi</span></td><td class="num">512 MiB</td><td>vfat</td></tr>
+      <tr class="muted"><td>{% trans "partition 2" %}</td><td><span class="code">/boot</span></td><td class="num">1 GiB</td><td>ext4</td></tr>
+      {% for v in l.volumes %}<tr><td>{% trans "partition 3, LVM" %} · <span class="code">{% if v.path == "/" %}root{% else %}{{ v.path|slice:"1:"|default:v.path }}{% endif %}</span></td><td><span class="code">{{ v.path }}</span></td><td class="num">{% if v.size_gib is None %}{% trans "the rest" %}{% else %}{{ v.size_gib }} GiB{% endif %}</td><td>{{ v.fs }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% if l.issues %}<p style="color:var(--bad)"><small>{{ l.issues|join:"; " }}</small></p>{% endif %}</section>
+    {# T34 S4 (ui-12, R7/R11): the server profiles using it, a card of their own, last #}
+    <section class="card compact" style="margin-top:10px"><div class="card-top"><h4 style="margin:0">{% trans "Server profiles" %}</h4></div>
+    <p style="margin:6px 0 0"><small>{% for p in l.profile_list %}<a href="{% url 'infra_profiles' %}?sel=pr-{{ p.code }}"><span class="code">{{ p.code }}</span></a>{% if p.model %} <span class="muted">{{ p.model }}</span>{% endif %}{% if not forloop.last %} · {% endif %}{% empty %}<span class="muted">{% trans "Not used: it can be deleted." %}</span>{% endfor %}</small></p></section>
+  </div>{% endfor %}</div>
+</section>
+{% if can_edit %}
+<dialog id="dlg-layout" class="card" style="max-width:620px;width:94%"><h2>{% trans "Add boot storage" %}</h2>
+  <form method="post" action="{% url 'inv_layout_new' %}" class="stack">{% csrf_token %}
+    {% for f in layout_form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Add boot storage" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>
+{% for l in layouts %}<dialog id="dlg-dl-{{ l.pk }}" class="card" style="max-width:620px;width:94%"><h2>{% trans "Edit" %} <span class="code">{{ l.code }}</span></h2>
+  <form method="post" action="{% url 'inv_layout_edit' l.pk %}" class="stack">{% csrf_token %}
+    {% for f in l.form %}{% include "includes/field.html" %}{% endfor %}
+    <div class="actions"><button class="btn">{% trans "Save" %}</button><button class="btn ghost" type="button" data-close>{% trans "Cancel" %}</button></div></form></dialog>{% endfor %}
+{% endif %}
+{% endblock %}
